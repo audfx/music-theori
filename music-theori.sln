@@ -11,6 +11,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Clients", "Clients", "{3E2C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "theori-net472", "theori-net472\theori-net472.csproj", "{20587BF4-119E-496A-9871-5BB1F649ACF7}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Experimental", "Experimental", "{90CD27D0-DB4F-4D8F-9D5C-BE8E092A08D8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "experimental", "Experimental\experimental\experimental.csproj", "{00CAC396-0FB4-483D-8BD6-9FB022830260}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,12 +46,25 @@ Global
 		{20587BF4-119E-496A-9871-5BB1F649ACF7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{20587BF4-119E-496A-9871-5BB1F649ACF7}.Release|x64.ActiveCfg = Release|Any CPU
 		{20587BF4-119E-496A-9871-5BB1F649ACF7}.Release|x64.Build.0 = Release|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Debug|x64.Build.0 = Debug|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Deploy|Any CPU.ActiveCfg = Debug|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Deploy|Any CPU.Build.0 = Debug|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Deploy|x64.ActiveCfg = Debug|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Deploy|x64.Build.0 = Debug|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Release|x64.ActiveCfg = Release|Any CPU
+		{00CAC396-0FB4-483D-8BD6-9FB022830260}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{20587BF4-119E-496A-9871-5BB1F649ACF7} = {3E2CDC20-BBA9-4396-85FA-6A3ED484EE1C}
+		{00CAC396-0FB4-483D-8BD6-9FB022830260} = {90CD27D0-DB4F-4D8F-9D5C-BE8E092A08D8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {89173305-FBD8-460E-9BFD-3EB1F7A9E020}
