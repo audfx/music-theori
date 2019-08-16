@@ -137,12 +137,6 @@ namespace theori.Audio
             {
                 case PlaybackState.Playing:
                 {
-                    return Source.Read(buffer);
-                }
-
-#if false
-                case PlaybackState.Playing:
-                {
                     m_lastSourcePosition = m_realSampleIndex / (double)(Source.Format.SampleRate * Source.Format.ChannelCount);
 
                     int realSampleCount = (int)(count * m_playbackSpeed);
@@ -171,7 +165,6 @@ namespace theori.Audio
                     m_realSampleIndex += totalSamplesRead;
                     return numSamplesToWrite;
                 }
-#endif
 
                 case PlaybackState.Stopped:
                     for (int i = 0; i < count; i++)
