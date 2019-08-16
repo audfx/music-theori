@@ -109,55 +109,6 @@ namespace theori.Graphics.OpenGL
             GL.TexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, Width, Height, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, pixels);
         }
 
-#if NET472
-        public void Create2DFromBitmap(Bitmap bmp)
-        {
-            if (Locked) throw new Exception("Cannot direcly modify a locked texture.");
-
-            Target = TextureTarget.Texture2D;
-
-            Bind(0);
-            SetParams();
-
-            Width = bmp.Width;
-            Height = bmp.Height;
-            Depth = 0;
-
-            byte[] pixels = new byte[Width * Height * 4];
-            for (int i = 0; i < Width * Height; i++)
-            {
-                int x = i % bmp.Width;
-                int y = i / bmp.Width;
-
-                var p = bmp.GetPixel(x, y);
-
-                pixels[0 + i * 4] = p.R;
-                pixels[1 + i * 4] = p.G;
-                pixels[2 + i * 4] = p.B;
-                pixels[3 + i * 4] = p.A;
-            }
-
-            GL.TexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, Width, Height, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, pixels);
-        }
-
-        public void Load2DFromStream(Stream stream)
-        {
-            using (var bmp = new Bitmap(Image.FromStream(stream)))
-                Create2DFromBitmap(bmp);
-        }
-
-        public void Load2DFromFile(string fileName)
-        {
-            using (var bmp = new Bitmap(Image.FromFile(fileName)))
-                Create2DFromBitmap(bmp);
-        }
-#elif NETSTANDARD
-        // TODO(local): .NET Standard implementation for image loading (if it's good, remove the System.Drawing version for .NET Framework and just use this)
-        // TODO(local): .NET Standard implementation for image loading (if it's good, remove the System.Drawing version for .NET Framework and just use this)
-        // TODO(local): .NET Standard implementation for image loading (if it's good, remove the System.Drawing version for .NET Framework and just use this)
-        // TODO(local): .NET Standard implementation for image loading (if it's good, remove the System.Drawing version for .NET Framework and just use this)
-        // TODO(local): .NET Standard implementation for image loading (if it's good, remove the System.Drawing version for .NET Framework and just use this)
-
         public void Load2DFromStream(Stream stream)
         {
             throw new NotImplementedException();
@@ -167,7 +118,6 @@ namespace theori.Graphics.OpenGL
         {
             throw new NotImplementedException();
         }
-#endif
 
         public void SetData2D(int width, int height, byte[] pixelData)
         {

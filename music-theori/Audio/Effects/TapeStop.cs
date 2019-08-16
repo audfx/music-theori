@@ -1,0 +1,69 @@
+﻿using System;
+
+namespace theori.Audio.Effects
+{
+    // TODO(local): SHOULD THE TAPE STOP USE MIX???
+    // TODO(local): SHOULD THE TAPE STOP USE MIX???
+    // TODO(local): SHOULD THE TAPE STOP USE MIX???
+    // TODO(local): SHOULD THE TAPE STOP USE MIX???
+    // TODO(local): SHOULD THE TAPE STOP USE MIX???
+    public class TapeStop : Dsp
+    {
+        private double duration = 5;
+        private int samplePosition;
+        private float floatSamplePosition;
+        private float[] sampleBuffer = new float[0];
+
+        public double Duration
+        {
+            get { return duration; }
+            set { SetDuration(value); }
+        }
+
+        public TapeStop(int sampleRate)
+            : base(sampleRate)
+        {
+        }
+
+        protected override void ProcessImpl(Span<float> buffer)
+        {
+            if (sampleBuffer.Length == 0) SetDuration(duration);
+
+            int numSamples = buffer.Length / 2;
+            int sampleDuration = sampleBuffer.Length >> 1;
+
+            for(int i = 0; i < numSamples; i++)
+            {
+                float sampleRate = 1.0f - (float)samplePosition / sampleDuration;
+                if(sampleRate <= 0.0f)
+                {
+                    // Mute
+                    buffer[i * 2] = 0.0f;
+                    buffer[i * 2 + 1] = 0.0f;
+                    continue;
+                }
+
+                // Store samples for later
+                sampleBuffer[samplePosition * 2] = buffer[i * 2];
+                sampleBuffer[samplePosition * 2 + 1] = buffer[i * 2];
+
+                // The sample index into the stored buffer
+                int i2 = (int)Math.Floor(floatSamplePosition);
+                buffer[i * 2] = sampleBuffer[i2 * 2];
+                buffer[i * 2 + 1] = sampleBuffer[i2 * 2 + 1];
+
+                // Increase index
+                floatSamplePosition += sampleRate;
+                samplePosition++;
+            }
+        }
+
+        private void SetDuration(double duration)
+        {
+            this.duration = duration;
+
+            int numSamples = (int)(duration * SampleRate) * 2;
+            Array.Resize(ref sampleBuffer, numSamples);
+        }
+    }
+}

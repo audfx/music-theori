@@ -4,6 +4,16 @@ namespace System
 {
     public static class System_Array_Extensions
     {
+        /// <summary>
+        /// This does NOT modify the array or copy it to the new array.
+        /// </summary>
+        public static T[] CheckBuffer<T>(this T[] arr, int arrayCount)
+        {
+            if (arr.Length < arrayCount)
+                return new T[arrayCount];
+            return arr;
+        }
+
         #region Deconstruct
 
         public static void Deconstruct<T>(this T[] array, out T v0, out T v1)

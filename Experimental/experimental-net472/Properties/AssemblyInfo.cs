@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("theori-net472")]
+[assembly: AssemblyTitle("experimental-net472")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("theori-net472")]
+[assembly: AssemblyProduct("experimental-net472")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("20587bf4-119e-496a-9871-5bb1f649acf7")]
+[assembly: Guid("9abe7520-62c0-4035-8c31-f055307f5f91")]
 
 // Version information for an assembly consists of the following four values:
 //
