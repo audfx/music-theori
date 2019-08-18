@@ -16,10 +16,10 @@ namespace theori.Graphics
 
         static Font()
         {
-            Default = new Font("Arial");
+            //Default = new Font("Arial");
 
-            //Default = new Font();
-            //Default.Initialize(ClientResourceLocator.Default.OpenFileStream("fonts/NotoSansCJKjp-Regular.otf"));
+            Default = new Font();
+            Default.Initialize(ClientResourceLocator.Default.OpenFileStream("fonts/osaka.unicode.ttf"));
 
             Default.CreateSize(8.0f);
             Default.CreateSize(12.0f);

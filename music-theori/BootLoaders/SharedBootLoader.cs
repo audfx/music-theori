@@ -13,7 +13,7 @@ namespace theori.BootLoaders
         public override void Render()
         {
             m_renderer.BeginFrame();
-            m_renderer.Write("Shared Boot Loader", 10, 10);
+            m_renderer.Write("Shared Boot Loader, 日本語です", 10, 10);
             m_renderer.EndFrame();
         }
     }

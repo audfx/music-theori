@@ -9,6 +9,13 @@
 
   <PropertyGroup>
     <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>0.1.3</Version>
+    <Authors>Local Atticus</Authors>
+    <Company>AudFX</Company>
+    <Product>music:theori</Product>
+    <PackageProjectUrl />
+    <RepositoryUrl>https://github.com/audfx/music-theori</RepositoryUrl>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Deploy|netstandard2.0|x64'">
@@ -60,7 +67,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Resources\fonts\07YasashisaAntique.otf" />
+    <None Remove="Resources\fonts\Boku2-Bold.otf" />
     <None Remove="Resources\fonts\NotoSansCJKjp-Regular.otf" />
+    <None Remove="Resources\fonts\osaka.unicode.ttf" />
     <None Remove="Resources\materials\basic.fs" />
     <None Remove="Resources\materials\basic.vs" />
     <None Remove="Resources\materials\gui_texture.fs" />
@@ -83,6 +93,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\fonts\NotoSansCJKjp-Regular.otf" />
+    <EmbeddedResource Include="Resources\fonts\osaka.unicode.ttf" />
     <EmbeddedResource Include="Resources\materials\basic.fs" />
     <EmbeddedResource Include="Resources\materials\basic.vs" />
     <EmbeddedResource Include="Resources\materials\gui_texture.fs" />
@@ -93,9 +104,6 @@
 
   <ItemGroup>
     <None Update="SDL2-CS.dll.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="x64\SDL2.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

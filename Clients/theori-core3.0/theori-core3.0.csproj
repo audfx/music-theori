@@ -11,4 +11,10 @@
     <ProjectReference Include="..\..\music-theori\music-theori.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="x64\SDL2.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

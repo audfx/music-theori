@@ -97,7 +97,7 @@ namespace theori.Graphics
             var bounds = TextMeasurer.MeasureBounds(m_text, new RendererOptions(font));
 
             using var img = new Image<Rgba32>(MathL.CeilToInt(bounds.Width), MathL.CeilToInt(bounds.Height));
-            img.Mutate(x => x.DrawText(m_text, font, Rgba32.White, new PointF(0, 0)));
+            img.Mutate(x => x.DrawText(m_text, font, Rgba32.White, new PointF(-bounds.X, -bounds.Y)));
 
             m_texture.Create2DFromImage(img);
 
