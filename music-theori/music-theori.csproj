@@ -60,11 +60,35 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Resources\fonts\NotoSansCJKjp-Regular.otf" />
+    <None Remove="Resources\materials\basic.fs" />
+    <None Remove="Resources\materials\basic.vs" />
+    <None Remove="Resources\materials\gui_texture.fs" />
+    <None Remove="Resources\materials\gui_texture.vs" />
+    <None Remove="Resources\scripts\lib\standard.lua" />
+    <None Remove="Resources\scripts\lib\vectors.lua" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+    <PackageReference Include="MoonSharp" Version="2.0.0" />
     <PackageReference Include="NAudio" Version="1.9.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
     <PackageReference Include="NVorbis" Version="0.8.6" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.111" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.0-beta0006" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta0006" />
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta0008" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\fonts\NotoSansCJKjp-Regular.otf" />
+    <EmbeddedResource Include="Resources\materials\basic.fs" />
+    <EmbeddedResource Include="Resources\materials\basic.vs" />
+    <EmbeddedResource Include="Resources\materials\gui_texture.fs" />
+    <EmbeddedResource Include="Resources\materials\gui_texture.vs" />
+    <EmbeddedResource Include="Resources\scripts\lib\standard.lua" />
+    <EmbeddedResource Include="Resources\scripts\lib\vectors.lua" />
   </ItemGroup>
 
   <ItemGroup>

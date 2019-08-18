@@ -1,9 +1,9 @@
 ﻿using System;
 using System.IO;
-
-#if NET472
-using System.Drawing;
-#endif
+using System.Runtime.InteropServices;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Advanced;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace theori.Graphics.OpenGL
 {
@@ -111,12 +111,56 @@ namespace theori.Graphics.OpenGL
 
         public void Load2DFromStream(Stream stream)
         {
-            throw new NotImplementedException();
+            if (Locked) throw new Exception("Cannot direcly modify a locked texture.");
+
+            using var image = Image.Load(stream);
+
+            unsafe
+            {
+                var pixels = image.GetPixelSpan();
+                fixed (void* bytes = pixels)
+                {
+                    SetData2D(image.Width, image.Height, new Span<byte>(bytes, pixels.Length));
+                }
+            }
         }
 
         public void Load2DFromFile(string fileName)
         {
-            throw new NotImplementedException();
+            if (Locked) throw new Exception("Cannot direcly modify a locked texture.");
+
+            using var image = Image.Load(fileName);
+
+            unsafe
+            {
+                var pixels = image.GetPixelSpan();
+                fixed (void* bytes = pixels)
+                {
+                    SetData2D(image.Width, image.Height, new Span<byte>(bytes, pixels.Length));
+                }
+            }
+        }
+
+        public void SetData2D(int width, int height, Span<byte> pixelData)
+        {
+            if (Locked) throw new Exception("Cannot direcly modify a locked texture.");
+
+            Target = TextureTarget.Texture2D;
+
+            Bind(0);
+            SetParams();
+
+            Width = width;
+            Height = height;
+            Depth = 0;
+
+            unsafe
+            {
+                fixed (void* pin = &MemoryMarshal.GetReference(pixelData))
+                {
+                    GL.TexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, Width, Height, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, new IntPtr(pin));
+                }
+            }
         }
 
         public void SetData2D(int width, int height, byte[] pixelData)
@@ -133,6 +177,20 @@ namespace theori.Graphics.OpenGL
             Depth = 0;
 
             GL.TexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, Width, Height, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, pixelData);
+        }
+
+        internal void Create2DFromImage(Image<Rgba32> image)
+        {
+            if (Locked) throw new Exception("Cannot direcly modify a locked texture.");
+
+            unsafe
+            {
+                var pixels = image.GetPixelSpan();
+                fixed (void* bytes = pixels)
+                {
+                    SetData2D(image.Width, image.Height, new Span<byte>(bytes, pixels.Length));
+                }
+            }
         }
     }
 }
