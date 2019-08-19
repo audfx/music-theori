@@ -481,7 +481,7 @@ namespace theori
                     for (int i = LayerCount - 1; i >= layerStartIndex && runProgramLoop; i--)
                         layers[i].UpdateInternal(Time.Delta, Time.Total);
 
-                    OnUpdatEnd?.Invoke();
+                    OnUpdateEnd?.Invoke();
                 }
 
                 if (!runProgramLoop) break;
