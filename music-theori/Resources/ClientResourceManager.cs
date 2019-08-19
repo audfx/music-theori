@@ -228,7 +228,7 @@ namespace theori.Resources
             return resultMaterial;
         }
 
-        private AudioTrack QueueAudioLoad(string resourcePath)
+        public AudioTrack QueueAudioLoad(string resourcePath)
         {
             if (m_resources.TryGetValue(resourcePath, out var resource))
                 return resource as AudioTrack;
@@ -285,7 +285,7 @@ namespace theori.Resources
             return resource as Material;
         }
 
-        private AudioTrack GetAudio(string resourcePath)
+        public AudioTrack GetAudio(string resourcePath)
         {
             if (!m_resources.TryGetValue(resourcePath, out var resource) || resource.IsDisposed)
                 return null;
