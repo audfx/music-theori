@@ -54,6 +54,15 @@ namespace theori
         private static int LayerCount => layers.Count;
         private static int OverlayCount => overlays.Count;
 
+        public static event Action OnInputBegin;
+        public static event Action OnInputEnd;
+
+        public static event Action<float, float> OnUpdateBegin;
+        public static event Action OnUpdateEnd;
+
+        public static event Action OnRenderBegin;
+        public static event Action OnRenderEnd;
+
         public static event Action OnUserQuit;
 
         /// <summary>
@@ -449,9 +458,13 @@ namespace theori
                     Time.Delta = targetFrameTimeMillis / 1_000.0f;
                     Time.Total = lastFrameStart / 1_000.0f;
 
+                    OnInputBegin?.Invoke();
+
                     Keyboard.Update();
                     Mouse.Update();
                     Window.Update();
+
+                    OnInputEnd?.Invoke();
 
                     if (Window.ShouldExitApplication)
                     {
@@ -459,17 +472,23 @@ namespace theori
                         return;
                     }
 
+                    OnUpdateBegin?.Invoke(Time.Delta, Time.Total);
+
                     // update top down
                     for (int i = OverlayCount - 1; i >= 0 && runProgramLoop; i--)
                         overlays[i].UpdateInternal(Time.Delta, Time.Total);
 
                     for (int i = LayerCount - 1; i >= layerStartIndex && runProgramLoop; i--)
                         layers[i].UpdateInternal(Time.Delta, Time.Total);
+
+                    OnUpdatEnd?.Invoke();
                 }
 
                 if (!runProgramLoop) break;
                 if (updated && Window.Width > 0 && Window.Height > 0)
                 {
+                    OnRenderBegin?.Invoke();
+
                     GL.ClearColor(0, 0, 0, 1);
                     GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
 
@@ -479,6 +498,8 @@ namespace theori
 
                     for (int i = 0; i < OverlayCount; i++)
                         overlays[i].RenderInternal();
+
+                    OnRenderEnd?.Invoke();
 
                     Window.SwapBuffer();
                 }
