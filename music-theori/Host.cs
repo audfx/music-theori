@@ -161,7 +161,7 @@ namespace theori
         public static void RemoveOverlay(Overlay overlay)
         {
             if (overlays.Remove(overlay))
-                layerStackChanges.Add(new LayerStackChange(LayerStackOp.Remove, overlay);
+                layerStackChanges.Add(new LayerStackChange(LayerStackOp.Remove, overlay));
         }
 
         public static void RemoveAllOverlays()
