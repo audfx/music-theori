@@ -21,6 +21,7 @@ namespace theori.Audio.NVorbis
 
         public NAudioToTheori(WaveStream stream)
         {
+            stream = WaveFormatConversionStream.CreatePcmStream(stream);
             m_stream = new WaveChannel32(stream);
 
             CanSeek = stream.CanSeek;

@@ -29,8 +29,9 @@ namespace theori.Core30
         {
             Mixer.Initialize(new AudioFormat(48000, 2));
 
-            var track = AudioTrack.FromFile(@"C:\Users\local_i3pxijx\Music\11BringItOn.mp3");
-            //var track = AudioTrack.FromFile(@"C:\Users\local_i3pxijx\Music\BringItOnEdited.wav");
+            //var track = AudioTrack.FromFile(@"C:\Users\local_i3pxijx\Music\11BringItOn.mp3");
+            var track = AudioTrack.FromFile(@"C:\Users\local_i3pxijx\Music\BringItOnEdited.wav");
+            //var track = AudioTrack.FromFile(@"B:\kshootmania\songs\Sound Voltex\allclear_skydelta\3.wav");
             track.Channel = Mixer.MasterChannel;
 
             track.Play();
