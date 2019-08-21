@@ -496,6 +496,9 @@ namespace theori
                     Time.Delta = targetFrameTimeMillis / 1_000.0f;
                     Time.Total = lastFrameStart / 1_000.0f;
 
+                    if (ProcessLayerStackChanges())
+                        CalcLayerStackStuff();
+
                     OnInputBegin?.Invoke();
 
                     Keyboard.Update();
@@ -520,9 +523,6 @@ namespace theori
                         layers[i].UpdateInternal(Time.Delta, Time.Total);
 
                     OnUpdateEnd?.Invoke();
-
-                    if (ProcessLayerStackChanges())
-                        CalcLayerStackStuff();
                 }
 
                 if (!runProgramLoop) break;
