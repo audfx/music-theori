@@ -98,33 +98,24 @@ namespace theori
         /// This is to make sure that the initialization and destruction process
         ///  is well defined, no initialized or destroyed layers are allowed back in.
         /// </summary>
-        public static void PushLayer(Layer layer, Action<Layer> postInit = null)
+        public static void PushLayer(Layer layer)
         {
             if (layer.lifetimeState != Layer.LayerLifetimeState.Uninitialized)
-            {
                 throw new Exception("Layer has already been in the layer stack. Cannot re-initialize.");
-            }
-
-            layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, layer, layers[LayerCount - 1]));
+            layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, layer, LayerCount == 0 ? null : layers[LayerCount - 1]));
         }
 
         public static void AddLayerAbove(Layer aboveThis, Layer layer)
         {
             if (layer.lifetimeState != Layer.LayerLifetimeState.Uninitialized)
-            {
                 throw new Exception("Layer has already been in the layer stack. Cannot re-initialize.");
-            }
-
             layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, layer, aboveThis));
         }
 
         public static void AddLayerBelow(Layer belowThis, Layer layer)
         {
             if (layer.lifetimeState != Layer.LayerLifetimeState.Uninitialized)
-            {
                 throw new Exception("Layer has already been in the layer stack. Cannot re-initialize.");
-            }
-
             layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddBefore, layer, belowThis));
         }
 
@@ -154,6 +145,8 @@ namespace theori
 
         public static void AddOverlay(Overlay overlay)
         {
+            if (overlay.lifetimeState != Layer.LayerLifetimeState.Uninitialized)
+                throw new Exception("Layer has already been in the layer stack. Cannot re-initialize.");
             if (!overlays.Contains(overlay))
                 layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, overlay, overlays[overlays.Count - 1]));
         }
@@ -299,8 +292,10 @@ namespace theori
             EffectDef.RegisterTypesFromGameMode(gameMode);
         }
 
-        private static void ProcessLayerStackChanges()
+        private static bool ProcessLayerStackChanges()
         {
+            bool processed = layerStackChanges.Count > 0;
+
             foreach (var change in layerStackChanges)
             {
                 bool isOverlay = change.IsOverlayChange;
@@ -313,26 +308,35 @@ namespace theori
                         var layer = change.Layer;
 
                         if (isOverlay)
-                            overlays.Insert(overlays.IndexOf((Overlay)aboveThis) + 1, (Overlay)layer);
+                        {
+                            if (aboveThis == null)
+                                overlays.Add((Overlay)layer);
+                            else overlays.Insert(overlays.IndexOf((Overlay)aboveThis) + 1, (Overlay)layer);
+                        }
                         else
                         {
-                            if (!layers.Contains(aboveThis))
-                                throw new Exception("Cannot add a layer above one which is not in the layer stack.");
-
-                            int index = layers.IndexOf(aboveThis);
-                            layers.Insert(index + 1, layer);
-
-                            if (layer.BlocksParentLayer)
+                            if (aboveThis == null)
+                                layers.Add(layer);
+                            else
                             {
-                                for (int i = index; i >= 0; i--)
-                                {
-                                    var nextLayer = layers[i];
-                                    nextLayer.Suspend();
+                                if (!layers.Contains(aboveThis))
+                                    throw new Exception("Cannot add a layer above one which is not in the layer stack.");
 
-                                    if (nextLayer.BlocksParentLayer)
+                                int index = layers.IndexOf(aboveThis);
+                                layers.Insert(index + 1, layer);
+
+                                if (layer.BlocksParentLayer)
+                                {
+                                    for (int i = index; i >= 0; i--)
                                     {
-                                        // if it blocks the previous layers then this has happened already for higher layers.
-                                        break;
+                                        var nextLayer = layers[i];
+                                        nextLayer.Suspend();
+
+                                        if (nextLayer.BlocksParentLayer)
+                                        {
+                                            // if it blocks the previous layers then this has happened already for higher layers.
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -409,12 +413,6 @@ namespace theori
                             int index = layers.IndexOf(layer);
                             layers.RemoveAt(index);
 
-                            if (LayerCount == 0)
-                            {
-                                runProgramLoop = false;
-                                return;
-                            }
-
                             if (!layer.IsSuspended)
                             {
                                 if (layer.BlocksParentLayer)
@@ -440,6 +438,10 @@ namespace theori
             }
 
             layerStackChanges.Clear();
+            if (LayerCount == 0)
+                runProgramLoop = false;
+
+            return processed;
         }
 
         private static void ProgramLoop()
@@ -448,26 +450,37 @@ namespace theori
             long lastFrameStart = timer.ElapsedMilliseconds;
 
             runProgramLoop = true;
-            while (runProgramLoop && LayerCount > 0 && !Window.ShouldExitApplication)
+            while (runProgramLoop && (LayerCount > 0 || layerStackChanges.Count > 0) && !Window.ShouldExitApplication)
             {
-                int targetFrameRate = 0;
+                if (LayerCount == 0)
+                    ProcessLayerStackChanges();
 
-                int layerStartIndex = LayerCount - 1;
-                for (; layerStartIndex >= 0; layerStartIndex--)
+                int targetFrameRate, layerStartIndex;
+                long targetFrameTimeMillis;
+
+                void CalcLayerStackStuff()
                 {
-                    var layer = layers[layerStartIndex];
-                    targetFrameRate = MathL.Max(targetFrameRate, layer.TargetFrameRate);
+                    targetFrameRate = 0;
+                    layerStartIndex = LayerCount - 1;
 
-                    if (layer.BlocksParentLayer)
-                        break;
+                    for (; layerStartIndex >= 0; layerStartIndex--)
+                    {
+                        var layer = layers[layerStartIndex];
+                        targetFrameRate = MathL.Max(targetFrameRate, layer.TargetFrameRate);
+
+                        if (layer.BlocksParentLayer)
+                            break;
+                    }
+
+                    layerStartIndex = Math.Max(0, layerStartIndex);
+
+                    if (targetFrameRate == 0)
+                        targetFrameRate = 60; // TODO(local): configurable target frame rate plz
+
+                    targetFrameTimeMillis = 1_000 / targetFrameRate;
                 }
 
-                layerStartIndex = Math.Max(0, layerStartIndex);
-
-                if (targetFrameRate == 0)
-                    targetFrameRate = 60; // TODO(local): configurable target frame rate plz
-
-                long targetFrameTimeMillis = 1_000 / targetFrameRate;
+                CalcLayerStackStuff();
 
                 long currentTime = timer.ElapsedMilliseconds;
                 long elapsedTime = currentTime - lastFrameStart;
@@ -482,8 +495,6 @@ namespace theori
 
                     Time.Delta = targetFrameTimeMillis / 1_000.0f;
                     Time.Total = lastFrameStart / 1_000.0f;
-
-                    ProcessLayerStackChanges();
 
                     OnInputBegin?.Invoke();
 
@@ -509,6 +520,9 @@ namespace theori
                         layers[i].UpdateInternal(Time.Delta, Time.Total);
 
                     OnUpdateEnd?.Invoke();
+
+                    if (ProcessLayerStackChanges())
+                        CalcLayerStackStuff();
                 }
 
                 if (!runProgramLoop) break;
