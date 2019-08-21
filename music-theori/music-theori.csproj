@@ -10,7 +10,7 @@
   <PropertyGroup>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>0.1.5</Version>
+    <Version>0.1.6</Version>
     <Authors>Local Atticus</Authors>
     <Company>AudFX</Company>
     <Product>music:theori</Product>

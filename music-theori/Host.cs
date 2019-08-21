@@ -428,7 +428,7 @@ namespace theori
                                     }
 
                                     // resume layers bottom to top
-                                    for (int i = startIndex; i < LayerCount; i++)
+                                    for (int i = MathL.Max(0, startIndex); i < LayerCount; i++)
                                         layers[i].Resume();
                                 }
                             }
