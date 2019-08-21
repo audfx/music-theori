@@ -1,6 +1,10 @@
 ﻿using System;
 using System.IO;
 
+using NAudio.Wave;
+
+using theori.Audio.NVorbis;
+
 namespace theori.Audio
 {
     public enum PlaybackState
@@ -22,8 +26,9 @@ namespace theori.Audio
         {
             var source = ext switch
             {
-                //case ".wav": source = new WaveFileReader(stream); break;
-                ".ogg" => new NVorbis.NVorbisSource(stream),
+                ".mp3" => (ISampleSource)new NAudioToTheori(new Mp3FileReader(stream)),
+                ".wav" => (ISampleSource)new NAudioToTheori(new WaveFileReader(stream)),
+                ".ogg" => (ISampleSource)new NVorbisSource(stream),
                 _ => throw new NotImplementedException(),
             };
             var sampleSource = new ResamplingSampleSource(source, Mixer.Format);

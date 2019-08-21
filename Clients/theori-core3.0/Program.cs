@@ -12,6 +12,11 @@ namespace theori.Core30
         [STAThread]
         static void Main(string[] args)
         {
+            TestAudio();
+        }
+
+        static void TestLoading(string[] args)
+        {
             Host.Platform = new WindowsPlatform();
 
             Host.Platform.LoadLibrary("x64/SDL2.dll");
@@ -24,7 +29,8 @@ namespace theori.Core30
         {
             Mixer.Initialize(new AudioFormat(48000, 2));
 
-            var track = AudioTrack.FromFile(@"B:\kshootmania\songs\Sound Voltex\allclear_skydelta\track.ogg");
+            var track = AudioTrack.FromFile(@"C:\Users\local_i3pxijx\Music\11BringItOn.mp3");
+            //var track = AudioTrack.FromFile(@"C:\Users\local_i3pxijx\Music\BringItOnEdited.wav");
             track.Channel = Mixer.MasterChannel;
 
             track.Play();

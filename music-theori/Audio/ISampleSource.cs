@@ -1,7 +1,5 @@
 ﻿using System;
 
-using NAudio.Wave;
-
 namespace theori.Audio
 {
     public interface ISampleSource : IDisposable
