@@ -24,6 +24,30 @@ namespace theori
 {
     public static class Host
     {
+        enum LayerStackOp
+        {
+            AddBefore,
+            AddAfter,
+            Remove,
+        }
+
+        class LayerStackChange
+        {
+            public LayerStackOp Operation;
+
+            public Layer Layer;
+            public Layer? RelativeTo;
+
+            public bool IsOverlayChange => Layer is Overlay;
+
+            public LayerStackChange(LayerStackOp op, Layer toAdd, Layer? relativeTo = null)
+            {
+                Operation = op;
+                Layer = toAdd;
+                RelativeTo = relativeTo;
+            }
+        }
+
         private static IPlatform platform;
         public static IPlatform Platform
         {
@@ -44,6 +68,8 @@ namespace theori
         internal static ProgramPipeline Pipeline { get; private set; }
 
         private static bool runProgramLoop = false;
+
+        private static readonly List<LayerStackChange> layerStackChanges = new List<LayerStackChange>();
 
         private static readonly List<Layer> layers = new List<Layer>();
         private static readonly List<Overlay> overlays = new List<Overlay>();
@@ -79,27 +105,7 @@ namespace theori
                 throw new Exception("Layer has already been in the layer stack. Cannot re-initialize.");
             }
 
-            layers.Add(layer);
-
-            if (layer.BlocksParentLayer)
-            {
-                for (int i = LayerCount - 2; i >= 0; i--)
-                {
-                    var nextLayer = layers[i];
-                    nextLayer.Suspend();
-
-                    if (nextLayer.BlocksParentLayer)
-                    {
-                        // if it blocks the previous layers then this has happened already for higher layers.
-                        break;
-                    }
-                }
-            }
-
-            layer.Init();
-            layer.lifetimeState = Layer.LayerLifetimeState.Alive;
-
-            postInit?.Invoke(layer);
+            layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, layer, layers[LayerCount - 1]));
         }
 
         public static void AddLayerAbove(Layer aboveThis, Layer layer)
@@ -109,31 +115,7 @@ namespace theori
                 throw new Exception("Layer has already been in the layer stack. Cannot re-initialize.");
             }
 
-            if (!layers.Contains(aboveThis))
-            {
-                throw new Exception("Cannot add a layer above one which is not in the layer stack.");
-            }
-
-            int index = layers.IndexOf(aboveThis);
-            layers.Insert(index + 1, layer);
-
-            if (layer.BlocksParentLayer)
-            {
-                for (int i = index; i >= 0; i--)
-                {
-                    var nextLayer = layers[i];
-                    nextLayer.Suspend();
-
-                    if (nextLayer.BlocksParentLayer)
-                    {
-                        // if it blocks the previous layers then this has happened already for higher layers.
-                        break;
-                    }
-                }
-            }
-
-            layer.Init();
-            layer.lifetimeState = Layer.LayerLifetimeState.Alive;
+            layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, layer, aboveThis));
         }
 
         public static void AddLayerBelow(Layer belowThis, Layer layer)
@@ -143,46 +125,7 @@ namespace theori
                 throw new Exception("Layer has already been in the layer stack. Cannot re-initialize.");
             }
 
-            if (!layers.Contains(belowThis))
-            {
-                throw new Exception("Cannot add a layer above one which is not in the layer stack.");
-            }
-
-            int index = layers.IndexOf(belowThis);
-            layers.Insert(index, layer);
-
-            if (layer.BlocksParentLayer)
-            {
-                for (int i = index - 1; i >= 0; i--)
-                {
-                    var nextLayer = layers[i];
-                    nextLayer.Suspend();
-
-                    if (nextLayer.BlocksParentLayer)
-                    {
-                        // if it blocks the previous layers then this has happened already for higher layers.
-                        break;
-                    }
-                }
-            }
-
-            if (belowThis.BlocksParentLayer)
-            {
-                for (int i = index; i >= 0; i--)
-                {
-                    var nextLayer = layers[i];
-                    nextLayer.Suspend();
-
-                    if (nextLayer.BlocksParentLayer)
-                    {
-                        // if it blocks the previous layers then this has happened already for higher layers.
-                        break;
-                    }
-                }
-            }
-
-            layer.Init();
-            layer.lifetimeState = Layer.LayerLifetimeState.Alive;
+            layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddBefore, layer, belowThis));
         }
 
         /// <summary>
@@ -190,69 +133,12 @@ namespace theori
         /// </summary>
         private static void PopLayer()
         {
-            var layer = layers[LayerCount - 1];
-            layers.RemoveAt(LayerCount - 1);
-
-            layer.DestroyInternal();
-            layer.lifetimeState = Layer.LayerLifetimeState.Destroyed;
-
-            if (LayerCount == 0)
-            {
-                runProgramLoop = false;
-                return;
-            }
-
-            if (layer.BlocksParentLayer)
-            {
-                int startIndex = LayerCount - 1;
-                for (; startIndex >= 0; startIndex--)
-                {
-                    if (layers[startIndex].BlocksParentLayer)
-                    {
-                        // if it blocks the previous layers then this will happen later for higher layers.
-                        break;
-                    }
-                }
-
-                // resume layers bottom to top
-                for (int i = startIndex; i < LayerCount; i++)
-                    layers[i].Resume();
-            }
+            layerStackChanges.Add(new LayerStackChange(LayerStackOp.Remove, layers[LayerCount - 1]));
         }
 
         public static void RemoveLayer(Layer layer)
         {
-            int index = layers.IndexOf(layer);
-            layers.RemoveAt(index);
-
-            layer.DestroyInternal();
-            layer.lifetimeState = Layer.LayerLifetimeState.Destroyed;
-
-            if (LayerCount == 0)
-            {
-                runProgramLoop = false;
-                return;
-            }
-
-            if (!layer.IsSuspended)
-            {
-                if (layer.BlocksParentLayer)
-                {
-                    int startIndex = index - 1;
-                    for (; startIndex >= 0; startIndex--)
-                    {
-                        if (layers[startIndex].BlocksParentLayer)
-                        {
-                            // if it blocks the previous layers then this will happen later for higher layers.
-                            break;
-                        }
-                    }
-
-                    // resume layers bottom to top
-                    for (int i = startIndex; i < LayerCount; i++)
-                        layers[i].Resume();
-                }
-            }
+            layerStackChanges.Add(new LayerStackChange(LayerStackOp.Remove, layer));
         }
 
         public static void PopToParent(Layer firstChild)
@@ -269,23 +155,19 @@ namespace theori
         public static void AddOverlay(Overlay overlay)
         {
             if (!overlays.Contains(overlay))
-            {
-                overlays.Add(overlay);
-                overlay.Init();
-            }
+                layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, overlay, overlays[overlays.Count - 1]));
         }
 
         public static void RemoveOverlay(Overlay overlay)
         {
             if (overlays.Remove(overlay))
-                overlay.DestroyInternal();
+                layerStackChanges.Add(new LayerStackChange(LayerStackOp.Remove, overlay);
         }
 
         public static void RemoveAllOverlays()
         {
             foreach (var overlay in overlays)
-                overlay.DestroyInternal();
-            overlays.Clear();
+                RemoveOverlay(overlay);
         }
 
         private static void OnClientSizeChanged(int w, int h)
@@ -417,6 +299,149 @@ namespace theori
             EffectDef.RegisterTypesFromGameMode(gameMode);
         }
 
+        private static void ProcessLayerStackChanges()
+        {
+            foreach (var change in layerStackChanges)
+            {
+                bool isOverlay = change.IsOverlayChange;
+
+                switch (change.Operation)
+                {
+                    case LayerStackOp.AddAfter:
+                    {
+                        var aboveThis = change.RelativeTo!;
+                        var layer = change.Layer;
+
+                        if (isOverlay)
+                            overlays.Insert(overlays.IndexOf((Overlay)aboveThis) + 1, (Overlay)layer);
+                        else
+                        {
+                            if (!layers.Contains(aboveThis))
+                                throw new Exception("Cannot add a layer above one which is not in the layer stack.");
+
+                            int index = layers.IndexOf(aboveThis);
+                            layers.Insert(index + 1, layer);
+
+                            if (layer.BlocksParentLayer)
+                            {
+                                for (int i = index; i >= 0; i--)
+                                {
+                                    var nextLayer = layers[i];
+                                    nextLayer.Suspend();
+
+                                    if (nextLayer.BlocksParentLayer)
+                                    {
+                                        // if it blocks the previous layers then this has happened already for higher layers.
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        layer.Init();
+                        layer.lifetimeState = Layer.LayerLifetimeState.Alive;
+                    } break;
+
+                    case LayerStackOp.AddBefore:
+                    {
+                        var belowThis = change.RelativeTo!;
+                        var layer = change.Layer;
+
+                        if (isOverlay)
+                            overlays.Insert(overlays.IndexOf((Overlay)belowThis), (Overlay)layer);
+                        else
+                        {
+                            if (!layers.Contains(belowThis))
+                                throw new Exception("Cannot add a layer above one which is not in the layer stack.");
+
+                            int index = layers.IndexOf(belowThis);
+                            layers.Insert(index, layer);
+
+                            if (layer.BlocksParentLayer)
+                            {
+                                for (int i = index - 1; i >= 0; i--)
+                                {
+                                    var nextLayer = layers[i];
+                                    nextLayer.Suspend();
+
+                                    if (nextLayer.BlocksParentLayer)
+                                    {
+                                        // if it blocks the previous layers then this has happened already for higher layers.
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (belowThis.BlocksParentLayer)
+                            {
+                                for (int i = index; i >= 0; i--)
+                                {
+                                    var nextLayer = layers[i];
+                                    nextLayer.Suspend();
+
+                                    if (nextLayer.BlocksParentLayer)
+                                    {
+                                        // if it blocks the previous layers then this has happened already for higher layers.
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        layer.Init();
+                        layer.lifetimeState = Layer.LayerLifetimeState.Alive;
+                    } break;
+
+                    case LayerStackOp.Remove:
+                    {
+                        var layer = change.Layer;
+
+                        if (layer.lifetimeState != Layer.LayerLifetimeState.Alive)
+                            throw new ArgumentException("Layer to remove was not alive.");
+
+                        layer.DestroyInternal();
+                        layer.lifetimeState = Layer.LayerLifetimeState.Destroyed;
+
+                        if (isOverlay)
+                            overlays.Remove((Overlay)layer);
+                        else
+                        {
+                            int index = layers.IndexOf(layer);
+                            layers.RemoveAt(index);
+
+                            if (LayerCount == 0)
+                            {
+                                runProgramLoop = false;
+                                return;
+                            }
+
+                            if (!layer.IsSuspended)
+                            {
+                                if (layer.BlocksParentLayer)
+                                {
+                                    int startIndex = index - 1;
+                                    for (; startIndex >= 0; startIndex--)
+                                    {
+                                        if (layers[startIndex].BlocksParentLayer)
+                                        {
+                                            // if it blocks the previous layers then this will happen later for higher layers.
+                                            break;
+                                        }
+                                    }
+
+                                    // resume layers bottom to top
+                                    for (int i = startIndex; i < LayerCount; i++)
+                                        layers[i].Resume();
+                                }
+                            }
+                        }
+                    } break;
+                }
+            }
+
+            layerStackChanges.Clear();
+        }
+
         private static void ProgramLoop()
         {
             var timer = Stopwatch.StartNew();
@@ -457,6 +482,8 @@ namespace theori
 
                     Time.Delta = targetFrameTimeMillis / 1_000.0f;
                     Time.Total = lastFrameStart / 1_000.0f;
+
+                    ProcessLayerStackChanges();
 
                     OnInputBegin?.Invoke();
 
