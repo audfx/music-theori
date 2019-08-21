@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
 
 using MoonSharp.Interpreter;
@@ -15,6 +16,63 @@ namespace theori.Graphics
     [MoonSharpUserData]
     public sealed class BasicSpriteRenderer : Disposable
     {
+        class TextRasterizerBatch : Disposable
+        {
+            private readonly List<TextRasterizer> m_inUse = new List<TextRasterizer>();
+            private readonly List<TextRasterizer> m_available = new List<TextRasterizer>();
+
+            public TextRasterizer Aquire((Font Font, float Size, string Text)? match = null)
+            {
+                TextRasterizer? result = null;
+                if (match != null)
+                {
+                    for (int i = 0; i < m_available.Count; i++)
+                    {
+                        var tr = m_available[i];
+                        if (tr.Font == match?.Font! && tr.Size == match?.Size! && tr.Text == match?.Text!)
+                            result = tr;
+                    }
+                }
+
+                if (result == null)
+                {
+                    if (m_available.Count > 0)
+                    {
+                        result = m_available[m_available.Count - 1];
+                        m_available.RemoveAt(m_available.Count - 1);
+                    }
+                    else result = new TextRasterizer();
+                }
+
+                m_inUse.Add(result!);
+                return result;
+            }
+
+            public void Release(TextRasterizer rasterizer)
+            {
+                Debug.Assert(m_inUse.Contains(rasterizer));
+                m_inUse.Remove(rasterizer);
+                m_available.Add(rasterizer);
+            }
+
+            public void ReleaseAll()
+            {
+                m_available.AddRange(m_inUse);
+                m_inUse.Clear();
+            }
+
+            protected override void DisposeManaged()
+            {
+                foreach (var tr in m_inUse)
+                    tr.Dispose();
+                foreach (var tr in m_available)
+                    tr.Dispose();
+
+                m_inUse.Clear();
+                m_available.Clear();
+            }
+        }
+
         private Vector2? m_viewport;
 
         private Mesh m_rectMesh = Host.StaticResources.Manage(Mesh.CreatePlane(Vector3.UnitX, Vector3.UnitY, 1, 1, Anchor.TopLeft));
@@ -32,7 +90,7 @@ namespace theori.Graphics
         private Font m_font = Font.Default;
         private float m_fontSize = 16.0f;
 
-        private readonly List<TextRasterizer> m_rasterizers = new List<TextRasterizer>();
+        private readonly TextRasterizerBatch m_trBatch = new TextRasterizerBatch();
         private readonly Dictionary<Font, TextRasterizer> m_labels = new Dictionary<Font, TextRasterizer>();
 
         [MoonSharpHidden]
@@ -49,6 +107,8 @@ namespace theori.Graphics
 
             m_queue?.Dispose();
             m_queue = null;
+
+            m_trBatch.Dispose();
 
             m_rectMesh.Dispose();
             m_resources.Dispose();
@@ -81,14 +141,12 @@ namespace theori.Graphics
         {
             Flush();
 
-            foreach (var r in m_rasterizers)
-                r.Dispose();
-            m_rasterizers.Clear();
-
             m_queue!.Dispose();
             m_queue = null;
 
             m_savedTransforms.Clear();
+
+            m_trBatch.ReleaseAll();
         }
 
         public void SaveTransform()
@@ -195,10 +253,12 @@ namespace theori.Graphics
 
         public void Write(string text, float x, float y)
         {
-            var rasterizer = new TextRasterizer(m_font, m_fontSize, text);
-            rasterizer.Rasterize();
+            var rasterizer = m_trBatch.Aquire((m_font, m_fontSize, text));
+            rasterizer.Font = m_font;
+            rasterizer.Size = m_fontSize;
+            rasterizer.Text = text;
 
-            m_rasterizers.Add(rasterizer);
+            rasterizer.Rasterize();
 
             Vector2 offset = Vector2.Zero, size = new Vector2(rasterizer.Width, rasterizer.Height);
             switch ((Anchor)((int)m_textAlign & 0x0F))

@@ -71,6 +71,11 @@ namespace theori.Graphics
         public int Width => m_texture.Width;
         public int Height => m_texture.Height;
 
+        public TextRasterizer()
+            : this(Font.Default)
+        {
+        }
+
         public TextRasterizer(Font font, float size = 16.0f, string text = "")
         {
             m_font = font;
