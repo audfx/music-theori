@@ -29,6 +29,7 @@ namespace theori.Charting.Serialization
 
             // TODO(local): We don't need to be creating chart factories like this aaa but it's a start
             Chart chart = m_gameMode.CreateChartFactory().CreateNew();
+            chart.Offset = chartInfo.ChartOffset;
             chart.Info = chartInfo;
 
             var jobj = JObject.Load(new JsonTextReader(new StreamReader(File.OpenRead(chartFile))));

@@ -55,7 +55,7 @@ namespace theori.Configuration
             string line;
             while ((line = reader.ReadLine()) != null)
             {
-                if (line.Split('=', out string keyName, out string value))
+                if (line.TrySplit('=', out string keyName, out string value))
                 {
                     keyName.Trim();
                     value.Trim();
