@@ -13,8 +13,8 @@ namespace theori.Charting.Playback
         public readonly string Name;
         public time_t Position { get; internal set; }
 
-        public Action<Entity> HeadCross;
-        public Action<Entity> TailCross;
+        public Action<Entity>? HeadCross;
+        public Action<Entity>? TailCross;
 
         internal Dictionary<LaneLabel, List<Entity>> m_objectsAhead;
         internal Dictionary<LaneLabel, List<Entity>> m_objectsBehind;
@@ -70,6 +70,8 @@ namespace theori.Charting.Playback
         private Dictionary<LaneLabel, List<Entity>> m_objsAhead, m_objsBehind;
         private Dictionary<LaneLabel, List<Entity>> m_objsPrimary, m_objsSecondary;
 
+        private readonly bool m_allowSpeedMult;
+
         #region Granular Events
         
         public event Action<PlayDirection, Entity> ObjectHeadCrossPrimary;
@@ -83,8 +85,9 @@ namespace theori.Charting.Playback
 
         #endregion
 
-        public SlidingChartPlayback(Chart chart)
+        public SlidingChartPlayback(Chart chart, bool allowSpeedMult = true)
         {
+            m_allowSpeedMult = allowSpeedMult;
             SetChart(chart);
         }
 
@@ -142,6 +145,72 @@ namespace theori.Charting.Playback
             m_objsBehind = CreateObjs();
         }
 
+        public float GetRelativeDistanceFromTime(time_t pos)
+        {
+            return 0;
+        }
+
+        private time_t GetRealDuration(time_t from, time_t duration)
+        {
+            if (m_allowSpeedMult)
+            {
+                if (duration > 0)
+                {
+                    time_t newDuration = 0.0, timeLeft = duration;
+                    var cp = Chart.ControlPoints.MostRecent(from);
+
+                    while (true)
+                    {
+                        double mult = cp.SpeedMultiplier;
+                        time_t effectiveTimeLeft = timeLeft / mult;
+
+                        if (cp.HasNext)
+                        {
+                            time_t cpDurationFromHere = cp.Next.AbsolutePosition - (from + newDuration);
+                            if (cpDurationFromHere >= effectiveTimeLeft)
+                                return newDuration + effectiveTimeLeft;
+                            else
+                            {
+                                newDuration += cpDurationFromHere;
+                                timeLeft = (effectiveTimeLeft - cpDurationFromHere) * mult;
+
+                                cp = cp.Next;
+                            }
+                        }
+                        else return newDuration + effectiveTimeLeft;
+                    }
+                }
+                else
+                {
+                    time_t newDuration = 0.0, timeLeft = duration;
+                    var cp = Chart.ControlPoints.MostRecent(from);
+
+                    while (true)
+                    {
+                        double mult = cp.SpeedMultiplier;
+                        time_t effectiveTimeLeft = timeLeft / mult;
+
+                        if (cp.HasPrevious)
+                        {
+                            time_t cpDurationFromHere = (from - newDuration) - cp.AbsolutePosition;
+                            if (cpDurationFromHere >= effectiveTimeLeft)
+                                return newDuration + effectiveTimeLeft;
+                            else
+                            {
+                                newDuration += cpDurationFromHere;
+                                timeLeft = (effectiveTimeLeft - cpDurationFromHere) * mult;
+
+                                cp = cp.Previous;
+                            }
+                        }
+                        else return newDuration + effectiveTimeLeft;
+                    }
+                }
+            }
+
+            return MathL.Abs((double)duration);
+        }
+
         private void SetNextPosition(time_t nextPos)
         {
             if (nextPos == m_position) return;
@@ -151,11 +220,51 @@ namespace theori.Charting.Playback
 
             System.Diagnostics.Debug.Assert(isForward);
 
+            time_t lookAhead = GetRealDuration(nextPos, LookAhead);
+            time_t lookBehind = GetRealDuration(nextPos, -(double)LookBehind);
+
+            if (m_allowSpeedMult)
+            {
+                time_t newLookAhead = 0.0;
+
+                time_t timeLeft = lookAhead;
+                var cp = Chart.ControlPoints.MostRecent(nextPos);
+
+                while (true)
+                {
+                    double mult = cp.SpeedMultiplier;
+                    time_t effectiveTimeLeft = timeLeft / mult;
+
+                    if (cp.HasNext)
+                    {
+                        time_t cpDurationFromHere = cp.Next.AbsolutePosition - (nextPos + newLookAhead);
+
+                        if (cpDurationFromHere >= effectiveTimeLeft)
+                        {
+                            newLookAhead += effectiveTimeLeft;
+                            timeLeft = 0.0; // bc why not
+                            break;
+                        }
+                        else
+                        {
+                            newLookAhead += cpDurationFromHere;
+                            timeLeft = (effectiveTimeLeft - cpDurationFromHere) * mult;
+                        }
+                    }
+                    else
+                    {
+                        newLookAhead += effectiveTimeLeft;
+                        timeLeft = 0.0; // bc why not
+                        break;
+                    }
+                }
+            }
+
             if (isForward)
             {
-                CheckEdgeForward(nextPos + LookAhead, m_objsAhead, m_objsPrimary, OnHeadCrossPrimary, OnTailCrossPrimary);
+                CheckEdgeForward(nextPos + lookAhead, m_objsAhead, m_objsPrimary, OnHeadCrossPrimary, OnTailCrossPrimary);
                 CheckEdgeForward(nextPos, m_objsPrimary, m_objsSecondary, OnHeadCrossCritical, OnTailCrossCritical);
-                CheckEdgeForward(nextPos - LookBehind, m_objsSecondary, m_objsBehind, OnHeadCrossSecondary, OnTailCrossSecondary);
+                CheckEdgeForward(nextPos - lookBehind, m_objsSecondary, m_objsBehind, OnHeadCrossSecondary, OnTailCrossSecondary);
 
 #if false
                 foreach (var window in m_customWindows)
@@ -167,9 +276,9 @@ namespace theori.Charting.Playback
             }
             else
             {
-                CheckEdgeBackward(nextPos - LookBehind, m_objsBehind, m_objsSecondary, OnHeadCrossSecondary, OnTailCrossSecondary);
+                CheckEdgeBackward(nextPos - lookBehind, m_objsBehind, m_objsSecondary, OnHeadCrossSecondary, OnTailCrossSecondary);
                 CheckEdgeBackward(nextPos, m_objsSecondary, m_objsPrimary, OnHeadCrossCritical, OnTailCrossCritical);
-                CheckEdgeBackward(nextPos + LookAhead, m_objsPrimary, m_objsAhead, OnHeadCrossPrimary, OnTailCrossPrimary);
+                CheckEdgeBackward(nextPos + lookAhead, m_objsPrimary, m_objsAhead, OnHeadCrossPrimary, OnTailCrossPrimary);
             }
         }
 

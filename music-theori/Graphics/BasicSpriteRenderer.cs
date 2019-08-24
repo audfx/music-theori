@@ -73,7 +73,7 @@ namespace theori.Graphics
             {
                 ProjectionMatrix = (Transform)Matrix4x4.CreateOrthographicOffCenter(0, viewportSize.X, viewportSize.Y, 0, -10, 10),
                 CameraMatrix = Transform.Identity,
-                ViewportSize = ((int)viewportSize.X, (int)viewportSize.Y),
+                Viewport = (0, 0, (int)viewportSize.X, (int)viewportSize.Y),
             });
         }
 

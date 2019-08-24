@@ -24,12 +24,14 @@ namespace theori.Graphics
 		    var initializedShaders = new HashSet<Material>();
 		    Material currentMaterial = null;
 		    Mesh currentMesh = null;
-            
+
             // TODO(local): For the time being, the only things using this
             //  are rendered in a pre-determined order and REQUIRE there to be no depth testing.
             // In future, this should be configurable!
             //GL.Enable(GL.GL_DEPTH_TEST);
             //GL.DepthFunc(DepthFunction.LessThanOrEqual);
+
+            GL.Viewport(m_state.Viewport.X, -m_state.Viewport.Y, m_state.Viewport.Width, m_state.Viewport.Height);
 
             foreach (var item in m_orderedCommands)
             {
@@ -105,7 +107,7 @@ namespace theori.Graphics
                             scissorEnabled = true;
                         }
 
-                        float scissorY = m_state.ViewportSize.Y - sdc.Scissor.Bottom;
+                        float scissorY = m_state.Viewport.Height - sdc.Scissor.Bottom;
                         GL.Scissor((int)sdc.Scissor.Left, (int)scissorY,
                                    (int)sdc.Scissor.Width, (int)sdc.Scissor.Height);
                     }
