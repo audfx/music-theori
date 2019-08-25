@@ -76,7 +76,9 @@ namespace theori.Graphics
             if (Host.GameConfig.GetBool(Configuration.GameConfigKey.Maximized))
                 windowFlags |= SDL_WindowFlags.SDL_WINDOW_MAXIMIZED;
 
-            window = SDL_CreateWindow("theori", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = 1280, Height = 720, windowFlags);
+            int width = Host.GameConfig.GetInt(Configuration.GameConfigKey.ScreenWidth);
+            int height = Host.GameConfig.GetInt(Configuration.GameConfigKey.ScreenHeight);
+            window = SDL_CreateWindow("theori", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
 
             SDL_DisableScreenSaver();
 
