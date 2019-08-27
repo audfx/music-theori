@@ -148,7 +148,7 @@ namespace theori
             if (overlay.lifetimeState != Layer.LayerLifetimeState.Uninitialized)
                 throw new Exception("Layer has already been in the layer stack. Cannot re-initialize.");
             if (!overlays.Contains(overlay))
-                layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, overlay, overlays[overlays.Count - 1]));
+                layerStackChanges.Add(new LayerStackChange(LayerStackOp.AddAfter, overlay, overlays.Count == 0 ? null : overlays[overlays.Count - 1]));
         }
 
         public static void RemoveOverlay(Overlay overlay)
