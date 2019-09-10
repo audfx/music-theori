@@ -215,23 +215,22 @@ namespace theori.Graphics
                     case SDL_EventType.SDL_JOYDEVICEADDED:
                     {
                         Logger.Log($"Joystick Added: Device [{ evt.jdevice.which }] \"{ SDL_JoystickNameForIndex(evt.jdevice.which) }\"", LogPriority.Verbose);
+                        var gamepad = Gamepad.Create(evt.jdevice.which);
 
-                        Gamepad.HandleAddedEvent(evt.jdevice.which);
-                        var gamepad = NewGamepad.Create(evt.jdevice.which);
-
-                        if (true)
+                        bool gatherGamepadInfo = true;
+                        if (gatherGamepadInfo)
                         {
                             gamepad.Open();
+                            gamepad.Close();
                         }
                     } break;
                     case SDL_EventType.SDL_JOYDEVICEREMOVED:
                         Logger.Log($"Joystick Removed: Instance [{ evt.jdevice.which }]", LogPriority.Verbose);
-                        Gamepad.HandleRemovedEvent(evt.jdevice.which);
+                        Gamepad.Remove(evt.jdevice.which);
                         break;
 
                     case SDL_EventType.SDL_JOYAXISMOTION:
                     {
-                        //Logger.Log($"Joystick[{ evt.jaxis.which }].Axis{ evt.jaxis.axis } = { evt.jaxis.axisValue }");
                         Gamepad.HandleAxisEvent(evt.jaxis.which, evt.jaxis.axis, evt.jaxis.axisValue);
                     } break;
                     case SDL_EventType.SDL_JOYBALLMOTION:

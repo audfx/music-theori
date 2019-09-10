@@ -66,7 +66,10 @@ namespace theori
         {
             if (m_layers.Count == 0) return;
 
-            m_layers.Peek().ResumeInternal(source!);
+            var toResume = m_layers.Peek();
+            if (!toResume.validForResume)
+                PopFrom(source);
+            else m_layers.Peek().ResumeInternal(source!);
         }
 
         private void Schedule(Action action) => m_scheduled.Enqueue(action);
