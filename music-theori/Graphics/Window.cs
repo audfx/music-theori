@@ -119,6 +119,8 @@ namespace theori.Graphics
 
                 SwapBuffer();
             }
+
+            Window.Update();
         }
 
         internal static void Show()
