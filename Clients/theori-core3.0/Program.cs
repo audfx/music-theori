@@ -61,9 +61,12 @@ namespace theori.Core30
         static void Main(string[] args)
         {
             Logger.AddLogger(new ConsoleLoggerImpl());
-            Logger.AddLogger(new FileLoggerImpl("nsc-log.txt"));
+            Logger.AddLogger(new FileLoggerImpl("theori-log.txt"));
 
-            new WindowsPlatform().LoadLibrary("x64/SDL2.dll");
+            if (RuntimeInfo.IsWindows)
+            {
+                new WindowsPlatform().LoadLibrary("x64/SDL2.dll");
+            }
 
             using var host = Host.GetSuitableHost();
             host.Initialize();
