@@ -73,6 +73,8 @@ namespace theori.Platform
 
             Mixer.Initialize(new AudioFormat(48000, 2));
 
+            InitScriptingSystem();
+
             Logger.Log($"Window VSync: { Window.VSync }");
         }
 
@@ -253,6 +255,8 @@ namespace theori.Platform
 
         private void DoExit()
         {
+            Exited?.Invoke();
+
             Logger.Flush();
 
             Window.Destroy();
@@ -265,6 +269,7 @@ namespace theori.Platform
             // TODO(local): Allow the client to deny an exit request somewhere
             Exit();
         }
+
         protected virtual void OnExited() => Exited?.Invoke();
 
         protected internal virtual void PerformExit(bool immediately)
