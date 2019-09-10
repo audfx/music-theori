@@ -1,0 +1,115 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.1;netcoreapp3.0</TargetFrameworks>
+    <RootNamespace>theori</RootNamespace>
+    <Configurations>Debug;Release;Deploy</Configurations>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>0.1.8</Version>
+    <Authors>Local Atticus</Authors>
+    <Company>AudFX</Company>
+    <Product>music:theori</Product>
+    <PackageProjectUrl />
+    <RepositoryUrl>https://github.com/audfx/music-theori</RepositoryUrl>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Deploy|netstandard2.0|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard2.0|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Deploy|netcoreapp3.0|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netcoreapp3.0|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netcoreapp3.0|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.1|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Deploy|netstandard2.1|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard2.1|x64'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp3.0'">
+    <PackageReference Include="System.Numerics.Vectors">
+      <Version>4.5.0</Version>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Numerics.Vectors">
+      <Version>4.5.0</Version>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Resources\fonts\07YasashisaAntique.otf" />
+    <None Remove="Resources\fonts\Boku2-Bold.otf" />
+    <None Remove="Resources\fonts\NotoSansCJKjp-Regular.otf" />
+    <None Remove="Resources\fonts\osaka.unicode.ttf" />
+    <None Remove="Resources\materials\basic.fs" />
+    <None Remove="Resources\materials\basic.vs" />
+    <None Remove="Resources\materials\gui_texture.fs" />
+    <None Remove="Resources\materials\gui_texture.vs" />
+    <None Remove="Resources\scripts\lib\standard.lua" />
+    <None Remove="Resources\scripts\lib\vectors.lua" />
+    <None Remove="Resources\textures\audfx-text-large.png" />
+    <None Remove="Resources\textures\theori-logo-large.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+    <PackageReference Include="MoonSharp" Version="2.0.0" />
+    <PackageReference Include="NAudio" Version="1.9.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <PackageReference Include="NVorbis" Version="0.8.6" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.111" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.0-beta0006" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta0006" />
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta0008" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\fonts\NotoSansCJKjp-Regular.otf" />
+    <EmbeddedResource Include="Resources\fonts\osaka.unicode.ttf" />
+    <EmbeddedResource Include="Resources\materials\basic.fs" />
+    <EmbeddedResource Include="Resources\materials\basic.vs" />
+    <EmbeddedResource Include="Resources\materials\gui_texture.fs" />
+    <EmbeddedResource Include="Resources\materials\gui_texture.vs" />
+    <EmbeddedResource Include="Resources\scripts\lib\standard.lua" />
+    <EmbeddedResource Include="Resources\scripts\lib\vectors.lua" />
+    <EmbeddedResource Include="Resources\textures\audfx-text-large.png" />
+    <EmbeddedResource Include="Resources\textures\theori-logo-large.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="SDL2-CS.dll.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
