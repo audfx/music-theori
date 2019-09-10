@@ -2,7 +2,7 @@
 
 using theori.Graphics;
 
-namespace theori.Core30.Layers
+namespace theori.Graphics
 {
     public class TransitionCurtain : Disposable
     {

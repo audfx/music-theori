@@ -1,9 +1,9 @@
 ﻿using System;
 
-using theori.Platform;
-
 using theori.Core30.Layers;
-using theori.Core30.Layers.EntryMenu;
+
+using theori.Graphics;
+using theori.Platform;
 
 namespace theori.Core30
 {
