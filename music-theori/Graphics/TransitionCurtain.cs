@@ -1,7 +1,5 @@
 ﻿using System;
 
-using theori.Graphics;
-
 namespace theori.Graphics
 {
     public class TransitionCurtain : Disposable
@@ -15,7 +13,7 @@ namespace theori.Graphics
             Closing,
         }
 
-        private readonly BasicSpriteRenderer m_renderer;
+        protected readonly BasicSpriteRenderer renderer;
 
         private readonly float m_speed = 5.0f;
 
@@ -26,12 +24,12 @@ namespace theori.Graphics
 
         public TransitionCurtain()
         {
-            m_renderer = new BasicSpriteRenderer();
+            renderer = new BasicSpriteRenderer();
         }
 
         protected override void DisposeManaged()
         {
-            m_renderer.Dispose();
+            renderer.Dispose();
         }
 
         public bool Close(float holdTime = 0.0f, Action? onClosed = null)
@@ -110,7 +108,7 @@ namespace theori.Graphics
 
         protected virtual void Render(float animTimer, float idleTimer)
         {
-            m_renderer.BeginFrame();
+            renderer.BeginFrame();
             {
                 int width = Window.Width, height = Window.Height;
                 int originx = width / 2, originy = height / 2;
@@ -120,24 +118,24 @@ namespace theori.Graphics
                 float bgWidth = width;
                 float bgHeight = height * 4;
 
-                m_renderer.Rotate(bgRotation);
-                m_renderer.Translate(originx, originy);
+                renderer.Rotate(bgRotation);
+                renderer.Translate(originx, originy);
 
-                m_renderer.SetColor(160, 150, 150);
-                m_renderer.FillRect(bgDist, -bgHeight / 2, bgWidth, bgHeight);
-                m_renderer.SetColor(90, 90, 100);
-                m_renderer.FillRect(-bgDist - bgWidth, -bgHeight / 2, bgWidth, bgHeight);
+                renderer.SetColor(160, 150, 150);
+                renderer.FillRect(bgDist, -bgHeight / 2, bgWidth, bgHeight);
+                renderer.SetColor(90, 90, 100);
+                renderer.FillRect(-bgDist - bgWidth, -bgHeight / 2, bgWidth, bgHeight);
 
-                m_renderer.ResetTransform();
-                m_renderer.Rotate(360 * (1 - animTimer));
-                m_renderer.Scale(1 + 9 * (1 - animTimer) + MathL.Abs(MathL.Sin(idleTimer)) * 0.1f);
-                m_renderer.Translate(originx, originy);
+                renderer.ResetTransform();
+                renderer.Rotate(360 * (1 - animTimer));
+                renderer.Scale(1 + 9 * (1 - animTimer) + MathL.Abs(MathL.Sin(idleTimer)) * 0.1f);
+                renderer.Translate(originx, originy);
 
                 float iconSize = Math.Min(Window.Width, Window.Height) * 0.3f;
-                m_renderer.SetImageColor(255, 255, 255, 255 * animTimer);
-                m_renderer.Image(Host.StaticResources.GetTexture("textures/theori-logo-large"), -iconSize / 2, -iconSize / 2, iconSize, iconSize);
+                renderer.SetImageColor(255, 255, 255, 255 * animTimer);
+                renderer.Image(Host.StaticResources.GetTexture("textures/theori-logo-large"), -iconSize / 2, -iconSize / 2, iconSize, iconSize);
             }
-            m_renderer.EndFrame();
+            renderer.EndFrame();
         }
     }
 }
