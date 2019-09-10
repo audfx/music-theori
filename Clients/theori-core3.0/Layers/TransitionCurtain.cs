@@ -4,7 +4,7 @@ using theori.Graphics;
 
 namespace theori.Core30.Layers
 {
-    sealed class TransitionCurtain : Disposable
+    public class TransitionCurtain : Disposable
     {
         enum State
         {
@@ -27,6 +27,11 @@ namespace theori.Core30.Layers
         public TransitionCurtain()
         {
             m_renderer = new BasicSpriteRenderer();
+        }
+
+        protected override void DisposeManaged()
+        {
+            m_renderer.Dispose();
         }
 
         public bool Close(float holdTime = 0.0f, Action? onClosed = null)
@@ -100,13 +105,18 @@ namespace theori.Core30.Layers
             if (m_state == State.Opened) return; // don't draw if nothing will be drawn
 
             float actual = MathL.Min(m_transition, 1);
+            Render(actual, m_pulse);
+        }
+
+        protected virtual void Render(float animTimer, float idleTimer)
+        {
             m_renderer.BeginFrame();
             {
                 int width = Window.Width, height = Window.Height;
                 int originx = width / 2, originy = height / 2;
 
-                float bgRotation = actual * 45;
-                float bgDist = (width / 2) * (1 - actual);
+                float bgRotation = animTimer * 45;
+                float bgDist = (width / 2) * (1 - animTimer);
                 float bgWidth = width;
                 float bgHeight = height * 4;
 
@@ -119,18 +129,15 @@ namespace theori.Core30.Layers
                 m_renderer.FillRect(-bgDist - bgWidth, -bgHeight / 2, bgWidth, bgHeight);
 
                 m_renderer.ResetTransform();
-                m_renderer.Rotate(360 * (1 - actual));
-                m_renderer.Scale(1 + 9 * (1 - actual) + MathL.Abs(MathL.Sin(m_pulse)) * 0.1f);
+                m_renderer.Rotate(360 * (1 - animTimer));
+                m_renderer.Scale(1 + 9 * (1 - animTimer) + MathL.Abs(MathL.Sin(idleTimer)) * 0.1f);
                 m_renderer.Translate(originx, originy);
 
-                //m_renderer.SetColor(30, 30, 30, 255 * actual);
-                //m_renderer.FillRect(-100, -100, 200, 200);
-
-                m_renderer.SetImageColor(255, 255, 255, 255 * actual);
-                m_renderer.Image(Host.StaticResources.GetTexture("textures/theori-logo-large"), -100, -100, 200, 200);
+                float iconSize = Math.Min(Window.Width, Window.Height) * 0.3f;
+                m_renderer.SetImageColor(255, 255, 255, 255 * animTimer);
+                m_renderer.Image(Host.StaticResources.GetTexture("textures/theori-logo-large"), -iconSize / 2, -iconSize / 2, iconSize, iconSize);
             }
             m_renderer.EndFrame();
-
         }
     }
 }
