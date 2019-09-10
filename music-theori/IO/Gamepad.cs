@@ -73,6 +73,8 @@ namespace theori.IO
             return null;
         }
 
+        public static IEnumerable<Gamepad> Connected => connected.Values;
+
         private static readonly Dictionary<int, Gamepad> connected = new Dictionary<int, Gamepad>();
 
         internal static void HandleInputEvent(int instanceId, uint buttonIndex, uint newState)
