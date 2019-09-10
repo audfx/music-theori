@@ -60,6 +60,8 @@ namespace theori.IO
             }
         }
 
+        public static Gamepad? TryGet(int deviceId) => connected.TryGetValue(deviceId, out var result) ? result : null;
+
         private static Gamepad? TryGetFromInstanceId(int instanceId)
         {
             foreach (var (deviceIndex, gamepad) in connected)
