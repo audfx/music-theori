@@ -24,15 +24,5 @@ namespace theori.Platform.Windows
         public IntPtr LoadLibrary(string libraryName) => Win32.LoadLibrary(libraryName);
         public void FreeLibrary(IntPtr library) => Win32.FreeLibrary(library);
         public IntPtr GetProcAddress(IntPtr library, string procName) => Win32.GetProcAddress(library, procName);
-
-        public FolderBrowserResult ShowFolderBrowserDialog(FolderBrowserDialogDesc desc)
-        {
-            throw new NotImplementedException();
-        }
-
-        public OpenFileResult ShowOpenFileDialog(OpenFileDialogDesc desc)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

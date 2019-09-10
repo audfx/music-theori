@@ -6,9 +6,9 @@ namespace theori.Audio.Effects
     {
         private const int NumBands = 8;
 
-        private float feedback = 0.15f;
+        private float feedback = 0.05f;
         private double time;
-        private APF[] allPassFilters = new APF[NumBands * 2]; // 6 bands - Stereo
+        private APF[] allPassFilters = new APF[NumBands * 2]; // 8 bands - Stereo
         private float[] feedbackBuffer = new float[2];
         private float maxmimumFrequency = 6000.0f;
         private float minimumFrequency = 1000.0f;

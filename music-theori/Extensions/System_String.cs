@@ -1,12 +1,24 @@
-﻿namespace System
+﻿using System.Text;
+
+namespace System
 {
     public static class System_String_Extensions
     {
-        #region Split
+        #region Repeat
+
+        public static string Repeat(this string s, int n)
+        {
+            if (n <= 0) return "";
+            return new StringBuilder(s.Length * n).AppendJoin(s, new string[n + 1]).ToString();
+        }
+
+#endregion
+
+#region Split
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1)
         {
-            v0 = v1 = null;
+            v0 = v1 = "";
             string[] results = s.Split(new[] { sep }, 2);
             if (results.Length != 2)
                 return false;
@@ -16,7 +28,7 @@
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1, out string v2)
         {
-            v0 = v1 = v2 = null;
+            v0 = v1 = v2 = "";
             string[] results = s.Split(new[] { sep }, 3);
             if (results.Length != 3)
                 return false;
@@ -26,7 +38,7 @@
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1, out string v2, out string v3)
         {
-            v0 = v1 = v2 = v3 = null;
+            v0 = v1 = v2 = v3 = "";
             string[] results = s.Split(new[] { sep }, 4);
             if (results.Length != 4)
                 return false;
@@ -36,7 +48,7 @@
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1, out string v2, out string v3, out string v4)
         {
-            v0 = v1 = v2 = v3 = v4 = null;
+            v0 = v1 = v2 = v3 = v4 = "";
             string[] results = s.Split(new[] { sep }, 5);
             if (results.Length != 5)
                 return false;
@@ -46,7 +58,7 @@
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1, out string v2, out string v3, out string v4, out string v5)
         {
-            v0 = v1 = v2 = v3 = v4 = v5 = null;
+            v0 = v1 = v2 = v3 = v4 = v5 = "";
             string[] results = s.Split(new[] { sep }, 6);
             if (results.Length != 6)
                 return false;
@@ -56,7 +68,7 @@
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1, out string v2, out string v3, out string v4, out string v5, out string v6)
         {
-            v0 = v1 = v2 = v3 = v4 = v5 = v6 = null;
+            v0 = v1 = v2 = v3 = v4 = v5 = v6 = "";
             string[] results = s.Split(new[] { sep }, 7);
             if (results.Length != 7)
                 return false;
@@ -66,7 +78,7 @@
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1, out string v2, out string v3, out string v4, out string v5, out string v6, out string v7)
         {
-            v0 = v1 = v2 = v3 = v4 = v5 = v6 = v7 = null;
+            v0 = v1 = v2 = v3 = v4 = v5 = v6 = v7 = "";
             string[] results = s.Split(new[] { sep }, 8);
             if (results.Length != 8)
                 return false;
@@ -76,7 +88,7 @@
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1, out string v2, out string v3, out string v4, out string v5, out string v6, out string v7, out string v8)
         {
-            v0 = v1 = v2 = v3 = v4 = v5 = v6 = v7 = v8 = null;
+            v0 = v1 = v2 = v3 = v4 = v5 = v6 = v7 = v8 = "";
             string[] results = s.Split(new[] { sep }, 9);
             if (results.Length != 9)
                 return false;
@@ -86,7 +98,7 @@
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1, out string v2, out string v3, out string v4, out string v5, out string v6, out string v7, out string v8, out string v9)
         {
-            v0 = v1 = v2 = v3 = v4 = v5 = v6 = v7 = v8 = v9 = null;
+            v0 = v1 = v2 = v3 = v4 = v5 = v6 = v7 = v8 = v9 = "";
             string[] results = s.Split(new[] { sep }, 10);
             if (results.Length != 10)
                 return false;
@@ -94,6 +106,6 @@
             return true;
         }
 
-        #endregion
+#endregion
     }
 }

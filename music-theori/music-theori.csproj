@@ -10,7 +10,7 @@
   <PropertyGroup>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>0.1.7.3</Version>
+    <Version>0.1.8</Version>
     <Authors>Local Atticus</Authors>
     <Company>AudFX</Company>
     <Product>music:theori</Product>
@@ -77,6 +77,8 @@
     <None Remove="Resources\materials\gui_texture.vs" />
     <None Remove="Resources\scripts\lib\standard.lua" />
     <None Remove="Resources\scripts\lib\vectors.lua" />
+    <None Remove="Resources\textures\audfx-text-large.png" />
+    <None Remove="Resources\textures\theori-logo-large.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -100,6 +102,8 @@
     <EmbeddedResource Include="Resources\materials\gui_texture.vs" />
     <EmbeddedResource Include="Resources\scripts\lib\standard.lua" />
     <EmbeddedResource Include="Resources\scripts\lib\vectors.lua" />
+    <EmbeddedResource Include="Resources\textures\audfx-text-large.png" />
+    <EmbeddedResource Include="Resources\textures\theori-logo-large.png" />
   </ItemGroup>
 
   <ItemGroup>

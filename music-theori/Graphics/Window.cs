@@ -4,7 +4,7 @@ using System.Text;
 
 using theori.Graphics.OpenGL;
 using theori.IO;
-
+using theori.Platform;
 using static theori.Platform.SDL.SDL;
 
 namespace theori.Graphics
@@ -18,8 +18,6 @@ namespace theori.Graphics
 
     public static class Window
     {
-        public static bool ShouldExitApplication { get; private set; }
-
         public static bool HasFocus { get; private set; }
 
         internal static IntPtr window, context;
@@ -28,7 +26,7 @@ namespace theori.Graphics
         public static int Height { get; private set; }
         public static float Aspect => (float)Width / Height;
 
-        public static event Action<int, int> ClientSizeChanged;
+        public static event Action<int, int>? ClientSizeChanged;
 
         private static VSyncMode vsync;
         public static VSyncMode VSync
@@ -42,17 +40,21 @@ namespace theori.Graphics
             }
         }
 
-        public static void Create()
+        private static ClientHost? host;
+
+        public static void Create(ClientHost host)
         {
-            if (Window.window != IntPtr.Zero)
+            if (window != IntPtr.Zero)
                 throw new InvalidOperationException("Only one Window can be created at a time.");
+
+            Window.host = host;
 
             if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0)
             {
                 string err = SDL_GetError();
                 Logger.Log(err, LogPriority.Error);
                 // can't continue, sorry
-                Host.Quit(1);
+                host.PerformExit(true);
             }
             
             SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_CONTEXT_PROFILE_MASK, (int)SDL_GLprofile.SDL_GL_CONTEXT_PROFILE_CORE);
@@ -73,11 +75,11 @@ namespace theori.Graphics
             SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_STENCIL_SIZE, 2);
 
             var windowFlags = SDL_WindowFlags.SDL_WINDOW_OPENGL | SDL_WindowFlags.SDL_WINDOW_RESIZABLE | SDL_WindowFlags.SDL_WINDOW_SHOWN;
-            if (Host.GameConfig.GetBool(Configuration.GameConfigKey.Maximized))
+            if (host.Config.GetBool(Configuration.TheoriConfigKey.Maximized))
                 windowFlags |= SDL_WindowFlags.SDL_WINDOW_MAXIMIZED;
 
-            int width = Host.GameConfig.GetInt(Configuration.GameConfigKey.ScreenWidth);
-            int height = Host.GameConfig.GetInt(Configuration.GameConfigKey.ScreenHeight);
+            int width = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenWidth);
+            int height = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenHeight);
             window = SDL_CreateWindow("theori", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
 
             SDL_DisableScreenSaver();
@@ -87,12 +89,12 @@ namespace theori.Graphics
                 string err = SDL_GetError();
                 Logger.Log(err, LogPriority.Error);
                 // can't continue, sorry
-                Host.Quit(1);
+                host.PerformExit(true);
             }
 
             context = SDL_GL_CreateContext(window);
             SDL_GL_MakeCurrent(window, context);
-            
+
             if (SDL_GL_SetSwapInterval(1) == -1)
             {
                 string err = SDL_GetError();
@@ -106,12 +108,22 @@ namespace theori.Graphics
 		    Logger.Log($"OpenGL Vendor: { GL.GetString(GL.GL_VENDOR) }");
 
             GL.Enable(GL.GL_MULTISAMPLE);
-
             GL.Enable(GL.GL_BLEND);
-            //GL.Enable(GL.GL_DEPTH_TEST);
+
             GL.BlendFunc(BlendingSourceFactor.SourceAlpha, BlendingDestinationFactor.OneMinusSourceAlpha);
 
-            Update();
+            for (int i = 0; i < 2; i++)
+            {
+                GL.ClearColor(0, 0, 0, 0);
+                GL.Clear(ClearBufferMask.ColorBufferBit);
+
+                SwapBuffer();
+            }
+        }
+
+        internal static void Show()
+        {
+            SDL_ShowWindow(window);
         }
 
         internal static void Destroy()
@@ -137,7 +149,7 @@ namespace theori.Graphics
             {
                 switch (evt.type)
                 {
-                    case SDL_EventType.SDL_QUIT: ShouldExitApplication = true; break;
+                    case SDL_EventType.SDL_QUIT: host!.Exit(); break;
                         
                     case SDL_EventType.SDL_KEYDOWN:
                     case SDL_EventType.SDL_KEYUP:
@@ -168,12 +180,7 @@ namespace theori.Graphics
                         }
                         break;
                     case SDL_EventType.SDL_MOUSEMOTION:
-                        {
-                            Mouse.x = evt.motion.x;
-                            Mouse.y = evt.motion.y;
-
-                            Mouse.InvokeMove(evt.motion.xrel, evt.motion.yrel);
-                        }
+                        Mouse.InvokeMove(evt.motion.xrel, evt.motion.yrel, evt.motion.xrel, evt.motion.yrel);
                         break;
                     case SDL_EventType.SDL_MOUSEWHEEL:
                     {
@@ -206,9 +213,19 @@ namespace theori.Graphics
                     } break;
 
                     case SDL_EventType.SDL_JOYDEVICEADDED:
+                    {
+                        Logger.Log($"Joystick Added: Device [{ evt.jdevice.which }] \"{ SDL_JoystickNameForIndex(evt.jdevice.which) }\"", LogPriority.Verbose);
+
                         Gamepad.HandleAddedEvent(evt.jdevice.which);
-                        break;
+                        var gamepad = NewGamepad.Create(evt.jdevice.which);
+
+                        if (true)
+                        {
+                            gamepad.Open();
+                        }
+                    } break;
                     case SDL_EventType.SDL_JOYDEVICEREMOVED:
+                        Logger.Log($"Joystick Removed: Instance [{ evt.jdevice.which }]", LogPriority.Verbose);
                         Gamepad.HandleRemovedEvent(evt.jdevice.which);
                         break;
 
@@ -217,7 +234,9 @@ namespace theori.Graphics
                         //Logger.Log($"Joystick[{ evt.jaxis.which }].Axis{ evt.jaxis.axis } = { evt.jaxis.axisValue }");
                         Gamepad.HandleAxisEvent(evt.jaxis.which, evt.jaxis.axis, evt.jaxis.axisValue);
                     } break;
-                    case SDL_EventType.SDL_JOYBALLMOTION: break;
+                    case SDL_EventType.SDL_JOYBALLMOTION:
+                    {
+                    } break;
                     case SDL_EventType.SDL_JOYBUTTONDOWN:
                     {
                         Gamepad.HandleInputEvent(evt.jbutton.which, evt.jbutton.button, 1);
@@ -241,7 +260,7 @@ namespace theori.Graphics
                     case SDL_EventType.SDL_WINDOWEVENT:
                         switch (evt.window.windowEvent)
                         {
-                            case SDL_WindowEventID.SDL_WINDOWEVENT_CLOSE: ShouldExitApplication = true; break;
+                            case SDL_WindowEventID.SDL_WINDOWEVENT_CLOSE: host!.RequestExit(); break;
                                 
                             case SDL_WindowEventID.SDL_WINDOWEVENT_TAKE_FOCUS: SDL_SetWindowInputFocus(window); break;
                                 
@@ -268,14 +287,14 @@ namespace theori.Graphics
                                 ClientSizeChanged?.Invoke(Width, Height);
                                 break;
 
-                            case SDL_WindowEventID.SDL_WINDOWEVENT_MOVED: Host.WindowMoved(evt.window.data1, evt.window.data2); break;
+                            case SDL_WindowEventID.SDL_WINDOWEVENT_MOVED: host!.WindowMoved(evt.window.data1, evt.window.data2); break;
 
                             case SDL_WindowEventID.SDL_WINDOWEVENT_HIDDEN: break;
                             case SDL_WindowEventID.SDL_WINDOWEVENT_SHOWN: break;
 
-                            case SDL_WindowEventID.SDL_WINDOWEVENT_MAXIMIZED: Host.WindowMaximized(); break;
-                            case SDL_WindowEventID.SDL_WINDOWEVENT_MINIMIZED: Host.WindowMinimized(); break;
-                            case SDL_WindowEventID.SDL_WINDOWEVENT_RESTORED: Host.WindowRestored(); break;
+                            case SDL_WindowEventID.SDL_WINDOWEVENT_MAXIMIZED: host!.WindowMaximized(); break;
+                            case SDL_WindowEventID.SDL_WINDOWEVENT_MINIMIZED: host!.WindowMinimized(); break;
+                            case SDL_WindowEventID.SDL_WINDOWEVENT_RESTORED: host!.WindowRestored(); break;
 
                             case SDL_WindowEventID.SDL_WINDOWEVENT_EXPOSED: break;
                         }

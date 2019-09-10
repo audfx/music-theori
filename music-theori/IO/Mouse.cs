@@ -6,10 +6,19 @@ using static theori.Platform.SDL.SDL;
 
 namespace theori.IO
 {
+    public interface IMouseListener
+    {
+        bool MouseButtonPressed(MouseButtonInfo info);
+        bool MouseButtonReleased(MouseButtonInfo info);
+
+        bool MouseWheelScrolled(int x, int y);
+
+        bool MouseMoved(int x, int y, int dx, int dy);
+    }
+
     public static class Mouse
     {
         internal static int x, y;
-        internal static int dx, dy;
         internal static int sx, sy;
 
         internal static bool relative;
@@ -17,20 +26,18 @@ namespace theori.IO
         public static int X => x;
         public static int Y => y;
 
-        public static int DeltaX => dx;
-        public static int DeltaY => dy;
-
         public static Vector2 Position => new Vector2(x, y);
-        public static Vector2 Delta => new Vector2(dx, dy);
         
-        public static event Action<MouseButton> ButtonPress;
-        public static event Action<MouseButton> ButtonRelease;
-        
-        public static event Action<int, int> Move;
-        public static event Action<int, int> Scroll;
-        
+        public static event Action<MouseButtonInfo> ButtonPress = button => listeners.ForEach(l => l.MouseButtonPressed(button));
+        public static event Action<MouseButtonInfo> ButtonRelease = button => listeners.ForEach(l => l.MouseButtonReleased(button));
+
+        public static event Action<int, int, int, int> Move = (x, y, dx, dy) => listeners.ForEach(l => l.MouseMoved(x, y, dx, dy));
+        public static event Action<int, int> Scroll = (x, y) => listeners.ForEach(l => l.MouseWheelScrolled(x, y));
+
         private static readonly HashSet<MouseButton> lastHeldButtons = new HashSet<MouseButton>();
         private static readonly HashSet<MouseButton> heldButtons = new HashSet<MouseButton>();
+
+        private static readonly List<IMouseListener> listeners = new List<IMouseListener>();
 
         public static bool Relative
         {
@@ -48,30 +55,32 @@ namespace theori.IO
         public static bool IsDown(MouseButton button) => heldButtons.Contains(button);
         public static bool IsUp(MouseButton button) => !heldButtons.Contains(button);
         
-        public static bool IsPressed(MouseButton button) => heldButtons.Contains(button) && !lastHeldButtons.Contains(button);
-        public static bool IsReleased(MouseButton button) => !heldButtons.Contains(button) && lastHeldButtons.Contains(button);
-
         internal static void InvokePress(MouseButton button)
         {
-            System.Diagnostics.Debug.Assert(heldButtons.Add(button), "added a button which was pressed");
-            ButtonPress?.Invoke(button);
+            heldButtons.Add(button);
+            ButtonPress(new MouseButtonInfo()
+            {
+                Button = button,
+            });
         }
 
         internal static void InvokeRelease(MouseButton button)
         {
-            System.Diagnostics.Debug.Assert(heldButtons.Remove(button), "removed a button which wasn't pressed");
-            ButtonRelease?.Invoke(button);
+            heldButtons.Remove(button);
+            ButtonRelease(new MouseButtonInfo()
+            {
+                Button = button,
+            });
         }
 
-        internal static void InvokeMove(int mx, int my)
+        internal static void InvokeMove(int mx, int my, int dx, int dy)
         {
-            dx = mx - x; dy = my - y;
-            Move?.Invoke(x = mx, y = my);
+            Move(x = mx, y = my, dx, dy);
         }
 
         internal static void InvokeScroll(int x, int y)
         {
-            Scroll?.Invoke(sx = x, sy = y);
+            Scroll(sx = x, sy = y);
         }
     }
 }

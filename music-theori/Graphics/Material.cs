@@ -121,16 +121,13 @@ namespace theori.Graphics
 
             void AddShader(Stream stream, ShaderType type)
             {
-                string source = new StreamReader(stream).ReadToEnd();
+                using var streamReader = new StreamReader(stream);
+                string source = streamReader.ReadToEnd();
 
                 var program = new ShaderProgram(type, source);
                 if (!program || !program.Linked)
-                {
                     Logger.Log(program.InfoLog);
-                    Host.Quit(1);
-                }
-
-                AssignShader(program);
+                else AssignShader(program);
             }
 
             AddShader(vertexShaderStream, ShaderType.Vertex);
@@ -146,13 +143,14 @@ namespace theori.Graphics
 
         private int GetShaderIndex(ShaderStage stage)
         {
-            switch (stage)
+            return stage switch
             {
-                case ShaderStage.Vertex: return 0;
-                case ShaderStage.Geometry: return 1;
-                case ShaderStage.Fragment: return 2;
-            }
-            return -1;
+                ShaderStage.Vertex => 0,
+                ShaderStage.Geometry => 1,
+                ShaderStage.Fragment => 2,
+
+                _ => -1,
+            };
         }
 
         public void AssignShader(ShaderProgram program)

@@ -13,7 +13,7 @@ namespace theori.BootLoaders
         {
         }
 
-        public override void Init()
+        public override void Initialize()
         {
             m_guiRoot = new Panel()
             {
@@ -31,11 +31,11 @@ namespace theori.BootLoaders
         {
         }
 
-        public override void Suspended()
+        public override void Suspended(Layer nextLayer)
         {
         }
 
-        public override void Resumed()
+        public override void Resumed(Layer previousLayer)
         {
         }
 

@@ -6,7 +6,7 @@ namespace theori.BootLoaders
     {
         private readonly BasicSpriteRenderer m_renderer = new BasicSpriteRenderer();
 
-        public SharedBootLoader(string[] args)
+        public SharedBootLoader()
         {
         }
 

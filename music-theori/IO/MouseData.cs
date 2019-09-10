@@ -2,6 +2,11 @@
 
 namespace theori.IO
 {
+    public class MouseButtonInfo
+    {
+        public MouseButton Button;
+    }
+
     public enum MouseButton : uint
     {
         Unknown = 0,

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Globalization;
 
 namespace System
 {
@@ -29,23 +28,29 @@ namespace System
         }
     }
 
+    public interface ILoggerImpl
+    {
+        void Log(LogEntry entry);
+        void Flush() { } // Not required to be implemented
+    }
+
     public abstract class Logger
     {
-        private static readonly List<Action<LogEntry>> logFunctions = new List<Action<LogEntry>>();
+        private static readonly List<ILoggerImpl> logImpls = new List<ILoggerImpl>();
 
         private static bool block = false;
 
-        public static void AddLogFunction(Action<LogEntry> f)
+        public static void AddLogger(ILoggerImpl impl)
         {
-            if (f == null) return;
-            logFunctions.Add(f);
+            if (impl == null) return;
+            logImpls.Add(impl);
         }
 
         private static void OnLog(LogEntry entry)
         {
             //Diagnostics.Trace.WriteLine($"{ entry.When.ToString(CultureInfo.InvariantCulture) } [{ entry.Priority }]: { entry.Message }");
-            foreach (var f in logFunctions)
-                f(entry);
+            foreach (var impl in logImpls)
+                impl.Log(entry);
         }
 
         public static void Log(object obj, LogPriority priority = LogPriority.Verbose)
@@ -63,5 +68,11 @@ namespace System
 
         public static void Block() => block = true;
         public static void Unblock() => block = false;
+
+        internal static void Flush()
+        {
+            foreach (var impl in logImpls)
+                impl.Flush();
+        }
     }
 }

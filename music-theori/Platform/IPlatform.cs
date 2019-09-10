@@ -1,5 +1,4 @@
 ﻿using System;
-using theori.IO;
 
 namespace theori.Platform
 {
@@ -8,8 +7,5 @@ namespace theori.Platform
         IntPtr LoadLibrary(string libraryName);
         void FreeLibrary(IntPtr library);
         IntPtr GetProcAddress(IntPtr library, string procName);
-
-        OpenFileResult ShowOpenFileDialog(OpenFileDialogDesc desc);
-        FolderBrowserResult ShowFolderBrowserDialog(FolderBrowserDialogDesc desc);
     }
 }
