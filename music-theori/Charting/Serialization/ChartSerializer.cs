@@ -138,6 +138,8 @@ namespace theori.Charting.Serialization
                 point.BeatKind = (int)pointObj.denominator;
                 point.SpeedMultiplier = (double)pointObj.multiplier;
                 point.BeatsPerMinute = (double)pointObj.bpm;
+                if (((JObject)pointObj).ContainsKey("stop"))
+                    point.StopChart = (bool)pointObj.stop;
             }
 
             foreach (dynamic laneObj in lanes)

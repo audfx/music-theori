@@ -5,15 +5,16 @@ using System.Numerics;
 using System.Reflection;
 using System.Threading.Tasks;
 
-using MoonSharp.Interpreter;
 using theori.Graphics;
 using theori.Resources;
+
+using MoonSharp.Interpreter;
 
 namespace theori.Scripting
 {
     public class LuaScript : Disposable
     {
-        private static ClientResourceLocator scriptLocator;
+        private static readonly ClientResourceLocator scriptLocator;
 
         public static void RegisterType<T>() => UserData.RegisterType<T>();
         public static void RegisterType(Type type) => UserData.RegisterType(type);
@@ -90,13 +91,13 @@ namespace theori.Scripting
         {
             this["Anchor"] = typeof(Anchor);
 
-            Vector2 NewVec2(float x, float y) => new Vector2(x, y);
+            static Vector2 NewVec2(float x, float y) => new Vector2(x, y);
             this["vec2"] = (Func<float, float, Vector2>)NewVec2;
 
-            Vector3 NewVec3(float x, float y, float z) => new Vector3(x, y, z);
+            static Vector3 NewVec3(float x, float y, float z) => new Vector3(x, y, z);
             this["vec3"] = (Func<float, float, float, Vector3>)NewVec3;
 
-            Vector4 NewVec4(float x, float y, float z, float w) => new Vector4(x, y, z, w);
+            static Vector4 NewVec4(float x, float y, float z, float w) => new Vector4(x, y, z, w);
             this["vec4"] = (Func<float, float, float, float, Vector4>)NewVec4;
 
             LoadFile(scriptLocator.OpenFileStream("scripts/lib/standard.lua"));

@@ -17,12 +17,11 @@ namespace theori.Charting
 
             All = Timing,
         }
-        
+
         private tick_t m_position;
         private time_t m_calcPosition = (time_t)long.MinValue;
 
         private double m_bpm = 120;
-        private time_t m_qnDuration = time_t.FromSeconds(60.0 / 120);
         private int m_beatCount = 4, m_beatKind = 4;
 
         [TheoriProperty("position")]
@@ -112,17 +111,29 @@ namespace theori.Charting
                     throw new ArgumentException(nameof(BeatsPerMinute), "BPM must be a positive value.");
 
                 m_bpm = value;
-                m_qnDuration = time_t.FromSeconds(60.0 / value);
+                QuarterNoteDuration = time_t.FromSeconds(60.0 / value);
 
                 Chart?.InvalidateTimeCalc();
             }
         }
-        
-        public time_t QuarterNoteDuration => m_qnDuration;
+
+        public time_t SectionDuration
+        {
+            get
+            {
+                if (HasNext) return Next.AbsolutePosition - AbsolutePosition;
+                else return Chart.TimeEnd - AbsolutePosition;
+            }
+        }
+
+        public time_t QuarterNoteDuration { get; private set; } = time_t.FromSeconds(60.0 / 120);
         public time_t BeatDuration => QuarterNoteDuration * 4 / BeatKind;
 
         public time_t MeasureDuration => BeatDuration * BeatCount;
-        
+
+        [TheoriProperty("stop")]
+        public bool StopChart { get; set; } = false;
+
         public bool HasPrevious => Previous != null;
         public bool HasNext => Next != null;
 
@@ -145,9 +156,11 @@ namespace theori.Charting
             {
                 m_position = m_position,
                 m_bpm = m_bpm,
-                m_qnDuration = m_qnDuration,
                 m_beatCount = m_beatCount,
                 m_beatKind = m_beatKind,
+
+                QuarterNoteDuration = QuarterNoteDuration,
+                StopChart = StopChart,
             };
             return result;
         }

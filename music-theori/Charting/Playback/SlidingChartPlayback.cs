@@ -39,9 +39,8 @@ namespace theori.Charting.Playback
     public class SlidingChartPlayback
     {
         public Chart Chart { get; private set; }
-        
+
         private time_t m_position = -9999;
-        private time_t m_lookAhead = 0.75, m_lookBehind = 0.5;
 
         public time_t Position
         {
@@ -49,19 +48,8 @@ namespace theori.Charting.Playback
             set => SetNextPosition(value);
         }
 
-        public time_t LookAhead
-        {
-            get => m_lookAhead;
-            set => m_lookAhead = value;
-        }
-
-        public time_t LookBehind
-        {
-            get => m_lookBehind;
-            set => m_lookBehind = value;
-        }
-
-        public time_t TotalViewDuration => LookAhead + LookBehind;
+        public time_t DefaultViewTime { get; set; } = 0.75;
+        public time_t CurrentViewTime => GetRealDuration(m_position, DefaultViewTime);
 
         // <--0 behind--<  (|  <--1 sec--<  |  <--2 pri--<  |)  <--3 ahead--<<
 
@@ -73,13 +61,13 @@ namespace theori.Charting.Playback
         private readonly bool m_allowSpeedMult;
 
         #region Granular Events
-        
+
         public event Action<PlayDirection, Entity> ObjectHeadCrossPrimary;
         public event Action<PlayDirection, Entity> ObjectTailCrossPrimary;
-        
+
         public event Action<PlayDirection, Entity> ObjectHeadCrossCritical;
         public event Action<PlayDirection, Entity> ObjectTailCrossCritical;
-        
+
         public event Action<PlayDirection, Entity> ObjectHeadCrossSecondary;
         public event Action<PlayDirection, Entity> ObjectTailCrossSecondary;
 
@@ -145,13 +133,25 @@ namespace theori.Charting.Playback
             m_objsBehind = CreateObjs();
         }
 
-        public float GetRelativeDistanceFromTime(time_t pos)
+        public float GetRelativeDistance(time_t pos) => GetRelativeDistanceFromTime(m_position, pos);
+        public float GetRelativeDistanceFromTime(time_t from, time_t to)
         {
-            return 0;
+            float direction = MathL.Sign((double)(to - from));
+            if (direction < 0)
+            {
+                time_t temp = from;
+                from = to;
+                to = temp;
+            }
+
+            return direction * (float)((to - from - GetEffectiveAmountOfStopTimeInRange(from, to)) / CurrentViewTime);
         }
 
         private time_t GetRealDuration(time_t from, time_t duration)
         {
+            if (duration == 0) return 0;
+
+            time_t realDuration;
             if (m_allowSpeedMult)
             {
                 if (duration > 0)
@@ -168,47 +168,65 @@ namespace theori.Charting.Playback
                         {
                             time_t cpDurationFromHere = cp.Next.AbsolutePosition - (from + newDuration);
                             if (cpDurationFromHere >= effectiveTimeLeft)
-                                return newDuration + effectiveTimeLeft;
+                            {
+                                realDuration = newDuration + effectiveTimeLeft;
+                                break;
+                            }
                             else
                             {
                                 newDuration += cpDurationFromHere;
                                 timeLeft = (effectiveTimeLeft - cpDurationFromHere) * mult;
+
+                                //Logger.Log($"{ cpDurationFromHere }, { effectiveTimeLeft } => { newDuration }, { timeLeft }");
 
                                 cp = cp.Next;
                             }
                         }
-                        else return newDuration + effectiveTimeLeft;
-                    }
-                }
-                else
-                {
-                    time_t newDuration = 0.0, timeLeft = duration;
-                    var cp = Chart.ControlPoints.MostRecent(from);
-
-                    while (true)
-                    {
-                        double mult = cp.SpeedMultiplier;
-                        time_t effectiveTimeLeft = timeLeft / mult;
-
-                        if (cp.HasPrevious)
+                        else
                         {
-                            time_t cpDurationFromHere = (from - newDuration) - cp.AbsolutePosition;
-                            if (cpDurationFromHere >= effectiveTimeLeft)
-                                return newDuration + effectiveTimeLeft;
-                            else
-                            {
-                                newDuration += cpDurationFromHere;
-                                timeLeft = (effectiveTimeLeft - cpDurationFromHere) * mult;
-
-                                cp = cp.Previous;
-                            }
+                            realDuration = newDuration + effectiveTimeLeft;
+                            break;
                         }
-                        else return newDuration + effectiveTimeLeft;
                     }
                 }
+                else return GetRealDuration(from + duration, -(double)duration);
+            }
+            else realDuration = MathL.Abs((double)duration);
+
+            return realDuration - GetEffectiveAmountOfStopTimeInRange(from, from + duration);
+        }
+
+        private time_t GetEffectiveAmountOfStopTimeInRange(time_t from, time_t to)
+        {
+            if (from > to)
+            {
+                time_t temp = from;
+                from = to;
+                to = temp;
             }
 
-            return MathL.Abs((double)duration);
+            time_t stopAmount = 0.0;
+            var cp = Chart.ControlPoints.MostRecent(from);
+
+            while (true)
+            {
+                if (cp.AbsolutePosition >= to) break;
+
+                if (cp.StopChart)
+                {
+                    if (cp.AbsolutePosition < from)
+                        stopAmount += (cp.SectionDuration - (from - cp.AbsolutePosition)) / cp.SpeedMultiplier;
+                    else if (cp.AbsolutePosition + cp.SectionDuration > to)
+                        stopAmount += (to - cp.AbsolutePosition) / cp.SpeedMultiplier;
+                    else stopAmount += cp.SectionDuration / cp.SpeedMultiplier;
+                }
+
+                if (cp.HasNext)
+                    cp = cp.Next;
+                else break;
+            }
+
+            return stopAmount;
         }
 
         private void SetNextPosition(time_t nextPos)
@@ -220,45 +238,8 @@ namespace theori.Charting.Playback
 
             System.Diagnostics.Debug.Assert(isForward);
 
-            time_t lookAhead = GetRealDuration(nextPos, LookAhead);
-            time_t lookBehind = GetRealDuration(nextPos, -(double)LookBehind);
-
-            if (m_allowSpeedMult)
-            {
-                time_t newLookAhead = 0.0;
-
-                time_t timeLeft = lookAhead;
-                var cp = Chart.ControlPoints.MostRecent(nextPos);
-
-                while (true)
-                {
-                    double mult = cp.SpeedMultiplier;
-                    time_t effectiveTimeLeft = timeLeft / mult;
-
-                    if (cp.HasNext)
-                    {
-                        time_t cpDurationFromHere = cp.Next.AbsolutePosition - (nextPos + newLookAhead);
-
-                        if (cpDurationFromHere >= effectiveTimeLeft)
-                        {
-                            newLookAhead += effectiveTimeLeft;
-                            timeLeft = 0.0; // bc why not
-                            break;
-                        }
-                        else
-                        {
-                            newLookAhead += cpDurationFromHere;
-                            timeLeft = (effectiveTimeLeft - cpDurationFromHere) * mult;
-                        }
-                    }
-                    else
-                    {
-                        newLookAhead += effectiveTimeLeft;
-                        timeLeft = 0.0; // bc why not
-                        break;
-                    }
-                }
-            }
+            time_t lookAhead = CurrentViewTime;
+            time_t lookBehind = lookAhead; // for the time being
 
             if (isForward)
             {
@@ -286,7 +267,7 @@ namespace theori.Charting.Playback
         {
             foreach (var (label, from) in objsFrom)
             {
-                for (int i = 0; i < from.Count; )
+                for (int i = 0; i < from.Count;)
                 {
                     var obj = from[i];
                     if (obj.AbsolutePosition < edge)
@@ -304,7 +285,7 @@ namespace theori.Charting.Playback
                             // completely passed the critical-edge, now only in the secondary section.
                             from.RemoveAt(i);
                             tailCross(PlayDirection.Forward, obj);
-                                
+
                             // don't increment `i` if we removed something
                             continue;
                         }
@@ -313,12 +294,12 @@ namespace theori.Charting.Playback
                 }
             }
         }
-        
+
         private void CheckEdgeBackward(time_t edge, Dictionary<LaneLabel, List<Entity>> objsFrom, Dictionary<LaneLabel, List<Entity>> objsTo, Action<PlayDirection, Entity> headCross, Action<PlayDirection, Entity> tailCross)
         {
             foreach (var (label, from) in objsFrom)
             {
-                for (int i = 0; i < from.Count; )
+                for (int i = 0; i < from.Count;)
                 {
                     var obj = from[i];
                     if (obj.AbsoluteEndPosition > edge)
@@ -336,7 +317,7 @@ namespace theori.Charting.Playback
                             // completely passed the critical-edge, now only in the secondary section.
                             from.RemoveAt(i);
                             headCross(PlayDirection.Forward, obj);
-                                
+
                             // don't increment `i` if we removed something
                             continue;
                         }
