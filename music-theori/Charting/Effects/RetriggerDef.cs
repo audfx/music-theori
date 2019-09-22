@@ -44,6 +44,6 @@ namespace theori.Charting.Effects
             return Mix == rt.Mix && GateDuration == rt.GateDuration && Gating == rt.Gating;
         }
 
-        public override int GetHashCode() => HashCode.For(Mix, GateDuration, Gating);
+        public override int GetHashCode() => HashCode.Combine(Mix, GateDuration, Gating);
     }
 }

@@ -30,6 +30,6 @@ namespace theori.Charting.Effects
             return Mix == ph.Mix;
         }
 
-        public override int GetHashCode() => HashCode.For(Mix);
+        public override int GetHashCode() => HashCode.Combine(Mix);
     }
 }

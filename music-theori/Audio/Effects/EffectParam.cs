@@ -159,7 +159,7 @@ namespace theori.Audio.Effects
 
         public override int GetHashCode()
         {
-            return HashCode.For(m_values);
+            return HashCode.Combine(m_values);
         }
     }
 }

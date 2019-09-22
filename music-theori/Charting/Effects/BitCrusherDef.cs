@@ -36,6 +36,6 @@ namespace theori.Charting.Effects
             return Mix == bc.Mix && Reduction == bc.Reduction;
         }
 
-        public override int GetHashCode() => HashCode.For(Mix, Reduction);
+        public override int GetHashCode() => HashCode.Combine(Mix, Reduction);
     }
 }

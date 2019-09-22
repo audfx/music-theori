@@ -47,6 +47,6 @@ namespace theori.Charting.Effects
             return Mix == fl.Mix && Delay == fl.Delay && Offset == fl.Offset && Depth == fl.Depth;
         }
 
-        public override int GetHashCode() => HashCode.For(Mix, Delay, Offset, Depth);
+        public override int GetHashCode() => HashCode.Combine(Mix, Delay, Offset, Depth);
     }
 }

@@ -36,6 +36,6 @@ namespace theori.Charting.Effects
             return Mix == wob.Mix && Period == wob.Period;
         }
 
-        public override int GetHashCode() => HashCode.For(Mix, Period);
+        public override int GetHashCode() => HashCode.Combine(Mix, Period);
     }
 }
