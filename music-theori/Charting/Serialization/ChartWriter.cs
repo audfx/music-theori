@@ -73,6 +73,7 @@ namespace theori.Charting.Serialization
                     }
                     break;
 
+                case EffectDef[] effectDefs: WriteValues(effectDefs); break;
                 case Enum enumVal: WriteValue(enumVal.ToString()); break;
                 case IEffectParam effectParam: WriteValue(effectParam); break;
                 case EffectDef effectDef: WriteValue(effectDef); break;
@@ -169,6 +170,14 @@ namespace theori.Charting.Serialization
 
                 case EffectParamS sp: WriteValue(sp.MinValue); break;
             }
+        }
+
+        public void WriteValues(EffectDef[] effectDefs)
+        {
+            WriteStartArray();
+            foreach (var effect in effectDefs)
+                WriteValue(effect);
+            WriteEndArray();
         }
 
         public void WriteValue(EffectDef effectDef)

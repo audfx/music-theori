@@ -66,6 +66,6 @@ namespace theori.Charting
             return ID == other.ID;
         }
 
-        public override int GetHashCode() => HashCode.For(ID);
+        public override int GetHashCode() => HashCode.Combine(ID);
     }
 }

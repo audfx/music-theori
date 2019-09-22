@@ -86,6 +86,6 @@ namespace theori.Charting.Effects
             return FilterType == bqf.FilterType && Mix == bqf.Mix && Q == bqf.Q && Gain == bqf.Gain && Freq == bqf.Freq;
         }
 
-        public override int GetHashCode() => HashCode.For(FilterType, Mix, Q, Gain, Freq);
+        public override int GetHashCode() => HashCode.Combine(FilterType, Mix, Q, Gain, Freq);
     }
 }

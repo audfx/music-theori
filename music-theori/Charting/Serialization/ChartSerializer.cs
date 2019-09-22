@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -38,19 +39,18 @@ namespace theori.Charting.Serialization
             JArray controlPoints = jobjdyn.controlPoints;
             JArray lanes = jobjdyn.lanes;
 
-            LaneLabel ToLabel(JToken token)
+            static LaneLabel ToLabel(JToken token)
             {
-                switch (token.Type)
+                return token.Type switch
                 {
-                    case JTokenType.String: return (string)token;
-                    case JTokenType.Integer: return (int)token;
-                    default: throw new ChartFormatException("Invalid value for lane label.");
-                }
+                    JTokenType.String => (string)token,
+                    JTokenType.Integer => (int)token,
+                    _ => throw new ChartFormatException("Invalid value for lane label."),
+                };
             }
 
-            object ToValue(dynamic jObjectDyn, Type typeHint)
+            static object ToValue(dynamic jObjectDyn, Type typeHint)
             {
-                // TODO(local): Check that any of these are actually okay???
                 if (typeHint == typeof(bool)) return (bool)jObjectDyn;
                 else if (typeHint == typeof(sbyte)) return (sbyte)jObjectDyn;
                 else if (typeHint == typeof(short)) return (short)jObjectDyn;
@@ -67,6 +67,14 @@ namespace theori.Charting.Serialization
                 else if (typeHint == typeof(tick_t)) return (tick_t)(double)jObjectDyn;
                 else if (typeHint == typeof(time_t)) return (time_t)(double)jObjectDyn;
                 else if (typeHint.IsEnum) return Enum.Parse(typeHint, (string)jObjectDyn);
+                // TODO(local): verify that array is a thing that works. Nothing uses it yet
+                else if (typeHint.IsArray && typeHint.GetElementType() == typeof(EffectDef))
+                {
+                    var result = new List<EffectDef>();
+                    foreach (var effect in (JArray)jObjectDyn)
+                        result.Add((EffectDef)ToValue(effect, typeof(EffectDef)));
+                    return result.ToArray();
+                }
                 else if (typeof(IEffectParam).IsAssignableFrom(typeHint))
                 {
                     bool isRange = jObjectDyn is JObject;
@@ -116,19 +124,19 @@ namespace theori.Charting.Serialization
 
             }
 
-            Entity ToEntity(dynamic entityObj)
+            static Entity ToEntity(dynamic entityObj)
             {
                 string entityId = (string)entityObj.type;
                 return (Entity)ToValue(entityObj, Entity.GetEntityTypeById(entityId));
             }
 
-            EffectDef ToEffectDef(dynamic effectObj)
+            static EffectDef ToEffectDef(dynamic effectObj)
             {
                 string effectId = (string)effectObj.type;
                 return (EffectDef)ToValue(effectObj, EffectDef.GetEntityTypeById(effectId));
             }
 
-            tick_t ToTickT(JToken token) => (double)token;
+            static tick_t ToTickT(JToken token) => (double)token;
 
             foreach (dynamic pointObj in controlPoints)
             {
