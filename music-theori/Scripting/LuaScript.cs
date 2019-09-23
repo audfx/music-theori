@@ -212,6 +212,7 @@ namespace theori.Scripting
         #region New
 
         public Table NewTable() => new Table(m_script);
+        public ScriptEvent NewEvent() => new ScriptEvent(this);
 
         #endregion
     }

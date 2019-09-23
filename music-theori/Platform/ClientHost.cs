@@ -12,6 +12,7 @@ using theori.Graphics;
 using theori.Graphics.OpenGL;
 using theori.IO;
 using theori.Resources;
+using theori.Scoring;
 using theori.Scripting;
 
 namespace theori.Platform
@@ -31,6 +32,8 @@ namespace theori.Platform
         {
             LuaScript.RegisterType<Anchor>();
 
+            LuaScript.RegisterType<ScoreRank>();
+
             LuaScript.RegisterType<Vector2>();
             LuaScript.RegisterType<Vector3>();
             LuaScript.RegisterType<Vector4>();
@@ -43,6 +46,9 @@ namespace theori.Platform
             LuaScript.RegisterType<ClientResourceManager>();
 
             LuaScript.RegisterType<ScriptWindowInterface>();
+
+            LuaScript.RegisterType<ScriptEvent>();
+            LuaScript.RegisterType<ScriptEvent.Connection>();
         }
 
         public readonly TheoriConfig Config = new TheoriConfig();

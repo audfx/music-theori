@@ -5,7 +5,8 @@
     /// There are 8 categories, the middle 6 of which have 6 values.
     /// 
     /// By convention, the important provided ranks mean this:
-    /// > X is perfect.
+    /// > Perfect is perfect.
+    /// > X suffix is a higher variant of the rank.
     /// > S is near perfect.
     /// > A is great play.
     /// > B is average play.
@@ -14,7 +15,7 @@
     /// </summary>
     public enum ScoreRank
     {
-        X,
+        Perfect,
 
         SSSX,
         SSS,
