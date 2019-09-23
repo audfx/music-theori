@@ -9,6 +9,7 @@ using theori.Graphics;
 using theori.Resources;
 
 using MoonSharp.Interpreter;
+using theori.Scoring;
 
 namespace theori.Scripting
 {
@@ -90,6 +91,7 @@ namespace theori.Scripting
         public void InitTheoriLibrary()
         {
             this["Anchor"] = typeof(Anchor);
+            this["ScoreRank"] = typeof(ScoreRank);
 
             static Vector2 NewVec2(float x, float y) => new Vector2(x, y);
             this["vec2"] = (Func<float, float, Vector2>)NewVec2;

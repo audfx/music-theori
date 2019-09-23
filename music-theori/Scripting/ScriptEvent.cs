@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using MoonSharp.Interpreter;
 
 namespace theori.Scripting
 {
-    public sealed class ScriptEvent : Disposable
+    public sealed class ScriptEvent
     {
         public sealed class Connection
         {
@@ -32,10 +30,8 @@ namespace theori.Scripting
             m_script = script;
         }
 
-        protected override void DisposeManaged()
+        public void Destroy()
         {
-            base.DisposeManaged();
-
             m_connected.Clear();
         }
 
