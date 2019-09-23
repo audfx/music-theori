@@ -46,6 +46,9 @@ namespace theori.Platform
             LuaScript.RegisterType<ClientResourceManager>();
 
             LuaScript.RegisterType<ScriptWindowInterface>();
+
+            LuaScript.RegisterType<ScriptEvent>();
+            LuaScript.RegisterType<ScriptEvent.Connection>();
         }
 
         public readonly TheoriConfig Config = new TheoriConfig();
