@@ -93,6 +93,8 @@ namespace theori.Graphics
             var opts = new TextGraphicsOptions()
             {
                 Antialias = true,
+                AlphaCompositionMode = PixelAlphaCompositionMode.Src,
+                AntialiasSubpixelDepth = 2,
                 ApplyKerning = true,
                 VerticalAlignment = VerticalAlignment.Top,
                 HorizontalAlignment = HorizontalAlignment.Left,
