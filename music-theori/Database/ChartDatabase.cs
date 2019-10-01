@@ -15,12 +15,9 @@ namespace theori.Database
 
         public readonly string FilePath;
 
-        public string ChartsDirectory { get; private set; }
-
         protected virtual int Version => DEFAULT_VERSION;
 
         private SQLiteConnection m_connection;
-        private FileSystemWatcher m_watcher;
 
         private readonly HashSet<string> m_setFiles = new HashSet<string>();
 
@@ -35,9 +32,8 @@ namespace theori.Database
             m_connection = new SQLiteConnection($"Data Source={ filePath }");
         }
 
-        public void OpenLocal(string chartsDirectory)
+        public void OpenLocal()
         {
-            ChartsDirectory = chartsDirectory;
             m_connection.Open();
 
             bool rebuild;
@@ -81,7 +77,7 @@ namespace theori.Database
                 return command.ExecuteReader();
         }
 
-        private int Exec(string commandText, params object[] values)
+        private int Exec(string commandText, params object?[] values)
         {
             using (var command = new SQLiteCommand(commandText, m_connection))
             {
@@ -163,99 +159,18 @@ namespace theori.Database
             )");
         }
 
-        public void WatchForFileSystemChanges()
-        {
-            if (m_watcher != null) return;
-
-            var watcher = new FileSystemWatcher(ChartsDirectory);
-            watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
-
-            watcher.Filter = "*.theori-set|*.theori";
-
-            watcher.Changed += Watcher_Changed;
-            watcher.Deleted += Watcher_Changed;
-            watcher.Created += Watcher_Changed;
-            watcher.Renamed += Watcher_Renamed;
-
-            m_watcher = watcher;
-            watcher.EnableRaisingEvents = true;
-        }
-
-        public void StopWatchingForFileSystemChanges()
-        {
-            if (m_watcher == null) return;
-
-            m_watcher.Dispose();
-            m_watcher = null;
-        }
-
-        /// <summary>
-        /// Looks for every set this database is responsible for watching and sets up
-        ///  listeners on them for added/removed sets.
-        /// </summary>
-        public void Scan()
-        {
-        }
-
-        private void Watcher_Changed(object sender, FileSystemEventArgs e)
-        {
-        }
-
-        private void Watcher_Renamed(object sender, RenamedEventArgs e)
-        {
-        }
-
-        public void AddSetFileRelative(string relPath)
-        {
-            if (PathL.IsFullPath(relPath))
-                throw new ArgumentException($"{ nameof(AddSetFileRelative) } expects a relative path.");
-
-            bool isUpdate = !m_setFiles.Add(relPath);
-
-            string setDir = Directory.GetParent(relPath).FullName;
-            string setFile = Path.GetFileName(relPath);
-
-            Debug.Assert(Path.Combine(setDir, setFile) == relPath);
-
-            var setSerializer = new ChartSetSerializer();
-            var setInfo = setSerializer.LoadFromFile(ChartsDirectory, setDir, setFile);
-
-            AddSetInfoToDatabase(relPath, setInfo, isUpdate);
-        }
-
-        public void AddSetFile(string fullPath)
-        {
-            if (!PathL.IsFullPath(fullPath))
-                throw new ArgumentException($"{ nameof(AddSetFile) } expects a full path and will convert it to a relative path.");
-
-            string relPath;
-            try
-            {
-                relPath = PathL.RelativePath(fullPath, ChartsDirectory);
-            }
-            catch (ArgumentException e)
-            {
-                Logger.Log(e);
-                return;
-            }
-
-            AddSetFileRelative(relPath);
-        }
-
         public void AddSet(ChartSetInfo setInfo)
         {
             string relPath = Path.Combine(setInfo.FilePath, setInfo.FileName);
-            bool isUpdate = !m_setFiles.Add(relPath);
-
-            AddSetInfoToDatabase(relPath, setInfo, isUpdate);
+            AddSetInfoToDatabase(relPath, setInfo);
         }
 
-        private void AddSetInfoToDatabase(string relPath, ChartSetInfo setInfo, bool isUpdate)
+        private void AddSetInfoToDatabase(string relPath, ChartSetInfo setInfo)
         {
             Debug.Assert(Path.Combine(setInfo.FilePath, setInfo.FileName) == relPath);
 
+            bool isUpdate = !m_setFiles.Add(relPath);
             m_chartSetsByFilePath[relPath] = setInfo;
-            // check that we need to update an entry or create a new one i guess
 
             if (isUpdate)
             {
@@ -274,8 +189,9 @@ namespace theori.Database
                     return;
                 }
 
-                
                 setInfo.ID = m_connection.LastInsertRowId;
+                m_chartSets[setInfo.ID] = setInfo;
+
                 foreach (var chart in setInfo.Charts)
                 {
                     int chartResult = Exec("INSERT INTO Charts (setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -331,26 +247,28 @@ namespace theori.Database
                 while (reader.Read())
                 {
                     var set = m_chartSets[reader.GetInt64(1)];
-                    var chart = new ChartInfo();
-                    chart.ID = reader.GetInt64(0);
-                    chart.LastWriteTime = reader.GetInt64(2);
-                    chart.FileName = reader.GetString(3);
-                    chart.SongTitle = reader.GetString(4);
-                    chart.SongArtist = reader.GetString(5);
-                    chart.SongFileName = reader.GetString(6);
-                    chart.SongVolume = reader.GetInt32(7);
-                    chart.Charter = reader.GetString(8);
-                    chart.JacketFileName = reader.GetString(9);
-                    chart.JacketArtist = reader.GetString(10);
-                    chart.BackgroundFileName = reader.GetString(11);
-                    chart.BackgroundArtist = reader.GetString(12);
-                    chart.DifficultyLevel = reader.GetDouble(13);
-                    chart.DifficultyIndex = reader.GetValue(14) is DBNull ? (int?)null : reader.GetInt32(14);
-                    chart.DifficultyName = reader.GetString(15);
-                    chart.DifficultyNameShort = reader.GetString(16);
-                    chart.DifficultyColor = reader.GetValue(17) is DBNull ? (Vector3?)null : Color.HexToVector3(reader.GetInt32(17));
-                    chart.ChartDuration = reader.GetDouble(18);
-                    chart.Tags = reader.GetString(19);
+                    var chart = new ChartInfo
+                    {
+                        ID = reader.GetInt64(0),
+                        LastWriteTime = reader.GetInt64(2),
+                        FileName = reader.GetString(3),
+                        SongTitle = reader.GetString(4),
+                        SongArtist = reader.GetString(5),
+                        SongFileName = reader.GetString(6),
+                        SongVolume = reader.GetInt32(7),
+                        Charter = reader.GetString(8),
+                        JacketFileName = reader.GetString(9),
+                        JacketArtist = reader.GetString(10),
+                        BackgroundFileName = reader.GetString(11),
+                        BackgroundArtist = reader.GetString(12),
+                        DifficultyLevel = reader.GetDouble(13),
+                        DifficultyIndex = reader.GetValue(14) is DBNull ? (int?)null : reader.GetInt32(14),
+                        DifficultyName = reader.GetString(15),
+                        DifficultyNameShort = reader.GetString(16),
+                        DifficultyColor = reader.GetValue(17) is DBNull ? (Vector3?)null : Color.HexToVector3(reader.GetInt32(17)),
+                        ChartDuration = reader.GetDouble(18),
+                        Tags = reader.GetString(19)
+                    };
 
                     set.Charts.Add(chart);
                     chart.Set = set;
