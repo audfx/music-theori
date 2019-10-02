@@ -93,8 +93,7 @@ namespace theori.Graphics
             var opts = new TextGraphicsOptions()
             {
                 Antialias = true,
-                AlphaCompositionMode = PixelAlphaCompositionMode.Src,
-                AntialiasSubpixelDepth = 2,
+                AntialiasSubpixelDepth = 8,
                 ApplyKerning = true,
                 VerticalAlignment = VerticalAlignment.Top,
                 HorizontalAlignment = HorizontalAlignment.Left,
@@ -105,6 +104,10 @@ namespace theori.Graphics
 
             using var img = new Image<Rgba32>(MathL.CeilToInt(bounds.Width), MathL.CeilToInt(bounds.Height));
             img.Mutate(x => x.DrawText(m_text, font, Rgba32.White, new PointF(-bounds.X, -bounds.Y)));
+
+            for (int x = 0; x < img.Width; x++)
+                for (int y = 0; y < img.Height; y++)
+                    img[x, y] = new Rgba32(255, 255, 255, img[x, y].A);
 
             m_texture.Create2DFromImage(img);
 
