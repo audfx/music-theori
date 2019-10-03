@@ -26,6 +26,9 @@ namespace theori.Database
 
         private readonly Dictionary<string, ChartSetInfo> m_chartSetsByFilePath = new Dictionary<string, ChartSetInfo>();
 
+        public IEnumerable<ChartSetInfo> ChartSets => m_chartSets.Values;
+        public IEnumerable<ChartInfo> Charts => m_charts.Values;
+
         public ChartDatabase(string filePath)
         {
             FilePath = filePath;
@@ -224,21 +227,14 @@ namespace theori.Database
             {
                 while (reader.Read())
                 {
-                    var set = new ChartSetInfo()
-                    {
-                        ID = reader.GetInt64(0),
-                        LastWriteTime = reader.GetInt64(1),
-                        OnlineID = reader.GetValue(2) is DBNull ? (long?)null : reader.GetInt64(2),
-                        FilePath = reader.GetString(3),
-                        FileName = reader.GetString(4),
-                    };
-                    m_chartSets[set.ID] = set;
+                    var set = new ChartSetInfo();
+                    set.ID = reader.GetInt64(0);
+                    set.LastWriteTime = reader.GetInt64(1);
+                    set.OnlineID = reader.GetValue(2) is DBNull ? (long?)null : reader.GetInt64(2);
+                    set.FilePath = reader.GetString(3);
+                    set.FileName = reader.GetString(4);
 
-                    Logger.Log($@"DB Loaded Chart Set { set.ID }:
-    lwt={ set.LastWriteTime },
-    uploadID={ set.OnlineID  },
-    filePath={ set.FilePath },
-    fileName={ set.FileName }");
+                    m_chartSets[set.ID] = set;
                 }
             }
 
@@ -247,51 +243,29 @@ namespace theori.Database
                 while (reader.Read())
                 {
                     var set = m_chartSets[reader.GetInt64(1)];
-                    var chart = new ChartInfo
-                    {
-                        ID = reader.GetInt64(0),
-                        LastWriteTime = reader.GetInt64(2),
-                        FileName = reader.GetString(3),
-                        SongTitle = reader.GetString(4),
-                        SongArtist = reader.GetString(5),
-                        SongFileName = reader.GetString(6),
-                        SongVolume = reader.GetInt32(7),
-                        Charter = reader.GetString(8),
-                        JacketFileName = reader.GetString(9),
-                        JacketArtist = reader.GetString(10),
-                        BackgroundFileName = reader.GetString(11),
-                        BackgroundArtist = reader.GetString(12),
-                        DifficultyLevel = reader.GetDouble(13),
-                        DifficultyIndex = reader.GetValue(14) is DBNull ? (int?)null : reader.GetInt32(14),
-                        DifficultyName = reader.GetString(15),
-                        DifficultyNameShort = reader.GetString(16),
-                        DifficultyColor = reader.GetValue(17) is DBNull ? (Vector3?)null : Color.HexToVector3(reader.GetInt32(17)),
-                        ChartDuration = reader.GetDouble(18),
-                        Tags = reader.GetString(19)
-                    };
+                    var chart = new ChartInfo();
+                    chart.ID = reader.GetInt64(0);
+                    chart.LastWriteTime = reader.GetInt64(2);
+                    chart.FileName = reader.GetString(3);
+                    chart.SongTitle = reader.GetString(4);
+                    chart.SongArtist = reader.GetString(5);
+                    chart.SongFileName = reader.GetString(6);
+                    chart.SongVolume = reader.GetInt32(7);
+                    chart.Charter = reader.GetString(8);
+                    chart.JacketFileName = reader.GetString(9);
+                    chart.JacketArtist = reader.GetString(10);
+                    chart.BackgroundFileName = reader.GetString(11);
+                    chart.BackgroundArtist = reader.GetString(12);
+                    chart.DifficultyLevel = reader.GetDouble(13);
+                    chart.DifficultyIndex = reader.GetValue(14) is DBNull ? (int?)null : reader.GetInt32(14);
+                    chart.DifficultyName = reader.GetString(15);
+                    chart.DifficultyNameShort = reader.GetString(16);
+                    chart.DifficultyColor = reader.GetValue(17) is DBNull ? (Vector3?)null : Color.HexToVector3(reader.GetInt32(17));
+                    chart.ChartDuration = reader.GetDouble(18);
+                    chart.Tags = reader.GetString(19);
 
                     set.Charts.Add(chart);
                     chart.Set = set;
-
-                    Logger.Log($@"DB Loaded Chart { chart.ID } in Set { chart.SetID }:
-    lwt={ chart.LastWriteTime },
-    fileName={ chart.FileName },
-    songTitle={ chart.SongTitle },
-    songArtist={ chart.SongArtist },
-    songFileName={ chart.SongFileName },
-    songVolume={ chart.SongVolume },
-    charter={ chart.Charter },
-    jacketFileName={ chart.JacketFileName },
-    jacketArtist={ chart.JacketArtist },
-    backgroundFileName={ chart.BackgroundFileName },
-    backgroundArtist={ chart.BackgroundArtist },
-    diffLevel={ chart.DifficultyLevel },
-    diffIndex={ chart.DifficultyIndex },
-    diffName={ chart.DifficultyName },
-    diffNameShort={ chart.DifficultyNameShort },
-    diffColor={ chart.DifficultyColor },
-    chartDuration={ chart.ChartDuration },
-    tags={ chart.Tags }");
                 }
             }
         }
