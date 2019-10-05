@@ -24,9 +24,11 @@ namespace theori.Graphics
 
         private Vector4 m_drawColor = Vector4.One, m_imageColor = Vector4.One;
         private Transform m_transform = Transform.Identity;
+        private Rect? m_scissor = null;
         private Anchor m_textAlign = Anchor.TopLeft;
 
         private readonly Stack<Transform> m_savedTransforms = new Stack<Transform>();
+        private readonly Stack<Rect?> m_savedScissors = new Stack<Rect?>();
 
         private RenderQueue? m_queue;
         private Font m_font = Font.Default;
@@ -131,6 +133,34 @@ namespace theori.Graphics
             shear.M12 = sy;
 
             m_transform = m_transform * new Transform(shear);
+        }
+
+        public void SaveScissor()
+        {
+            m_savedScissors.Push(m_scissor);
+        }
+
+        public void RestoreScissor()
+        {
+            if (m_savedScissors.Count == 0) return;
+            m_scissor = m_savedScissors.Pop();
+        }
+
+        public void ResetScissor()
+        {
+            m_savedScissors.Clear();
+            m_scissor = null;
+        }
+
+        public void Scissor(float x, float y, float w, float h)
+        {
+            if (m_scissor is null)
+                m_scissor = new Rect(x, y, w, h);
+            else
+            {
+                var o = m_scissor!;
+                m_scissor = new Rect();
+            }
         }
 
         [MoonSharpVisible(true)]

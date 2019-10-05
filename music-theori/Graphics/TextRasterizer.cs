@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -34,6 +35,32 @@ namespace theori.Graphics
             {
                 if (value == m_text)
                     return;
+
+                for (int i = 0; i < value.Length; i++)
+                {
+                    if (char.IsSurrogate(value[i]))
+                    {
+                        var builder = new StringBuilder();
+
+                        builder.Append(value, 0, i);
+                        builder.Append('?');
+
+                        i++;
+
+                        for (int j = i + 1; j < value.Length; j++)
+                        {
+                            if (char.IsSurrogate(value[j]))
+                            {
+                                builder.Append('?');
+                                j++;
+                            }
+                            else builder.Append(value[j]);
+                        }
+
+                        value = builder.ToString();
+                        break;
+                    }
+                }
 
                 m_text = value;
                 IsDirty = true;
@@ -78,8 +105,9 @@ namespace theori.Graphics
 
         public TextRasterizer(Font font, float size = 16.0f, string text = "")
         {
+            Text = text;
+
             m_font = font;
-            m_text = text;
             m_size = size;
         }
 

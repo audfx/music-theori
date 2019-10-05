@@ -168,6 +168,28 @@ namespace theori.Database
             AddSetInfoToDatabase(relPath, setInfo);
         }
 
+        public void RemoveSet(ChartSetInfo setInfo)
+        {
+            string relPath = Path.Combine(setInfo.FilePath, setInfo.FileName);
+
+            m_chartSets.Remove(setInfo.ID);
+            m_chartSetsByFilePath.Remove(relPath);
+
+            m_setFiles.Remove(relPath);
+
+            Exec("DELETE FROM Sets WHERE filePath=?", setInfo.FilePath);
+
+            foreach (var chart in setInfo.Charts)
+                RemoveChart(chart);
+        }
+
+        public void RemoveChart(ChartInfo chart)
+        {
+            m_charts.Remove(chart.ID);
+
+            Exec("DELETE FROM Charts WHERE setId=? AND fileName=?", chart.SetID, chart.FileName);
+        }
+
         private void AddSetInfoToDatabase(string relPath, ChartSetInfo setInfo)
         {
             Debug.Assert(Path.Combine(setInfo.FilePath, setInfo.FileName) == relPath);

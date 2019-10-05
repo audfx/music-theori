@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-
+using System.Threading.Tasks;
 using MoonSharp.Interpreter;
 
 using SixLabors.ImageSharp;
@@ -40,12 +40,29 @@ namespace theori.Resources
             public abstract bool Finalize();
         }
 
-        sealed class AsyncTextureLoader : AsyncResourceLoader
+        class BackgroundResourceLoader
+        {
+            private readonly AsyncResourceLoader m_loader;
+
+            public readonly Task<bool> BackgroundTask;
+            public readonly Action SuccessCallback;
+
+            public BackgroundResourceLoader(AsyncResourceLoader loader, Action successCallback)
+            {
+                m_loader = loader;
+                BackgroundTask = Task.Run(() => loader.Load());
+                SuccessCallback = successCallback;
+            }
+
+            public bool Finalize() => m_loader.Finalize();
+        }
+
+        sealed class AsyncClientTextureLoader : AsyncResourceLoader
         {
             private readonly Texture m_resultTexture;
             private Image<Rgba32> m_image;
 
-            public AsyncTextureLoader(ClientResourceManager resourceManager, string resourcePath, Texture resultTexture)
+            public AsyncClientTextureLoader(ClientResourceManager resourceManager, string resourcePath, Texture resultTexture)
                 : base(resourceManager, resourcePath)
             {
                 m_resultTexture = resultTexture;
@@ -70,6 +87,39 @@ namespace theori.Resources
                 //m_resourceManager.m_resources[m_resourcePath] = m_resultTexture;
 
                 m_image.Dispose();
+                return true;
+            }
+        }
+
+        sealed class AsyncSystemTextureLoader : AsyncResourceLoader
+        {
+            private readonly Texture m_resultTexture;
+            private readonly Stream m_textureStream;
+            private readonly string m_fileExtension;
+
+            private Image<Rgba32>? m_image;
+
+            public AsyncSystemTextureLoader(ClientResourceManager resourceManager, Stream inputStream, string fileExtension, Texture resultTexture)
+                : base(resourceManager, "<external-resource>")
+            {
+                m_resultTexture = resultTexture;
+                m_textureStream = inputStream;
+                m_fileExtension = fileExtension;
+            }
+
+            public override bool Load()
+            {
+                using (m_textureStream)
+                    m_image = Image.Load(m_textureStream);
+                return true;
+            }
+
+            public override bool Finalize()
+            {
+                m_resultTexture.GenerateHandle();
+                m_resultTexture.Create2DFromImage(m_image!);
+
+                m_image!.Dispose();
                 return true;
             }
         }
@@ -169,6 +219,8 @@ namespace theori.Resources
         private readonly ClientResourceLocator m_locator;
 
         private readonly List<AsyncResourceLoader> m_loaders = new List<AsyncResourceLoader>();
+        private readonly List<BackgroundResourceLoader> m_continuousLoaders = new List<BackgroundResourceLoader>();
+
         private readonly Dictionary<string, Disposable> m_resources = new Dictionary<string, Disposable>();
         private readonly List<Disposable> m_managed = new List<Disposable>();
 
@@ -212,7 +264,7 @@ namespace theori.Resources
             var resultTexture = Texture.CreateUninitialized2D();
             m_resources[resourcePath] = resultTexture;
 
-            m_loaders.Add(new AsyncTextureLoader(this, resourcePath, resultTexture));
+            m_loaders.Add(new AsyncClientTextureLoader(this, resourcePath, resultTexture));
             return resultTexture;
         }
 
@@ -237,6 +289,49 @@ namespace theori.Resources
             m_resources[resourcePath] = resultAudio;
 
             m_loaders.Add(new AsyncAudioLoader(this, resourcePath, resultAudio));
+            return resultAudio;
+        }
+
+        public Texture LoadTexture(string resourcePath, Action successCallback)
+        {
+            if (m_resources.TryGetValue(resourcePath, out var resource))
+                return resource as Texture;
+
+            var resultTexture = Texture.CreateUninitialized2D();
+            m_resources[resourcePath] = resultTexture;
+
+            m_continuousLoaders.Add(new BackgroundResourceLoader(new AsyncClientTextureLoader(this, resourcePath, resultTexture), successCallback));
+            return resultTexture;
+        }
+
+        public Texture LoadTexture(Stream inputStream, string fileExtension, Action successCallback)
+        {
+            var resultTexture = Texture.CreateUninitialized2D();
+            m_continuousLoaders.Add(new BackgroundResourceLoader(new AsyncSystemTextureLoader(this, inputStream, fileExtension, resultTexture), successCallback));
+            return resultTexture;
+        }
+
+        public Material LoadMaterial(string resourcePath, Action successCallback)
+        {
+            if (m_resources.TryGetValue(resourcePath, out var resource))
+                return resource as Material;
+
+            var resultMaterial = Material.CreateUninitialized();
+            m_resources[resourcePath] = resultMaterial;
+
+            m_continuousLoaders.Add(new BackgroundResourceLoader(new AsyncMaterialLoader(this, resourcePath, resultMaterial), successCallback));
+            return resultMaterial;
+        }
+
+        public AudioTrack LoadAudio(string resourcePath, Action successCallback)
+        {
+            if (m_resources.TryGetValue(resourcePath, out var resource))
+                return resource as AudioTrack;
+
+            var resultAudio = AudioTrack.CreateUninitialized();
+            m_resources[resourcePath] = resultAudio;
+
+            m_continuousLoaders.Add(new BackgroundResourceLoader(new AsyncAudioLoader(this, resourcePath, resultAudio), successCallback));
             return resultAudio;
         }
 
@@ -269,6 +364,27 @@ namespace theori.Resources
             }
             m_loaders.Clear();
             return success;
+        }
+
+        [MoonSharpHidden]
+        public void Update()
+        {
+            for (int i = 0; i < m_continuousLoaders.Count; i++)
+            {
+                var loader = m_continuousLoaders[i];
+                if (loader.BackgroundTask.IsCompleted)
+                {
+                    m_continuousLoaders.RemoveAt(i);
+                    i--;
+
+                    if (loader.BackgroundTask.IsCompletedSuccessfully && loader.BackgroundTask.Result)
+                    {
+                        bool finalizeSuccessful = loader.Finalize();
+                        if (finalizeSuccessful)
+                            loader.SuccessCallback();
+                    }
+                }
+            }
         }
 
         public Texture GetTexture(string resourcePath)
