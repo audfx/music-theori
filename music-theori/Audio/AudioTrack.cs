@@ -21,7 +21,7 @@ namespace theori.Audio
         {
             return FromStream(Path.GetExtension(fileName), File.OpenRead(fileName));
         }
-        
+
         public static AudioTrack FromStream(string ext, Stream stream)
         {
             var source = ext switch
@@ -34,11 +34,11 @@ namespace theori.Audio
             var sampleSource = new ResamplingSampleSource(source, Mixer.Format);
             return new AudioTrack(sampleSource);
         }
-        
+
         internal ISampleSource? Source { get; private set; }
 
         public override bool CanSeek => Source?.CanSeek ?? throw new InvalidOperationException();
-        
+
         public override int SampleRate => Source?.Format.SampleRate ?? throw new InvalidOperationException();
         public override int Channels => Source?.Format.ChannelCount ?? throw new InvalidOperationException();
 
@@ -60,7 +60,7 @@ namespace theori.Audio
             {
                 if (PlaybackState != PlaybackState.Playing)
                     m_positionCached = value;
-                Seek(value); 
+                Seek(value);
             }
         }
 
@@ -133,6 +133,24 @@ namespace theori.Audio
         private long m_realSampleIndex;
         private float[] m_resampleBuffer = new float[2048];
 
+        private (long Repeat, long Check)? m_loopArea = null;
+        private bool m_isLoopingArea = false;
+
+        private long TimeToSamples(time_t time) => (long)(time.Seconds * Source!.Format.SampleRate * Source!.Format.ChannelCount);
+
+        public void SetLoopAreaSamples(long start, long end)
+        {
+            if (!CanSeek) throw new InvalidOperationException("can't set loop area: cannot seek");
+            m_loopArea = (start, end);
+        }
+
+        public void RemoveLoopArea() => m_loopArea = null;
+
+        public void SetLoopArea(time_t start, time_t end)
+        {
+            SetLoopAreaSamples(TimeToSamples(start), TimeToSamples(end));
+        }
+
         public override int Read(Span<float> buffer)
         {
             if (Source == null) return 0;
@@ -142,6 +160,10 @@ namespace theori.Audio
             {
                 case PlaybackState.Playing:
                 {
+                    if (m_loopArea is { } area)
+                        m_isLoopingArea = m_realSampleIndex >= area.Repeat && m_realSampleIndex <= area.Check;
+                    else m_isLoopingArea = false;
+
                     m_lastSourcePosition = m_realSampleIndex / (double)(Source.Format.SampleRate * Source.Format.ChannelCount);
 
                     int realSampleCount = (int)(count * m_playbackSpeed);
@@ -160,7 +182,21 @@ namespace theori.Audio
                     for (int e = 0; e < numEmptySamples; e++)
                         m_resampleBuffer[e] = 0;
 
-                    int numReadSamples = Source.Read(m_resampleBuffer.AsSpan(numEmptySamples, realSampleCount - numEmptySamples));
+                    int numReadSamples, ifLoopingSampleCount;
+                    if (m_isLoopingArea && realSampleCount > (ifLoopingSampleCount =
+                        (int)(m_loopArea!.Value.Check - (m_realSampleIndex + numEmptySamples))))
+                    {
+                        int numReadAtEnd = Source.Read(m_resampleBuffer.AsSpan(numEmptySamples, ifLoopingSampleCount));
+
+                        m_realSampleIndex = m_loopArea!.Value.Repeat;
+                        time_t loopBackPointSeconds = (double)m_realSampleIndex / (Source.Format.SampleRate * Source.Format.ChannelCount);
+                        Source!.Position = m_lastSourcePosition = loopBackPointSeconds;
+
+                        int numReadAtLoop = Source.Read(m_resampleBuffer.AsSpan(numEmptySamples + numReadAtEnd, ifLoopingSampleCount - numReadAtEnd));
+
+                        numReadSamples = numReadAtEnd + numReadAtLoop;
+                    }
+                    else numReadSamples = Source.Read(m_resampleBuffer.AsSpan(numEmptySamples, realSampleCount - numEmptySamples));
                     int totalSamplesRead = numReadSamples + numEmptySamples;
 
                     int numSamplesToWrite = (int)(totalSamplesRead * m_invPlaybackSpeed);
