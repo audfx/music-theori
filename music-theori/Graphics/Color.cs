@@ -10,13 +10,13 @@ namespace theori.Graphics
             //       RR GG BB  (not necessary, but explains that there should ONLY be these bits)
             rgb &= 0xFF_FF_FF;
 
-            float c(int i) => ((rgb >> (i * sizeof(byte))) & 0xFF) / 255.0f;
+            float c(int i) => ((rgb >> (i * 8)) & 0xFF) / 255.0f;
             return new Vector3(c(2), c(1), c(0));
         }
 
         public static int Vector3ToHex(Vector3 rgb)
         {
-            int c(float v, int i) => (MathL.RoundToInt(v * 255) & 0xFF) << (i * sizeof(byte));
+            int c(float v, int i) => (MathL.RoundToInt(v * 255) & 0xFF) << (i * 8);
             return c(rgb.X, 2) | c(rgb.Y, 1) | c(rgb.Z, 0);
         }
 

@@ -9,6 +9,11 @@ using theori.Graphics;
 
 namespace theori.Database
 {
+    using StringSet = HashSet<string>;
+    using SetDict = Dictionary<long, ChartSetInfo>;
+    using StringSetDict = Dictionary<string, ChartSetInfo>;
+    using ChartDict = Dictionary<long, ChartInfo>;
+
     public class ChartDatabase
     {
         private const int DEFAULT_VERSION = 1;
@@ -19,12 +24,12 @@ namespace theori.Database
 
         private SQLiteConnection m_connection;
 
-        private readonly HashSet<string> m_setFiles = new HashSet<string>();
+        private readonly StringSet m_setFiles = new StringSet();
 
-        private readonly Dictionary<long, ChartSetInfo> m_chartSets = new Dictionary<long, ChartSetInfo>();
-        private readonly Dictionary<long, ChartInfo> m_charts = new Dictionary<long, ChartInfo>();
+        private readonly SetDict m_chartSets = new SetDict();
+        private readonly ChartDict m_charts = new ChartDict();
 
-        private readonly Dictionary<string, ChartSetInfo> m_chartSetsByFilePath = new Dictionary<string, ChartSetInfo>();
+        private readonly StringSetDict m_chartSetsByFilePath = new StringSetDict();
 
         public IEnumerable<ChartSetInfo> ChartSets => m_chartSets.Values;
         public IEnumerable<ChartInfo> Charts => m_charts.Values;
@@ -139,6 +144,7 @@ namespace theori.Database
                 songArtist TEXT NOT NULL COLLATE NOCASE,
                 songFileName TEXT NOT NULL,
                 songVolume INTEGER NOT NULL,
+                chartOffset REAL NOT NULL,
                 charter TEXT NOT NULL COLLATE NOCASE,
                 jacketFileName TEXT,
                 jacketArtist TEXT,
@@ -160,6 +166,18 @@ namespace theori.Database
                 score INTEGER NOT NULL,
                 FOREIGN KEY(chartId) REFERENCES Charts(id)
             )");
+
+            Exec($@"CREATE TABLE LocalChartConfig (
+                id INTEGER PRIMARY KEY,
+                chartId INTEGER NOT NULL,
+                config STRING NOT NULL,
+                FOREIGN KEY(chartId) REFERENCES Charts(id)
+            )");
+        }
+
+        public bool ContainsSetAtLocation(string entrySubDirectory)
+        {
+            return m_chartSetsByFilePath.ContainsKey(entrySubDirectory);
         }
 
         public void AddSet(ChartSetInfo setInfo)
@@ -172,8 +190,8 @@ namespace theori.Database
         {
             string relPath = Path.Combine(setInfo.FilePath, setInfo.FileName);
 
-            m_chartSets.Remove(setInfo.ID);
-            m_chartSetsByFilePath.Remove(relPath);
+            m_chartSets.Remove(setInfo.ID, out var _);
+            m_chartSetsByFilePath.Remove(relPath, out var _);
 
             m_setFiles.Remove(relPath);
 
@@ -185,9 +203,21 @@ namespace theori.Database
 
         public void RemoveChart(ChartInfo chart)
         {
-            m_charts.Remove(chart.ID);
+            m_charts.Remove(chart.ID, out var _);
 
             Exec("DELETE FROM Charts WHERE setId=? AND fileName=?", chart.SetID, chart.FileName);
+            Exec("DELETE FROM LocalChartConfig WHERE chartId=?", chart.ID);
+        }
+
+        public string GetLocalConfigForChart(ChartInfo chartInfo)
+        {
+            using var reader = ExecReader($"SELECT config FROM LocalChartConfig WHERE chartId={ chartInfo.ID }");
+            return reader.Read() ? reader.GetString(0) : string.Empty;
+        }
+
+        public void SaveLocalConfigForChart(ChartInfo chartInfo, string config)
+        {
+            Exec("UPDATE LocalChartConfig SET config=? WHERE chartId=?", config, chartInfo.ID);
         }
 
         private void AddSetInfoToDatabase(string relPath, ChartSetInfo setInfo)
@@ -219,14 +249,15 @@ namespace theori.Database
 
                 foreach (var chart in setInfo.Charts)
                 {
-                    int chartResult = Exec("INSERT INTO Charts (setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                        chart.SetID,
+                    int chartResult = Exec("INSERT INTO Charts (setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,chartOffset,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        setInfo.ID,
                         chart.LastWriteTime,
                         chart.FileName,
                         chart.SongTitle,
                         chart.SongArtist,
                         chart.SongFileName,
                         chart.SongVolume,
+                        (double)chart.ChartOffset,
                         chart.Charter,
                         chart.JacketFileName,
                         chart.JacketArtist,
@@ -239,6 +270,9 @@ namespace theori.Database
                         chart.DifficultyColor == null ? (int?)null : Color.Vector3ToHex(chart.DifficultyColor.Value),
                         (double)chart.ChartDuration,
                         chart.Tags);
+
+                    chart.ID = m_connection.LastInsertRowId;
+                    Exec("INSERT INTO LocalChartConfig (chartId,config) VALUES (?,?)", string.Empty, chart.ID);
                 }
             }
         }
@@ -252,15 +286,19 @@ namespace theori.Database
                     var set = new ChartSetInfo();
                     set.ID = reader.GetInt64(0);
                     set.LastWriteTime = reader.GetInt64(1);
-                    set.OnlineID = reader.GetValue(2) is DBNull ? (long?)null : reader.GetInt64(2);
+                    set.OnlineID = reader.GetInt64OrNull(2);
                     set.FilePath = reader.GetString(3);
                     set.FileName = reader.GetString(4);
 
+                    string relPath = Path.Combine(set.FilePath, set.FileName);
+                    m_setFiles.Add(relPath);
+
                     m_chartSets[set.ID] = set;
+                    m_chartSetsByFilePath[relPath] = set;
                 }
             }
 
-            using (var reader = ExecReader("SELECT id,setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags FROM Charts"))
+            using (var reader = ExecReader("SELECT id,setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,chartOffset,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags FROM Charts"))
             {
                 while (reader.Read())
                 {
@@ -273,18 +311,19 @@ namespace theori.Database
                     chart.SongArtist = reader.GetString(5);
                     chart.SongFileName = reader.GetString(6);
                     chart.SongVolume = reader.GetInt32(7);
-                    chart.Charter = reader.GetString(8);
-                    chart.JacketFileName = reader.GetString(9);
-                    chart.JacketArtist = reader.GetString(10);
-                    chart.BackgroundFileName = reader.GetString(11);
-                    chart.BackgroundArtist = reader.GetString(12);
-                    chart.DifficultyLevel = reader.GetDouble(13);
-                    chart.DifficultyIndex = reader.GetValue(14) is DBNull ? (int?)null : reader.GetInt32(14);
-                    chart.DifficultyName = reader.GetString(15);
-                    chart.DifficultyNameShort = reader.GetString(16);
-                    chart.DifficultyColor = reader.GetValue(17) is DBNull ? (Vector3?)null : Color.HexToVector3(reader.GetInt32(17));
-                    chart.ChartDuration = reader.GetDouble(18);
-                    chart.Tags = reader.GetString(19);
+                    chart.ChartOffset = reader.GetDouble(8);
+                    chart.Charter = reader.GetString(9);
+                    chart.JacketFileName = reader.GetStringOrNull(10);
+                    chart.JacketArtist = reader.GetStringOrNull(11);
+                    chart.BackgroundFileName = reader.GetStringOrNull(12);
+                    chart.BackgroundArtist = reader.GetStringOrNull(13);
+                    chart.DifficultyLevel = reader.GetDouble(14);
+                    chart.DifficultyIndex = reader.GetInt32OrNull(15);
+                    chart.DifficultyName = reader.GetString(16);
+                    chart.DifficultyNameShort = reader.GetStringOrNull(17);
+                    chart.DifficultyColor = reader.GetInt32OrNull(18) is int value ? Color.HexToVector3(value) : (Vector3?)null;
+                    chart.ChartDuration = reader.GetDouble(19);
+                    chart.Tags = reader.GetString(20);
 
                     set.Charts.Add(chart);
                     chart.Set = set;
@@ -304,5 +343,12 @@ namespace theori.Database
         {
             m_connection.Close();
         }
+    }
+
+    static class DbExt
+    {
+        public static string? GetStringOrNull(this SQLiteDataReader reader, int colIndex) => reader.IsDBNull(colIndex) ? null : reader.GetString(colIndex);
+        public static long? GetInt64OrNull(this SQLiteDataReader reader, int colIndex) => reader.IsDBNull(colIndex) ? (long?)null : reader.GetInt64(colIndex);
+        public static int? GetInt32OrNull(this SQLiteDataReader reader, int colIndex) => reader.IsDBNull(colIndex) ? (int?)null : reader.GetInt32(colIndex);
     }
 }
