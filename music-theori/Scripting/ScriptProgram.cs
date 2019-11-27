@@ -13,37 +13,26 @@ using theori.Scoring;
 
 namespace theori.Scripting
 {
-    public class LuaScript : Disposable
+    public class ScriptProgram : Disposable
     {
         private static readonly ClientResourceLocator scriptLocator;
 
-        public static void RegisterType<T>() => UserData.RegisterType<T>();
-        public static void RegisterType(Type type) => UserData.RegisterType(type);
-
-        public static void RegisterAssembly(Assembly assembly = null, bool includeExtensionTypes = false) =>
-            UserData.RegisterAssembly(assembly, includeExtensionTypes);
-
-        static LuaScript()
+        static ScriptProgram()
         {
-            scriptLocator = new ClientResourceLocator(null, null);
-            scriptLocator.AddManifestResourceLoader(ManifestResourceLoader.GetResourceLoader(typeof(LuaScript).Assembly, "theori.Resources"));
+            scriptLocator = ClientResourceLocator.Default;
+            scriptLocator.AddManifestResourceLoader(ManifestResourceLoader.GetResourceLoader(typeof(ScriptProgram).Assembly, "theori.Resources"));
         }
 
         private readonly Script m_script;
 
         private readonly Dictionary<Type, DynValue> m_luaConverters = new Dictionary<Type, DynValue>();
 
-        private ClientResourceManager m_resources;
-        private BasicSpriteRenderer m_renderer;
+        public readonly ClientResourceLocator ResourceLocator;
+        public readonly ClientResourceManager Resources;
 
-#if false
-        public DynValue this[string globalKey]
-        {
-            get => m_script.Globals.Get(globalKey);
-            set => m_script.Globals.Set(globalKey, value);
-        }
-#else
-        public object this[string globalKey]
+        private BasicSpriteRenderer? m_renderer;
+
+        public object? this[string globalKey]
         {
             get => m_script.Globals[globalKey];
             set
@@ -53,11 +42,13 @@ namespace theori.Scripting
                 else m_script.Globals[globalKey] = value;
             }
         }
-#endif
 
-        public LuaScript()
+        public ScriptProgram(ClientResourceLocator? resourceLocator = null)
         {
-            m_script = new Script( CoreModules.Basic
+            ResourceLocator = resourceLocator ?? ClientResourceLocator.Default;
+            Resources = new ClientResourceManager(ResourceLocator);
+
+            m_script = new Script(CoreModules.Basic
                                  | CoreModules.String
                                  | CoreModules.Bit32
                                  | CoreModules.Coroutine
@@ -70,26 +61,52 @@ namespace theori.Scripting
                                  | CoreModules.Table
                                  | CoreModules.TableIterators);
 
-            m_script.Globals.Get("math").Table["sign"] = (Func<double, int>)Math.Sign;
-            m_script.Globals.Get("math").Table["clamp"] = (Func<double, double, double, double>)MathL.Clamp;
-
-            InitTheoriLibrary();
+            InitBuiltInLibrary();
         }
 
         protected override void DisposeManaged()
         {
-            m_resources?.Dispose();
-            m_renderer?.Dispose();
-
-            m_resources = null;
+            Resources.Dispose();
+            // TODO(local): remove global resource manager!!!
             this["res"] = null;
 
+            // TODO(local): remove global renderer!!!
+            m_renderer?.Dispose();
             m_renderer = null;
             this["g2d"] = null;
         }
 
-        public void InitTheoriLibrary()
+        #region Script API
+
+        /// <summary>`include`</summary>
+        public DynValue LoadScriptResourceFile(string fileName)
         {
+            fileName = $"scripts/{ fileName }.lua";
+            return LoadFile(ResourceLocator.OpenFileStream(fileName), fileName);
+        }
+
+        #endregion
+
+        public void InitBuiltInLibrary()
+        {
+            this["theori"] = ScriptDataModel.Instance;
+
+            this["include"] = (Func<string, DynValue>)LoadScriptResourceFile;
+
+            m_script.Globals.Get("math").Table["sign"] = (Func<double, int>)Math.Sign;
+            m_script.Globals.Get("math").Table["clamp"] = (Func<double, double, double, double>)MathL.Clamp;
+
+            m_script.Globals.Get("table").Table["shallowCopy"] = (Func<DynValue, DynValue>)(table =>
+            {
+                var result = NewTable();
+                foreach (var pair in table.Table.Pairs)
+                    result[pair.Key] = pair.Value;
+                return DynValue.NewTable(result);
+            });
+
+            // TODO(local): remove global resource manager!!!
+            m_script.Globals["res"] = Resources;
+
             this["Anchor"] = typeof(Anchor);
             this["ScoreRank"] = typeof(ScoreRank);
 
@@ -110,15 +127,9 @@ namespace theori.Scripting
             m_luaConverters[typeof(Vector4)] = (DynValue)converters.Tuple.GetValue(2);
         }
 
-        public void InitResourceLoading(ClientResourceLocator locator)
+        public void InitSpriteRenderer(Vector2? viewportSize = null)
         {
-            m_resources = new ClientResourceManager(locator);
-            this["res"] = m_resources;
-        }
-
-        public void InitSpriteRenderer(ClientResourceLocator locator = null, Vector2? viewportSize = null)
-        {
-            m_renderer = new BasicSpriteRenderer(locator, viewportSize);
+            m_renderer = new BasicSpriteRenderer(ResourceLocator, viewportSize);
             this["g2d"] = m_renderer;
         }
 
@@ -131,7 +142,7 @@ namespace theori.Scripting
             if (!result.CastToBool())
                 return false;
 
-            if (!m_resources.LoadAll())
+            if (!Resources.LoadAll())
                 return false;
 
             return true;
@@ -146,7 +157,7 @@ namespace theori.Scripting
             if (!result.CastToBool())
                 return false;
 
-            if (!m_resources.FinalizeLoad())
+            if (!Resources.FinalizeLoad())
                 return false;
 
             return true;
@@ -168,19 +179,19 @@ namespace theori.Scripting
             }
         }
 
-        public DynValue DoString(string code) => m_script.DoString(code);
+        public DynValue DoString(string code, string? codeFriendlyName = null) => m_script.DoString(code, codeFriendlyName: codeFriendlyName);
 
         /// <summary>
         /// Takes ownership of the file stream.
         /// </summary>
         /// <param name="fileStream"></param>
         /// <returns></returns>
-        public DynValue LoadFile(Stream fileStream)
+        public DynValue LoadFile(Stream fileStream, string? codeFriendlyName = null)
         {
             using (var reader = new StreamReader(fileStream))
             {
                 string code = reader.ReadToEnd();
-                return DoString(code);
+                return DoString(code, codeFriendlyName);
             }
         }
 
@@ -198,7 +209,7 @@ namespace theori.Scripting
             return m_script.Call(this[name], args);
         }
 
-        public DynValue CallIfExists(string name, params object[] args)
+        public DynValue? CallIfExists(string name, params object[] args)
         {
             var target = this[name];
             if (target is Closure || target is CallbackFunction)

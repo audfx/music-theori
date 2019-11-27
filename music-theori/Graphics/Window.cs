@@ -44,17 +44,22 @@ namespace theori.Graphics
 
         public static void Create(ClientHost host)
         {
+            using var _ = Profiler.Scope("Window::Create");
+
             if (window != IntPtr.Zero)
                 throw new InvalidOperationException("Only one Window can be created at a time.");
 
             Window.host = host;
 
-            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) != 0)
             {
-                string err = SDL_GetError();
-                Logger.Log(err, LogPriority.Error);
-                // can't continue, sorry
-                host.PerformExit(true);
+                using var __ = Profiler.Scope("Window::Create - Initialize SDL2");
+                if (SDL_Init(SDL_INIT_VIDEO) != 0)
+                {
+                    string err = SDL_GetError();
+                    Logger.Log(err, LogPriority.Error);
+                    // can't continue, sorry
+                    host.PerformExit(true);
+                }
             }
             
             SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_CONTEXT_PROFILE_MASK, (int)SDL_GLprofile.SDL_GL_CONTEXT_PROFILE_CORE);
@@ -78,9 +83,14 @@ namespace theori.Graphics
             if (host.Config.GetBool(Configuration.TheoriConfigKey.Maximized))
                 windowFlags |= SDL_WindowFlags.SDL_WINDOW_MAXIMIZED;
 
-            int width = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenWidth);
-            int height = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenHeight);
-            window = SDL_CreateWindow("theori", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
+            {
+                using var __ = Profiler.Scope("Window::Create - Create SDL2 Window");
+
+                int width = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenWidth);
+                int height = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenHeight);
+                // we're pretty sure this takes as long as it does because of the OpenGL flag
+                window = SDL_CreateWindow("theori", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
+            }
 
             SDL_DisableScreenSaver();
 
@@ -92,8 +102,12 @@ namespace theori.Graphics
                 host.PerformExit(true);
             }
 
-            context = SDL_GL_CreateContext(window);
-            SDL_GL_MakeCurrent(window, context);
+            {
+                using var __ = Profiler.Scope("Window::Create - Create OpenGL Context");
+
+                context = SDL_GL_CreateContext(window);
+                SDL_GL_MakeCurrent(window, context);
+            }
 
             if (SDL_GL_SetSwapInterval(1) == -1)
             {
@@ -120,7 +134,7 @@ namespace theori.Graphics
                 SwapBuffer();
             }
 
-            Window.Update();
+            Update();
         }
 
         internal static void Show()
@@ -140,11 +154,13 @@ namespace theori.Graphics
 
         internal static void SwapBuffer()
         {
+            using var _ = Profiler.Scope("Window::SwapBuffer");
             SDL_GL_SwapWindow(window);
         }
 
         internal static unsafe void Update()
         {
+            using var _ = Profiler.Scope("Window::Update");
             SDL_GL_MakeCurrent(window, context);
 
             while (SDL_PollEvent(out var evt) != 0)
@@ -155,41 +171,47 @@ namespace theori.Graphics
                         
                     case SDL_EventType.SDL_KEYDOWN:
                     case SDL_EventType.SDL_KEYUP:
+                    {
+                        var sym = evt.key.keysym;
+                        var info = new KeyInfo()
                         {
-                            var sym = evt.key.keysym;
-                            var info = new KeyInfo()
-                            {
-                                ScanCode = (ScanCode)sym.scancode,
-                                KeyCode = (KeyCode)sym.sym,
-                                Mods = (KeyMod)sym.mod,
-                            };
+                            ScanCode = (ScanCode)sym.scancode,
+                            KeyCode = (KeyCode)sym.sym,
+                            Mods = (KeyMod)sym.mod,
+                        };
 
-                            if (evt.type == SDL_EventType.SDL_KEYDOWN)
-                                Keyboard.InvokePress(info);
-                            else Keyboard.InvokeRelease(info);
-                        }
-                        break;
+                        if (evt.type == SDL_EventType.SDL_KEYDOWN)
+                            UserInputService.Keyboard_KeyPress(info);
+                        else UserInputService.Keyboard_KeyRelease(info);
+                    } break;
 
                     case SDL_EventType.SDL_MOUSEBUTTONDOWN:
                     case SDL_EventType.SDL_MOUSEBUTTONUP:
+                    {
+                        UserInputService.MouseX = evt.button.x;
+                        UserInputService.MouseY = evt.button.y;
+
+                        var info = new MouseButtonInfo()
                         {
-                            Mouse.x = evt.button.x;
-                            Mouse.y = evt.button.y;
-                            
-                            if (evt.type == SDL_EventType.SDL_MOUSEBUTTONDOWN)
-                                Mouse.InvokePress((MouseButton)evt.button.button);
-                            else Mouse.InvokeRelease((MouseButton)evt.button.button);
-                        }
-                        break;
+                            Button = (MouseButton)evt.button.button,
+                            X = evt.button.x,
+                            Y = evt.button.y,
+                        };
+
+                        if (evt.type == SDL_EventType.SDL_MOUSEBUTTONDOWN)
+                            UserInputService.Mouse_MouseButtonPress(info);
+                        else UserInputService.Mouse_MouseButtonRelease(info);
+                    } break;
+
                     case SDL_EventType.SDL_MOUSEMOTION:
-                        Mouse.InvokeMove(evt.motion.xrel, evt.motion.yrel, evt.motion.xrel, evt.motion.yrel);
+                        UserInputService.Mouse_Move(evt.motion.xrel, evt.motion.yrel, evt.motion.xrel, evt.motion.yrel);
                         break;
                     case SDL_EventType.SDL_MOUSEWHEEL:
                     {
                         int y = evt.wheel.y;
                         if (evt.wheel.direction != (uint)SDL_MouseWheelDirection.SDL_MOUSEWHEEL_FLIPPED)
                             y = -y;
-                        Mouse.InvokeScroll(evt.wheel.x, y);
+                        UserInputService.Mouse_Scroll(evt.wheel.x, y);
                     } break;
                         
                     case SDL_EventType.SDL_TEXTEDITING:
@@ -217,36 +239,36 @@ namespace theori.Graphics
                     case SDL_EventType.SDL_JOYDEVICEADDED:
                     {
                         Logger.Log($"Joystick Added: Device [{ evt.jdevice.which }] \"{ SDL_JoystickNameForIndex(evt.jdevice.which) }\"", LogPriority.Verbose);
-                        var gamepad = Gamepad.Create(evt.jdevice.which);
 
-                        bool gatherGamepadInfo = true;
-                        if (gatherGamepadInfo)
-                        {
-                            gamepad.Open();
-                            gamepad.Close();
-                        }
+                        var gamepad = new Gamepad(evt.jdevice.which);
+                        UserInputService.Gamepad_Connected(gamepad);
                     } break;
                     case SDL_EventType.SDL_JOYDEVICEREMOVED:
                         Logger.Log($"Joystick Removed: Instance [{ evt.jdevice.which }]", LogPriority.Verbose);
-                        Gamepad.Remove(evt.jdevice.which);
+                        UserInputService.Gamepad_Disconnected(evt.jdevice.which);
                         break;
 
                     case SDL_EventType.SDL_JOYAXISMOTION:
                     {
-                        Gamepad.HandleAxisEvent(evt.jaxis.which, evt.jaxis.axis, evt.jaxis.axisValue);
+                        UserInputService.Gamepad_AxisMotion(evt.jaxis.which, evt.jaxis.axis, evt.jaxis.axisValue);
                     } break;
                     case SDL_EventType.SDL_JOYBALLMOTION:
                     {
+                        UserInputService.Gamepad_BallMotion(evt.jball.which, evt.jball.ball, evt.jball.xrel, evt.jball.yrel);
                     } break;
                     case SDL_EventType.SDL_JOYBUTTONDOWN:
                     {
-                        Gamepad.HandleInputEvent(evt.jbutton.which, evt.jbutton.button, 1);
+                        UserInputService.Gamepad_Pressed(evt.jbutton.which, evt.jbutton.button);
                     } break;
                     case SDL_EventType.SDL_JOYBUTTONUP:
                     {
-                        Gamepad.HandleInputEvent(evt.jbutton.which, evt.jbutton.button, 0);
+                        UserInputService.Gamepad_Released(evt.jbutton.which, evt.jbutton.button);
                     } break;
-                    case SDL_EventType.SDL_JOYHATMOTION: break;
+                    case SDL_EventType.SDL_JOYHATMOTION:
+                    {
+                        // TODO(local): look into what values hats need
+                        //UserInputService.Gamepad_HatMotion(evt.jhat.which, evt.jhat.hat, evt.jhat.hatValue);
+                    } break;
 
                     case SDL_EventType.SDL_DROPBEGIN: break;
                     case SDL_EventType.SDL_DROPCOMPLETE: break;

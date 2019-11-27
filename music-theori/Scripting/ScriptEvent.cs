@@ -22,10 +22,10 @@ namespace theori.Scripting
             }
         }
 
-        private readonly LuaScript m_script;
+        private readonly ScriptProgram m_script;
         private readonly List<DynValue> m_connected = new List<DynValue>();
 
-        internal ScriptEvent(LuaScript script)
+        internal ScriptEvent(ScriptProgram script)
         {
             m_script = script;
         }

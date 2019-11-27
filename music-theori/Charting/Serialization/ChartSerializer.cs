@@ -39,7 +39,7 @@ namespace theori.Charting.Serialization
             JArray controlPoints = jobjdyn.controlPoints;
             JArray lanes = jobjdyn.lanes;
 
-            static LaneLabel ToLabel(JToken token)
+            static HybridLabel ToLabel(JToken token)
             {
                 return token.Type switch
                 {

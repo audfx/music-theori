@@ -4,6 +4,8 @@ namespace theori.Configuration
 {
     public class TheoriConfig : Config<TheoriConfigKey>
     {
+        public static string ChartsDirectory => "charts";
+
         protected override void SetDefaults()
         {
 	        Set(TheoriConfigKey.ScreenWidth, 1280);

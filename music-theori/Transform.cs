@@ -67,12 +67,5 @@ namespace theori
         {
             this.Matrix = matrix;
         }
-
-        public Transform(Vector3 translation, Quaternion rotation, Vector3 scale)
-        {
-            Matrix = Matrix4x4.CreateScale(scale) *
-                     Matrix4x4.CreateFromQuaternion(rotation) *
-                     Matrix4x4.CreateTranslation(translation);
-        }
     }
 }

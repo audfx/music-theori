@@ -16,11 +16,13 @@ namespace theori.Database
 
     public class ChartDatabase
     {
-        private const int DEFAULT_VERSION = 1;
+        private const int CURRENT_VERSION = 1;
+
+        private const int INITIAL_VERSION = 1;
 
         public readonly string FilePath;
 
-        protected virtual int Version => DEFAULT_VERSION;
+        protected virtual int Version => CURRENT_VERSION;
 
         private SQLiteConnection m_connection;
 
@@ -44,17 +46,20 @@ namespace theori.Database
         {
             m_connection.Open();
 
-            bool rebuild;
+            bool rebuild = false, update = false;
+            int vGot = -1;
+
             try
             {
-                int vGot = -1;
                 using (var reader = ExecReader("SELECT version FROM `Database`"))
                 {
                     reader.Read();
                     vGot = reader.GetInt32(0);
                 }
 
-                rebuild = vGot != Version;
+                Logger.Log($"Loaded Chart Database Version { vGot }");
+
+                update = vGot != Version;
             }
             catch (SQLiteException e)
             {
@@ -64,6 +69,23 @@ namespace theori.Database
 
             if (rebuild)
                 Initialize();
+            else if (update)
+            {
+                while (vGot < Version)
+                {
+                    switch (vGot)
+                    {
+                        case INITIAL_VERSION:
+                        {
+                        } break;
+                    }
+
+                    int vLast = vGot++;
+                    Logger.Log($"  Updated Chart Database from Version { vLast } to { vGot }");
+                }
+
+                Exec("UPDATE Database SET `version`=? WHERE `rowid`=1", Version);
+            }
             else LoadData();
         }
 
@@ -107,7 +129,7 @@ namespace theori.Database
         {
             Exec($"DROP TABLE IF EXISTS Database");
             Exec($"CREATE TABLE Database ( version INTEGER )");
-            Exec($"INSERT INTO Database ( rowid, version ) VALUES ( 1, { Version } )");
+            Exec($"INSERT OR REPLACE INTO Database ( rowid, version ) VALUES ( 1, { Version } )");
 
             InitializeTables();
         }
@@ -274,6 +296,9 @@ namespace theori.Database
                     chart.ID = m_connection.LastInsertRowId;
                     Exec("INSERT INTO LocalChartConfig (chartId,config) VALUES (?,?)", string.Empty, chart.ID);
                 }
+
+                foreach (var chart in setInfo.Charts)
+                    m_charts[chart.ID] = chart;
             }
         }
 
@@ -327,6 +352,8 @@ namespace theori.Database
 
                     set.Charts.Add(chart);
                     chart.Set = set;
+
+                    m_charts[chart.ID] = chart;
                 }
             }
         }

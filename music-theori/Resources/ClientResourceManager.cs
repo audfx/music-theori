@@ -343,7 +343,7 @@ namespace theori.Resources
             {
                 if (!loader.Load())
                 {
-                    Logger.Log($"Failed to load resource { loader.ResourceName }");
+                    Logger.Log($"Failed to load resource { loader.ResourceName }: { new System.Diagnostics.StackTrace().ToString() }");
                     success = false;
                 }
             }

@@ -29,76 +29,6 @@ namespace theori.Charting
         EqualOrSubclass = Equal | Subclass,
     }
 
-    public struct LaneLabel : IEquatable<LaneLabel>
-    {
-        public enum Kind
-        {
-            Text, Number
-        }
-
-        public static implicit operator LaneLabel(string text) => new LaneLabel(text);
-        public static implicit operator LaneLabel(int number) => new LaneLabel(number);
-
-        public static explicit operator int(LaneLabel label)
-        {
-            if (label.LabelKind != Kind.Number)
-                throw new ArgumentException("Label was not numeric.", nameof(label));
-            return label.m_num;
-        }
-
-        public static explicit operator string(LaneLabel label)
-        {
-            if (label.LabelKind != Kind.Text)
-                throw new ArgumentException("Label was not textual.", nameof(label));
-            return label.m_text;
-        }
-
-        public static bool operator ==(LaneLabel a, LaneLabel b) => a.Equals(b);
-        public static bool operator !=(LaneLabel a, LaneLabel b) => !a.Equals(b);
-
-        public static bool operator ==(LaneLabel a, string b) => a.LabelKind == Kind.Text && a.m_text == b;
-        public static bool operator !=(LaneLabel a, string b) => a.LabelKind != Kind.Text || a.m_text != b;
-
-        public static bool operator ==(LaneLabel a, int b) => a.LabelKind == Kind.Number && a.m_num == b;
-        public static bool operator !=(LaneLabel a, int b) => a.LabelKind != Kind.Number || a.m_num != b;
-
-        private readonly string m_text;
-        private readonly int m_num;
-
-        private readonly int m_hashCode;
-
-        public readonly Kind LabelKind;
-
-        public LaneLabel(string text)
-        {
-            LabelKind = Kind.Text;
-            m_text = text ?? throw new ArgumentNullException(nameof(text));
-            m_hashCode = m_text.GetHashCode();
-
-            m_num = 0;
-        }
-
-        public LaneLabel(int num)
-        {
-            LabelKind = Kind.Number;
-            m_num = num;
-            m_hashCode = num;
-
-            m_text = null;
-        }
-
-        public override bool Equals(object obj) => obj is LaneLabel label && Equals(label);
-        public bool Equals(LaneLabel that)
-        {
-            if (LabelKind != that.LabelKind) return false;
-            return LabelKind == Kind.Text ? m_text == that.m_text : m_num == that.m_num;
-        }
-
-        public override int GetHashCode() => m_hashCode;
-
-        public override string ToString() => LabelKind == Kind.Text ? m_text : m_num.ToString();
-    }
-
     /// <summary>
     /// Contains all relevant data for a single chart.
     /// </summary>
@@ -109,7 +39,7 @@ namespace theori.Charting
 
         public readonly GameMode GameMode;
 
-        private readonly Dictionary<LaneLabel, ChartLane> m_lanes = new Dictionary<LaneLabel, ChartLane>();
+        private readonly Dictionary<HybridLabel, ChartLane> m_lanes = new Dictionary<HybridLabel, ChartLane>();
         public IEnumerable<ChartLane> Lanes => m_lanes.Values;
 
         public readonly ControlPointList ControlPoints;
@@ -223,38 +153,38 @@ namespace theori.Charting
 
         #region Lane Creation
 
-        private void ThrowIfLaneExists(LaneLabel name)
+        private void ThrowIfLaneExists(HybridLabel name)
         {
             if (m_lanes.ContainsKey(name))
                 throw new ArgumentException(nameof(name));
         }
 
-        public ChartLane CreateOpenLane(LaneLabel name)
+        public ChartLane CreateOpenLane(HybridLabel name)
         {
             ThrowIfLaneExists(name);
             return m_lanes[name] = new ChartLane(this, name);
         }
 
-        public ChartLane CreateTypedLane<TEntity>(LaneLabel name, EntityRelation relation = EntityRelation.Equal)
+        public ChartLane CreateTypedLane<TEntity>(HybridLabel name, EntityRelation relation = EntityRelation.Equal)
             where TEntity : Entity
         {
             return CreateTypedLane(name, typeof(TEntity), relation);
         }
 
-        public ChartLane CreateTypedLane(LaneLabel name, Type type, EntityRelation relation = EntityRelation.Equal)
+        public ChartLane CreateTypedLane(HybridLabel name, Type type, EntityRelation relation = EntityRelation.Equal)
         {
             ThrowIfLaneExists(name);
             return m_lanes[name] = new ChartLane(this, name, new[] { type }, relation);
         }
 
-        public ChartLane CreateMultiTypedLane<TEntity0, TEntity1>(LaneLabel name, EntityRelation relation = EntityRelation.Equal)
+        public ChartLane CreateMultiTypedLane<TEntity0, TEntity1>(HybridLabel name, EntityRelation relation = EntityRelation.Equal)
             where TEntity0 : Entity
             where TEntity1 : Entity
         {
             return CreateMultiTypedLane(name, new[] { typeof(TEntity0), typeof(TEntity1) }, relation);
         }
 
-        public ChartLane CreateMultiTypedLane<TEntity0, TEntity1, TEntity2>(LaneLabel name, EntityRelation relation = EntityRelation.Equal)
+        public ChartLane CreateMultiTypedLane<TEntity0, TEntity1, TEntity2>(HybridLabel name, EntityRelation relation = EntityRelation.Equal)
             where TEntity0 : Entity
             where TEntity1 : Entity
             where TEntity2 : Entity
@@ -262,7 +192,7 @@ namespace theori.Charting
             return CreateMultiTypedLane(name, new[] { typeof(TEntity0), typeof(TEntity1), typeof(TEntity2) }, relation);
         }
 
-        public ChartLane CreateMultiTypedLane<TEntity0, TEntity1, TEntity2, TEntity3>(LaneLabel name, EntityRelation relation = EntityRelation.Equal)
+        public ChartLane CreateMultiTypedLane<TEntity0, TEntity1, TEntity2, TEntity3>(HybridLabel name, EntityRelation relation = EntityRelation.Equal)
             where TEntity0 : Entity
             where TEntity1 : Entity
             where TEntity2 : Entity
@@ -271,7 +201,7 @@ namespace theori.Charting
             return CreateMultiTypedLane(name, new[] { typeof(TEntity0), typeof(TEntity1), typeof(TEntity2), typeof(TEntity3) }, relation);
         }
 
-        public ChartLane CreateMultiTypedLane<TEntity0, TEntity1, TEntity2, TEntity3, TEntity4>(LaneLabel name, EntityRelation relation = EntityRelation.Equal)
+        public ChartLane CreateMultiTypedLane<TEntity0, TEntity1, TEntity2, TEntity3, TEntity4>(HybridLabel name, EntityRelation relation = EntityRelation.Equal)
             where TEntity0 : Entity
             where TEntity1 : Entity
             where TEntity2 : Entity
@@ -281,7 +211,7 @@ namespace theori.Charting
             return CreateMultiTypedLane(name, new[] { typeof(TEntity0), typeof(TEntity1), typeof(TEntity2), typeof(TEntity3), typeof(TEntity4) }, relation);
         }
 
-        public ChartLane CreateMultiTypedLane(LaneLabel name, Type[] types, EntityRelation relation = EntityRelation.Equal)
+        public ChartLane CreateMultiTypedLane(HybridLabel name, Type[] types, EntityRelation relation = EntityRelation.Equal)
         {
             ThrowIfLaneExists(name);
             return m_lanes[name] = new ChartLane(this, name, types, relation);
@@ -291,8 +221,8 @@ namespace theori.Charting
 
         #region Lane Getting
 
-        public ChartLane this[LaneLabel name] => GetLane(name);
-        public ChartLane GetLane(LaneLabel name) => m_lanes[name];
+        public ChartLane this[HybridLabel name] => GetLane(name);
+        public ChartLane GetLane(HybridLabel name) => m_lanes[name];
 
         #endregion
 
@@ -313,7 +243,7 @@ namespace theori.Charting
         public sealed class ChartLane : IEnumerable<Entity>
         {
             private readonly Chart m_chart;
-            public readonly LaneLabel Label;
+            public readonly HybridLabel Label;
 
             private readonly OrderedLinkedList<Entity> m_entities = new OrderedLinkedList<Entity>();
 
@@ -328,14 +258,14 @@ namespace theori.Charting
             public int Count => m_entities.Count;
             public Entity this[int index] => m_entities[index];
 
-            internal ChartLane(Chart chart, LaneLabel name)
+            internal ChartLane(Chart chart, HybridLabel name)
             {
                 m_chart = chart;
                 Label = name;
                 Relation = EntityRelation.None;
             }
 
-            internal ChartLane(Chart chart, LaneLabel name, Type[] types, EntityRelation relation)
+            internal ChartLane(Chart chart, HybridLabel name, Type[] types, EntityRelation relation)
             {
                 m_chart = chart;
                 Label = name;

@@ -123,7 +123,7 @@ namespace theori.Charting
         // Positions (in seconds) calculated from chart timing information.
         private time_t m_calcPosition = long.MinValue, m_calcEndPosition = long.MinValue;
 
-        internal LaneLabel m_lane;
+        internal HybridLabel m_lane;
 
         /// <summary>
         /// The position, in measures, of this entity.
@@ -193,7 +193,7 @@ namespace theori.Charting
         public time_t AbsoluteDuration => AbsoluteEndPosition - AbsolutePosition;
 
         [TheoriIgnore]
-        public LaneLabel Lane
+        public HybridLabel Lane
         {
             get => m_lane;
             set

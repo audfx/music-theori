@@ -28,7 +28,7 @@ namespace theori.Gui
         {
             base.Update();
 
-            if (ContainsScreenPoint(Mouse.Position))
+            if (ContainsScreenPoint(UserInputService.MousePosition))
                 m_image.Color = new Vector4(1, 1, 0, 1);
             else m_image.Color = Vector4.One;
         }

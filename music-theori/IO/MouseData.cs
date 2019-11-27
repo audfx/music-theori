@@ -2,9 +2,10 @@
 
 namespace theori.IO
 {
-    public class MouseButtonInfo
+    public struct MouseButtonInfo
     {
         public MouseButton Button;
+        public int X, Y;
     }
 
     public enum MouseButton : uint

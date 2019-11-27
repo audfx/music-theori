@@ -65,11 +65,11 @@ namespace theori.Charting.Serialization
             {
                 //case null: WriteNull(); break;
 
-                case LaneLabel label:
+                case HybridLabel label:
                     switch (label.LabelKind)
                     {
-                        case LaneLabel.Kind.Text: WriteValue((string)label); break;
-                        case LaneLabel.Kind.Number: WriteValue((int)label); break;
+                        case HybridLabel.Kind.Text: WriteValue((string)label); break;
+                        case HybridLabel.Kind.Number: WriteValue((int)label); break;
                     }
                     break;
 

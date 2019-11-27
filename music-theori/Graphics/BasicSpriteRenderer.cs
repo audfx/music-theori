@@ -27,7 +27,8 @@ namespace theori.Graphics
         private Rect? m_scissor = null;
         private Anchor m_textAlign = Anchor.TopLeft;
 
-        private readonly Stack<Transform> m_savedTransforms = new Stack<Transform>();
+        private readonly Stack<int> m_savedTransformIndices = new Stack<int>();
+        private readonly List<Transform?> m_transformations = new List<Transform?>();
         private readonly Stack<Rect?> m_savedScissors = new Stack<Rect?>();
 
         private RenderQueue? m_queue;
@@ -90,40 +91,56 @@ namespace theori.Graphics
             m_queue!.Dispose();
             m_queue = null;
 
-            m_savedTransforms.Clear();
+            m_transformations.Clear();
+            m_savedTransformIndices.Clear();
+            m_savedScissors.Clear();
         }
 
         public void SaveTransform()
         {
-            m_savedTransforms.Push(m_transform);
+            Flush();
+
+            m_savedTransformIndices.Push(m_transformations.Count);
         }
 
         public void RestoreTransform()
         {
-            if (m_savedTransforms.Count == 0) return;
-            m_transform = m_savedTransforms.Pop();
+            if (m_savedTransformIndices.Count == 0) return;
+
+            Flush();
+
+            int transformsCount = m_savedTransformIndices.Pop();
+            m_transformations.RemoveRange(transformsCount, m_transformations.Count - transformsCount);
+
+            UpdateTransform();
         }
 
         public void ResetTransform()
         {
-            m_savedTransforms.Clear();
-            m_transform = Transform.Identity;
+            Flush();
+
+            m_transformations.Add(null);
+
+            UpdateTransform();
         }
 
         public void Translate(float x, float y)
         {
-            m_transform = m_transform * Transform.Translation(x, y, 0);
+            m_transformations.Add(Transform.Translation(x, y, 0));
+            UpdateTransform();
         }
 
         public void Rotate(float rDeg)
         {
-            m_transform = m_transform * Transform.RotationZ(rDeg);
+            m_transformations.Add(Transform.RotationZ(rDeg));
+            UpdateTransform();
         }
 
         public void Scale(float s) => Scale(s, s);
         public void Scale(float sx, float sy)
         {
-            m_transform = m_transform * Transform.Scale(sx, sy, 1);
+            m_transformations.Add(Transform.Scale(sx, sy, 1));
+            UpdateTransform();
         }
 
         public void Shear(float sx, float sy)
@@ -132,7 +149,19 @@ namespace theori.Graphics
             shear.M21 = sx;
             shear.M12 = sy;
 
-            m_transform = m_transform * new Transform(shear);
+            m_transformations.Add(new Transform(shear));
+            UpdateTransform();
+        }
+
+        private void UpdateTransform()
+        {
+            m_transform = Transform.Identity;
+            for (int i = m_transformations.Count - 1; i >= 0; i--)
+            {
+                if (m_transformations[i] == null)
+                    break;
+                m_transform = m_transformations[i]!.Value * m_transform;
+            }
         }
 
         public void SaveScissor()

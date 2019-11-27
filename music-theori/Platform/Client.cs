@@ -1,4 +1,7 @@
 ﻿using System;
+
+using theori.Database;
+using theori.Graphics;
 using theori.IO;
 
 namespace theori.Platform
@@ -10,7 +13,11 @@ namespace theori.Platform
         private ClientHost? m_host = null;
         public ClientHost Host => m_host ?? throw new InvalidOperationException("No host has been assigned to this client.");
 
+        public ChartDatabaseWorker DatabaseWorker { get; private set; }
+
         internal LayerStack LayerStack { get; private set; }
+
+        protected TransitionCurtain Curtain { get; }
 
         public long TargetFrameTimeMillis
         {
@@ -23,8 +30,11 @@ namespace theori.Platform
 
         [Pure] protected Client()
         {
+            DatabaseWorker = new ChartDatabaseWorker();
+            Curtain = CreateTransitionCurtain();
+
             LayerStack = new LayerStack(this, CreateInitialLayer());
-            Keyboard.AddKeyboardListener(LayerStack);
+            UserInputService.Initialize(LayerStack);
         }
 
         /// <summary>
@@ -32,6 +42,7 @@ namespace theori.Platform
         /// If this is not used then a starting layer must be added manually.
         /// </summary>
         [Const] protected virtual Layer? CreateInitialLayer() => null;
+        [Const] protected virtual TransitionCurtain CreateTransitionCurtain() => new TransitionCurtain();
 
         public virtual void SetHost(ClientHost host)
         {
@@ -43,6 +54,10 @@ namespace theori.Platform
         {
             return UnhandledExceptionAction.SafeExit;
         }
+
+        public bool CloseCurtain(float holdTime, Action? onClosed = null) => Curtain!.Close(holdTime, onClosed);
+        public bool CloseCurtain(Action? onClosed = null) => Curtain!.Close(0.5f, onClosed);
+        public bool OpenCurtain(Action? onOpened = null) => Curtain!.Open(onOpened);
 
         protected internal virtual void BeginFrame()
         {

@@ -16,8 +16,8 @@ namespace theori.Charting.Playback
         public Action<Entity>? HeadCross;
         public Action<Entity>? TailCross;
 
-        internal Dictionary<LaneLabel, List<Entity>> m_objectsAhead;
-        internal Dictionary<LaneLabel, List<Entity>> m_objectsBehind;
+        internal Dictionary<HybridLabel, List<Entity>> m_objectsAhead;
+        internal Dictionary<HybridLabel, List<Entity>> m_objectsBehind;
 
         public PlaybackWindow(string name, time_t where)
         {
@@ -55,8 +55,8 @@ namespace theori.Charting.Playback
 
         private readonly List<PlaybackWindow> m_customWindows = new List<PlaybackWindow>();
 
-        private Dictionary<LaneLabel, List<Entity>> m_objsAhead, m_objsBehind;
-        private Dictionary<LaneLabel, List<Entity>> m_objsPrimary, m_objsSecondary;
+        private Dictionary<HybridLabel, List<Entity>> m_objsAhead, m_objsBehind;
+        private Dictionary<HybridLabel, List<Entity>> m_objsPrimary, m_objsSecondary;
 
         private readonly bool m_allowSpeedMult;
 
@@ -104,17 +104,17 @@ namespace theori.Charting.Playback
 
             m_position = -9999;
 
-            Dictionary<LaneLabel, List<Entity>> CreateFilledObjs()
+            Dictionary<HybridLabel, List<Entity>> CreateFilledObjs()
             {
-                var result = new Dictionary<LaneLabel, List<Entity>>();
+                var result = new Dictionary<HybridLabel, List<Entity>>();
                 foreach (var lane in chart.Lanes)
                     result[lane.Label] = new List<Entity>(lane);
                 return result;
             }
 
-            Dictionary<LaneLabel, List<Entity>> CreateObjs()
+            Dictionary<HybridLabel, List<Entity>> CreateObjs()
             {
-                var result = new Dictionary<LaneLabel, List<Entity>>();
+                var result = new Dictionary<HybridLabel, List<Entity>>();
                 foreach (var lane in chart.Lanes)
                     result[lane.Label] = new List<Entity>();
                 return result;
@@ -263,7 +263,7 @@ namespace theori.Charting.Playback
             }
         }
 
-        private void CheckEdgeForward(time_t edge, Dictionary<LaneLabel, List<Entity>> objsFrom, Dictionary<LaneLabel, List<Entity>> objsTo, Action<PlayDirection, Entity> headCross, Action<PlayDirection, Entity> tailCross)
+        private void CheckEdgeForward(time_t edge, Dictionary<HybridLabel, List<Entity>> objsFrom, Dictionary<HybridLabel, List<Entity>> objsTo, Action<PlayDirection, Entity> headCross, Action<PlayDirection, Entity> tailCross)
         {
             foreach (var (label, from) in objsFrom)
             {
@@ -295,7 +295,7 @@ namespace theori.Charting.Playback
             }
         }
 
-        private void CheckEdgeBackward(time_t edge, Dictionary<LaneLabel, List<Entity>> objsFrom, Dictionary<LaneLabel, List<Entity>> objsTo, Action<PlayDirection, Entity> headCross, Action<PlayDirection, Entity> tailCross)
+        private void CheckEdgeBackward(time_t edge, Dictionary<HybridLabel, List<Entity>> objsFrom, Dictionary<HybridLabel, List<Entity>> objsTo, Action<PlayDirection, Entity> headCross, Action<PlayDirection, Entity> tailCross)
         {
             foreach (var (label, from) in objsFrom)
             {

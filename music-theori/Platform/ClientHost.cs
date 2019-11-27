@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Numerics;
 using System.Runtime;
 using System.Threading;
 
@@ -11,8 +10,6 @@ using theori.Configuration;
 using theori.Graphics;
 using theori.Graphics.OpenGL;
 using theori.IO;
-using theori.Resources;
-using theori.Scoring;
 using theori.Scripting;
 
 namespace theori.Platform
@@ -27,29 +24,6 @@ namespace theori.Platform
     public abstract class ClientHost : Disposable
     {
         private const string GAME_CONFIG_FILE = "theori-config.ini";
-
-        public static void InitScriptingSystem()
-        {
-            LuaScript.RegisterType<Anchor>();
-
-            LuaScript.RegisterType<ScoreRank>();
-
-            LuaScript.RegisterType<Vector2>();
-            LuaScript.RegisterType<Vector3>();
-            LuaScript.RegisterType<Vector4>();
-
-            LuaScript.RegisterType<Font>();
-            LuaScript.RegisterType<Texture>();
-            LuaScript.RegisterType<TextRasterizer>();
-
-            LuaScript.RegisterType<BasicSpriteRenderer>();
-            LuaScript.RegisterType<ClientResourceManager>();
-
-            LuaScript.RegisterType<ScriptWindowInterface>();
-
-            LuaScript.RegisterType<ScriptEvent>();
-            LuaScript.RegisterType<ScriptEvent.Connection>();
-        }
 
         public readonly TheoriConfig Config = new TheoriConfig();
 
@@ -67,6 +41,8 @@ namespace theori.Platform
 
         public virtual void Initialize()
         {
+            using var _ = Profiler.Scope("ClientHost::Initialize");
+
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 
             if (File.Exists(GAME_CONFIG_FILE))
@@ -79,7 +55,7 @@ namespace theori.Platform
 
             Mixer.Initialize(new AudioFormat(48000, 2));
 
-            InitScriptingSystem();
+            ScriptService.RegisterTheoriClrTypes();
 
             Logger.Log($"Window VSync: { Window.VSync }");
         }
@@ -92,6 +68,8 @@ namespace theori.Platform
 
         public void Run(Client client)
         {
+            Profiler.BeginSession("Main Game Process");
+
             void UnhandledExceptionHandler(object sender, UnhandledExceptionEventArgs e)
             {
                 switch (client.OnUnhandledException())
@@ -112,6 +90,7 @@ namespace theori.Platform
 
                     case UnhandledExceptionAction.GiveUpRethrow:
                     {
+                        //Profiler.EndSession();
                         AppDomain.CurrentDomain.UnhandledException -= UnhandledExceptionHandler;
                         throw (Exception)e.ExceptionObject;
                     } // break;
@@ -122,21 +101,25 @@ namespace theori.Platform
             {
                 AppDomain.CurrentDomain.UnhandledException += UnhandledExceptionHandler;
 
+                Window.Update();
                 client.SetHost(this);
 
                 var timer = Stopwatch.StartNew();
                 long lastFrameStart = timer.ElapsedMilliseconds;
 
-                long accumulatedTime = 0;
+                long accumulatedTimeMillis = 0;
 
                 while (true)
                 {
-                    long currentTime = timer.ElapsedMilliseconds;
+                    using var _ = Profiler.Scope("Game Loop");
 
-                    long elapsedTime = currentTime - lastFrameStart;
-                    Time.Delta = elapsedTime / 1_000.0f;
+                    long currentTimeMillis = timer.ElapsedMilliseconds;
+                    //Time.HighResolution = timer.ElapsedTicks * 1_000_000L / Stopwatch.Frequency;
 
-                    accumulatedTime += elapsedTime;
+                    long elapsedTimeMillis = currentTimeMillis - lastFrameStart;
+                    Time.Delta = elapsedTimeMillis / 1_000.0f;
+
+                    accumulatedTimeMillis += elapsedTimeMillis;
 
                     long targetFrameTimeMillis = client.TargetFrameTimeMillis;
                     Time.FixedDelta = targetFrameTimeMillis / 1_000.0f;
@@ -145,46 +128,71 @@ namespace theori.Platform
 
                     // == Input Step (gather, trigger events)
 
-                    client.BeginInputStep();
+                    {
+                        using var __ = Profiler.Scope("Input Step");
 
-                    Keyboard.Update();
-                    Mouse.Update();
-                    Window.Update();
+                        client.BeginInputStep();
 
-                    client.EndInputStep();
+                        UserInputService.Update();
+                        Window.Update();
+
+                        client.EndInputStep();
+                    }
 
                     // == Update Step (process update queue, instruct client to update)
 
-                    while (m_updateQueue.Count > 0)
                     {
-                        var item = m_updateQueue.Dequeue();
-                        item?.Invoke();
+                        using var __ = Profiler.Scope("Update Queue Processing");
+
+                        while (m_updateQueue.Count > 0)
+                        {
+                            var item = m_updateQueue.Dequeue();
+                            item?.Invoke();
+                        }
                     }
 
-                    client.BeginUpdateStep();
-
-                    Time.Total = currentTime / 1_000.0f;
-                    client.Update(Time.Delta, Time.Total);
-
-                    long lastFixedUpdateStart = lastFrameStart;
-                    while (accumulatedTime >= targetFrameTimeMillis)
                     {
-                        lastFixedUpdateStart += targetFrameTimeMillis;
-                        Time.Total = lastFixedUpdateStart / 1_000.0f;
+                        using var __ = Profiler.Scope("Update Step");
 
-                        client.FixedUpdate(Time.FixedDelta, Time.Total);
-                        accumulatedTime -= targetFrameTimeMillis;
+                        client.BeginUpdateStep();
+
+                        Time.Total = currentTimeMillis / 1_000.0f;
+
+                        {
+                            using var ___ = Profiler.Scope("High-Rate Update");
+                            client.Update(Time.Delta, Time.Total);
+                        }
+
+                        {
+                            using var ___ = Profiler.Scope("Fixed-Rate Update");
+
+                            long lastFixedUpdateStart = lastFrameStart;
+                            while (accumulatedTimeMillis >= targetFrameTimeMillis)
+                            {
+                                lastFixedUpdateStart += targetFrameTimeMillis;
+                                Time.Total = lastFixedUpdateStart / 1_000.0f;
+
+                                client.FixedUpdate(Time.FixedDelta, Time.Total);
+                                accumulatedTimeMillis -= targetFrameTimeMillis;
+                            }
+                        }
+
+                        Time.Total = currentTimeMillis / 1_000.0f;
+
+                        {
+                            using var ___ = Profiler.Scope("Late Update");
+                            client.LateUpdate();
+                        }
+
+                        client.EndUpdateStep();
                     }
-
-                    Time.Total = currentTime / 1_000.0f;
-                    client.LateUpdate();
-
-                    client.EndUpdateStep();
 
                     // == Render Step (instruct client to render)
 
                     if (Window.Width > 0 && Window.Height > 0)
                     {
+                        using var __ = Profiler.Scope("Render Step");
+
                         GL.ClearColor(0, 0, 0, 1);
                         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
 
@@ -198,9 +206,9 @@ namespace theori.Platform
                         Window.SwapBuffer();
                     }
 
-                    lastFrameStart = currentTime;
+                    lastFrameStart = currentTimeMillis;
 
-                    if (elapsedTime < targetFrameTimeMillis)
+                    if (elapsedTimeMillis < targetFrameTimeMillis)
                         Thread.Sleep(0);
                 }
             }
@@ -236,12 +244,14 @@ namespace theori.Platform
 
         public void LoadConfig()
         {
+            using var _ = Profiler.Scope("ClientHost::LoadConfig");
             using var reader = new StreamReader(File.OpenRead(GAME_CONFIG_FILE));
             Config.Load(reader);
         }
 
         public void SaveConfig()
         {
+            using var _ = Profiler.Scope("ClientHost::SaveConfig");
             using var writer = new StreamWriter(File.Open(GAME_CONFIG_FILE, FileMode.Create));
             Config.Save(writer);
         }
@@ -261,10 +271,11 @@ namespace theori.Platform
 
         private void DoExit()
         {
+            Profiler.EndSession();
+
             Exited?.Invoke();
 
             Logger.Flush();
-
             Window.Destroy();
 
             Environment.Exit(0);

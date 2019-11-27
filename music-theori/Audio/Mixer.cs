@@ -52,6 +52,8 @@ namespace theori.Audio
 
         public static void Initialize(AudioFormat format)
         {
+            using var _ = Profiler.Scope("Mixer::Initialize");
+
             Mixer.format = format;
 
             output = new WaveOutEvent() { DesiredLatency = 32, NumberOfBuffers = 24 };

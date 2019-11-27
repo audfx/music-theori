@@ -8,10 +8,14 @@ namespace theori
 {
     public static class Host
     {
-        public static readonly ClientResourceManager StaticResources = new ClientResourceManager(ClientResourceLocator.Default);
+        private static ClientResourceManager? staticResources = null;
 
-        public static ClientHost GetSuitableHost()
+        public static ClientResourceManager StaticResources => staticResources ?? throw new InvalidOperationException();
+
+        public static ClientHost GetSuitableHost(ClientResourceLocator? staticResourceLocator = null)
         {
+            staticResources = new ClientResourceManager(staticResourceLocator ?? ClientResourceLocator.Default);
+
             // TODO(local): switch on things, get better hosts or error when can't get one.
             return new DesktopClientHost();
         }
