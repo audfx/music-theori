@@ -192,26 +192,26 @@ namespace theori
 
         static void EmitBegin(ProfilerScope scope)
         {
-            if (currentSession == null) throw new InvalidOperationException("Cannot emit a session token if no session has been started.");
-            currentSession!.EmitBegin(scope);
+            if (currentSession != null)
+                currentSession!.EmitBegin(scope);
         }
 
         static void EmitEnd(ProfilerScope scope)
         {
-            if (currentSession == null) throw new InvalidOperationException("Cannot emit a session token if no session has been started.");
-            currentSession!.EmitEnd(scope);
+            if (currentSession != null)
+                currentSession!.EmitEnd(scope);
         }
 
         static void EmitDuration(ProfilerScope scope, long startTime)
         {
-            if (currentSession == null) throw new InvalidOperationException("Cannot emit a session token if no session has been started.");
-            currentSession!.EmitDuration(scope, startTime);
+            if (currentSession != null)
+                currentSession!.EmitDuration(scope, startTime);
         }
 
         public static void Instant(string instantName, string scope = "p", params (string, string)[] args)
         {
-            if (currentSession == null) throw new InvalidOperationException("Cannot emit a session token if no session has been started.");
-            currentSession!.EmitInstant(instantName, scope);
+            if (currentSession != null)
+                currentSession!.EmitInstant(instantName, scope);
         }
     }
 }

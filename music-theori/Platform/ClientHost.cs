@@ -68,7 +68,7 @@ namespace theori.Platform
 
         public void Run(Client client)
         {
-            Profiler.BeginSession("Main Game Process");
+            //Profiler.BeginSession("Main Game Process");
 
             void UnhandledExceptionHandler(object sender, UnhandledExceptionEventArgs e)
             {
@@ -271,7 +271,7 @@ namespace theori.Platform
 
         private void DoExit()
         {
-            Profiler.EndSession();
+            //Profiler.EndSession();
 
             Exited?.Invoke();
 

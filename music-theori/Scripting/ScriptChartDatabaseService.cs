@@ -117,10 +117,10 @@ namespace theori.Scripting
         public string FileName => Object.FileName;
 
         public List<ChartInfoHandle> Charts => m_charts ?? (m_charts = Object.Charts
-            .OrderBy(info => MathL.Clamp(info.DifficultyIndex ?? 0, 0, 4))
+            .OrderBy(info => info.DifficultyIndex ?? 0)
             .ThenBy(info => info.DifficultyLevel)
             .ThenBy(info => info.DifficultyName)
-            //.OrderBy(info => info.SongTitle)
+            .ThenBy(info => info.SongTitle)
             .Select(info => new ChartInfoHandle(this, info)).ToList());
     }
 
@@ -210,7 +210,7 @@ namespace theori.Scripting
         public string BackgroundArtist => Object.BackgroundArtist;
 
         public double DifficultyLevel => Object.DifficultyLevel;
-        public int DifficultyIndex => 1 + MathL.Clamp(Object.DifficultyIndex ?? 0, 0, 4);
+        public int DifficultyIndex => 1 + (Object.DifficultyIndex ?? 0);
 
         public string DifficultyName => Object.DifficultyName;
         public string DifficultyNameShort => Object.DifficultyNameShort;

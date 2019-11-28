@@ -201,7 +201,7 @@ namespace theori
             });
 
             tblTheoriCharts["getChartSets"] = (Func<List<ChartSetInfoHandle>>)(() => Client.DatabaseWorker.ChartSets.Select(info => new ChartSetInfoHandle(m_resources, m_script, Client.DatabaseWorker, info)).ToList());
-            tblTheoriCharts["getChartSetsFiltered"] = (Func<DynValue, DynValue, DynValue, List<List<ChartSetInfoSubsection>>>)((a, b, c) =>
+            tblTheoriCharts["getChartSetsFiltered"] = (Func<DynValue, DynValue, DynValue, List<List<ChartInfoHandle>>>)((a, b, c) =>
             {
                 Logger.Log("Attempting to filter charts...");
 
@@ -224,41 +224,11 @@ namespace theori
                                   .OrderBy(chart => chart.DifficultyIndex)
                                   .ThenBy(chart => chart.DifficultyName)
                                   .ThenBy(chart => m_script.Call(c, chart), DynValueComparer.Instance)
-                                  .Select(chart => new ChartSetInfoSubsection(chart.Set, chart))
+                                  .Select(chart => chart)
                                   .ToList()))
                               .OrderBy(l => l.Key, DynValueComparer.Instance)
                               .Select(l => l.Value)
                               .ToList();
-
-#if true
-                foreach (var group in groupedCharts)
-                {
-                    for (int i = 0; i < group.Count; i++)
-                    {
-                        var subsection = group[i];
-                        for (int j = i + 1; j < group.Count; j++)
-                        {
-                            var testAgainst = group[j];
-                            if (subsection.Set != testAgainst.Set)
-                            {
-                                int numToJoin = j - i - 1;
-                                if (numToJoin > 0)
-                                {
-                                    var result = group[i];
-                                    for (int k = i + 1; k < j; k++)
-                                        result.Concat(group[k]);
-
-                                    for (int k = j; k < group.Count; k++)
-                                        group[k - numToJoin] = group[k];
-                                    group.RemoveRange(group.Count - numToJoin, numToJoin);
-                                }
-
-                                break;
-                            }
-                        }
-                    }
-                }
-#endif
 
                 return groupedCharts;
             });
