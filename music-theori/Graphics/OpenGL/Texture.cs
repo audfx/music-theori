@@ -37,6 +37,8 @@ namespace theori.Graphics.OpenGL
         public TextureTarget Target = TextureTarget.Texture2D;
         public int Width, Height, Depth;
 
+        public float AspectRatio => (float)Width / Height;
+
         private TextureFilter m_minFilter = TextureFilter.Linear;
         private TextureFilter m_magFilter = TextureFilter.Linear;
 

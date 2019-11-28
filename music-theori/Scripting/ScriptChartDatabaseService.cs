@@ -223,6 +223,8 @@ namespace theori.Scripting
 
         public string Tags => Object.Tags;
 
+        public bool HasJacketTexture => GetJacketTexture() != Texture.Empty;
+
         public Texture GetJacketTexture()
         {
             if (m_jacketTexture is { } result) return result;
