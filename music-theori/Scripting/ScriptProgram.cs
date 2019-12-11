@@ -59,6 +59,7 @@ namespace theori.Scripting
                                  | CoreModules.Math
                                  | CoreModules.Metatables
                                  | CoreModules.Table
+                                 | CoreModules.IO
                                  | CoreModules.TableIterators);
 
             InitBuiltInLibrary();
