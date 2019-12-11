@@ -218,6 +218,7 @@ namespace theori.Charting.Serialization
                 writer.Flush();
                 string result = stringWriter.ToString();
 
+                Directory.CreateDirectory(Directory.GetParent(chartFile).FullName);
                 File.WriteAllText(chartFile, FormatJson(result));
             }
         }

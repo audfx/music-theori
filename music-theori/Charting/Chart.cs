@@ -240,6 +240,12 @@ namespace theori.Charting
             return cp.AbsolutePosition + cp.MeasureDuration * (pos - cp.Position);
         }
 
+        public tick_t CalcTickFromTime(time_t pos)
+        {
+            ControlPoint cp = ControlPoints.MostRecent(pos);
+            return cp.Position + (double)((pos - cp.AbsolutePosition) / cp.MeasureDuration);
+        }
+
         public sealed class ChartLane : IEnumerable<Entity>
         {
             private readonly Chart m_chart;
