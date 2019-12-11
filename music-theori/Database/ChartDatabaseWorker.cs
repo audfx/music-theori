@@ -157,6 +157,7 @@ namespace theori.Database
         private void RunPopulateSearch(CancellationToken ct)
         {
             string chartsDirectory = ChartDatabaseService.ChartsDirectory;
+            if (!Directory.Exists(chartsDirectory)) return;
 
             var setSerializer = new ChartSetSerializer();
             SearchDirectory(chartsDirectory, null);
