@@ -23,6 +23,7 @@ namespace theori.Configuration
     }
 
     public abstract class Config<TKey>
+        where TKey : notnull
     {
         private readonly Dictionary<string, TKey> namedKeys = new Dictionary<string, TKey>();
         private readonly Dictionary<TKey, ConfigEntry> entries = new Dictionary<TKey, ConfigEntry>();

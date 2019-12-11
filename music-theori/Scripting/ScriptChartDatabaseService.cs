@@ -264,18 +264,18 @@ namespace theori.Scripting
                         return NewString(v[1..^1]);
                     }
                     else switch (v)
-                        {
-                            case "true": return True;
-                            case "false": return False;
-                            case "nil": return Nil;
+                    {
+                        case "true": return True;
+                        case "false": return False;
+                        case "nil": return Nil;
 
-                            default:
-                            {
-                                if (double.TryParse(v, out double vNumber))
-                                    return NewNumber(vNumber);
-                                else goto case "nil";
-                            }
+                        default:
+                        {
+                            if (double.TryParse(v, out double vNumber))
+                                return NewNumber(vNumber);
+                            else goto case "nil";
                         }
+                    }
                 }
 
                 if (entry.TrySplit('=', out string key, out string value))

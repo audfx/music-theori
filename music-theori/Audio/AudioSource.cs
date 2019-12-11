@@ -4,7 +4,7 @@ namespace theori.Audio
 {
     public abstract class AudioSource : Disposable
     {
-        public event Action Finish;
+        public event Action? Finish;
 
         public abstract bool CanSeek { get; }
 

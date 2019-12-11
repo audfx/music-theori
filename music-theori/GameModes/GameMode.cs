@@ -1,5 +1,4 @@
 ﻿using theori.Charting;
-using theori.Charting.Serialization;
 
 namespace theori.GameModes
 {
@@ -54,7 +53,6 @@ namespace theori.GameModes
             Name = name;
         }
 
-        public virtual ChartFactory CreateChartFactory() => new ChartFactory();
-        //public virtual ChartSerializer CreateSerializer(string chartsDir) => new ChartSerializer(chartsDir, this);
+        public virtual ChartFactory CreateChartFactory() => throw new System.NotImplementedException();
     }
 }

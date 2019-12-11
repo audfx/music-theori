@@ -20,7 +20,8 @@ namespace theori.Audio
 
         public override time_t Position { get => Track.Position; set => Track.Position = value; }
         public override time_t Length => Track.Length;
-        
+
+#if false
         private MixerChannel channel;
         public MixerChannel Channel
         {
@@ -37,23 +38,24 @@ namespace theori.Audio
                 else Stop();
             }
         }
+#endif
         
         public bool EffectsActive { get; set; } = true;
 
-        #if false
+#if false
         private double m_playbackSpeed = 1, m_invPlaybackSpeed = 1;
         public double PlaybackSpeed
         {
             get => m_playbackSpeed;
             set => m_invPlaybackSpeed = 1 / (m_playbackSpeed = MathL.Clamp(value, 0.1f, 9999));
         }
-        #endif
+#endif
 
-        private readonly EffectDef[] m_effectDefs;
+        private readonly EffectDef?[] m_effectDefs;
         private readonly float[] m_effectParameters;
         private readonly float[] m_effectMixes;
         private readonly bool[] m_effectsActive;
-        private readonly Dsp[] m_dsps;
+        private readonly Dsp?[] m_dsps;
 
         public AudioEffectController(int effectCount, AudioTrack track, bool ownsTrack = true)
         {
@@ -96,7 +98,7 @@ namespace theori.Audio
             m_effectMixes[i] = mix;
 
             m_dsps[i] = f.CreateEffectDsp(SampleRate);
-            m_dsps[i].Reset();
+            m_dsps[i]!.Reset();
 
             UpdateEffect(i, qnDur, 0);
         }
@@ -110,8 +112,8 @@ namespace theori.Audio
             if (f == null)
                 return;
 
-            f.ApplyToDsp(m_dsps[i], qnDur, alpha);
-            m_dsps[i].Mix = m_effectMixes[i] * m_effectDefs[i].Mix.Sample(m_effectParameters[i]);
+            f.ApplyToDsp(m_dsps[i]!, qnDur, alpha);
+            m_dsps[i]!.Mix = m_effectMixes[i] * f.Mix.Sample(m_effectParameters[i]);
         }
 
         public void SetEffectMix(int i, float mix)
@@ -123,7 +125,7 @@ namespace theori.Audio
             if (dsp == null)
                 return;
 
-            dsp.Mix = mix * m_effectDefs[i].Mix.Sample(m_effectParameters[i]);
+            dsp.Mix = mix * m_effectDefs[i]!.Mix.Sample(m_effectParameters[i]);
         }
 
         public void SetEffectActive(int i, bool active)

@@ -7,8 +7,8 @@ namespace theori.Charting
 {
     public class ChartInfo : IEquatable<ChartInfo>, IHasPrimaryKey
     {
-        public static bool operator ==(ChartInfo a, ChartInfo b) => a == null ? b == null : a.Equals(b);
-        public static bool operator !=(ChartInfo a, ChartInfo b) => !(a == b);
+        public static bool operator ==(ChartInfo? a, ChartInfo? b) => a is null ? b is null : a.Equals(b);
+        public static bool operator !=(ChartInfo? a, ChartInfo? b) => !(a == b);
 
         /// <summary>
         /// The database primary key.
@@ -23,7 +23,7 @@ namespace theori.Charting
         /// <summary>
         /// The name of the chart file inside of the Set directory.
         /// </summary>
-        public string FileName { get; set; }
+        public string? FileName { get; set; } = null;
 
         public string SongTitle { get; set; } = "Unknown";
         public string SongArtist { get; set; } = "Unknown";
@@ -39,17 +39,17 @@ namespace theori.Charting
             set => m_charterBacking = value ?? "Unknown";
         }
 
-        public string JacketFileName { get; set; } = null;
-        public string JacketArtist { get; set; } = null;
+        public string? JacketFileName { get; set; } = null;
+        public string? JacketArtist { get; set; } = null;
 
-        public string BackgroundFileName { get; set; } = null;
-        public string BackgroundArtist { get; set; } = null;
+        public string? BackgroundFileName { get; set; } = null;
+        public string? BackgroundArtist { get; set; } = null;
 
         public double DifficultyLevel { get; set; } = 1.0;
         public int? DifficultyIndex { get; set; } = null;
 
-        public string DifficultyName { get; set; } = null;
-        public string DifficultyNameShort { get; set; } = null;
+        public string? DifficultyName { get; set; } = null;
+        public string? DifficultyNameShort { get; set; } = null;
 
         public Vector3? DifficultyColor { get; set; } = null;
 

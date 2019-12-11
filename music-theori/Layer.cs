@@ -200,8 +200,13 @@ namespace theori
                 return Nil;
             });
 
+            tblTheoriCharts["createCollection"] = (Action<string>)(collectionName => Client.DatabaseWorker.CreateCollection(collectionName));
+            tblTheoriCharts["addChartToCollection"] = (Action<string, ChartInfoHandle>)((collectionName, chart) => Client.DatabaseWorker.AddChartToCollection(collectionName, chart));
+            tblTheoriCharts["removeChartFromCollection"] = (Action<string, ChartInfoHandle>)((collectionName, chart) => Client.DatabaseWorker.RemoveChartFromCollection(collectionName, chart));
+            tblTheoriCharts["getCollectionNames"] = (Func<string[]>)(() => Client.DatabaseWorker.CollectionNames);
+
             tblTheoriCharts["getChartSets"] = (Func<List<ChartSetInfoHandle>>)(() => Client.DatabaseWorker.ChartSets.Select(info => new ChartSetInfoHandle(m_resources, m_script, Client.DatabaseWorker, info)).ToList());
-            tblTheoriCharts["getChartSetsFiltered"] = (Func<DynValue, DynValue, DynValue, List<List<ChartInfoHandle>>>)((a, b, c) =>
+            tblTheoriCharts["getChartSetsFiltered"] = (Func<string?, DynValue, DynValue, DynValue, List<List<ChartInfoHandle>>>)((col, a, b, c) =>
             {
                 Logger.Log("Attempting to filter charts...");
 
@@ -213,7 +218,9 @@ namespace theori
                     return result;
                 }
 
-                var filteredCharts = from initialChart in Client.DatabaseWorker.Charts
+                Logger.Log(col ?? "null");
+                var charts = col != null ? Client.DatabaseWorker.GetChartsInCollection(col) : Client.DatabaseWorker.Charts;
+                var filteredCharts = from initialChart in charts
                                      let handle = new ChartInfoHandle(GetSetInfoHandle(initialChart.Set), initialChart)
                                      where m_script.Call(a, handle).CastToBool()
                                      select handle;
@@ -232,6 +239,8 @@ namespace theori
 
                 return groupedCharts;
             });
+
+            tblTheoriGame["exit"] = (Action)(() => Host.Exit());
 
             tblTheoriGraphics["queueStaticTextureLoad"] = (Func<string, Texture>)(textureName => StaticResources.QueueTextureLoad($"textures/{ textureName }"));
             tblTheoriGraphics["getStaticTexture"] = (Func<string, Texture>)(textureName => StaticResources.GetTexture($"textures/{ textureName }"));
@@ -253,6 +262,10 @@ namespace theori
             tblTheoriGraphics["setFontSize"] = (Action<float>)(size => m_spriteRenderer.SetFontSize(size));
             tblTheoriGraphics["setTextAlign"] = (Action<Anchor>)(align => m_spriteRenderer.SetTextAlign(align));
             tblTheoriGraphics["drawString"] = (Action<string, float, float>)((text, x, y) => m_spriteRenderer.Write(text, x, y));
+            tblTheoriGraphics["saveScissor"] = (Action)(() => m_spriteRenderer.SaveScissor());
+            tblTheoriGraphics["restoreScissor"] = (Action)(() => m_spriteRenderer.RestoreScissor());
+            tblTheoriGraphics["resetScissor"] = (Action)(() => m_spriteRenderer.ResetScissor());
+            tblTheoriGraphics["scissor"] = (Action<float, float, float, float>)((x, y, w, h) => m_spriteRenderer.Scissor(x, y, w, h));
 
             tblTheoriGraphics["openCurtain"] = (Action)OpenCurtain;
             tblTheoriGraphics["closeCurtain"] = (Action<float, DynValue?>)((duration, callback) =>
@@ -263,23 +276,26 @@ namespace theori
                 else CloseCurtain(duration, onClosed);
             });
 
+            static UserInputService.Modes GetModeFromString(string inputMode) => inputMode switch
+            {
+                "desktop" => UserInputService.Modes.Desktop,
+                "gamepad" => UserInputService.Modes.Gamepad,
+                "controller" => UserInputService.Modes.Controller,
+                _ => 0,
+            };
+
             tblTheoriInput["setInputModes"] = NewCallback((ctx, args) =>
             {
                 UserInputService.Modes modes = UserInputService.Modes.None;
                 for (int i = 0; i < args.Count; i++)
                 {
                     string arg = args[i].CheckType("setInputModes", MoonSharp.Interpreter.DataType.String).String;
-                    modes |= arg switch
-                    {
-                        "desktop" => UserInputService.Modes.Desktop,
-                        "gamepad" => UserInputService.Modes.Gamepad,
-                        "controller" => UserInputService.Modes.Controller,
-                        _ => 0,
-                    };
+                    modes |= GetModeFromString(arg);
                 }
                 UserInputService.SetInputMode(modes);
                 return Nil;
             });
+            tblTheoriInput["isInputModeEnabled"] = (Func<string, bool>)(modeName => UserInputService.InputModes.HasFlag(GetModeFromString(modeName)));
 
             tblTheoriLayer["construct"] = (Action)(() => { });
             tblTheoriLayer["push"] = DynValue.NewCallback((context, args) =>

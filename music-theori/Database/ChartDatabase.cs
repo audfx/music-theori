@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using theori.Charting;
 using theori.Graphics;
@@ -16,9 +17,22 @@ namespace theori.Database
 
     public class ChartDatabase
     {
-        private const int CURRENT_VERSION = 1;
+        private const int VER_0_1_INITIAL = 1;
+        private const int VER_0_2_ADD_COLLECTIONS = 2;
 
-        private const int INITIAL_VERSION = 1;
+        private const int CURRENT_VERSION = VER_0_2_ADD_COLLECTIONS;
+
+        private class CollectionInfo
+        {
+            public readonly string Name;
+
+            public readonly List<long> ChartIds = new List<long>();
+
+            public CollectionInfo(string name)
+            {
+                Name = name;
+            }
+        }
 
         public readonly string FilePath;
 
@@ -30,6 +44,8 @@ namespace theori.Database
 
         private readonly SetDict m_chartSets = new SetDict();
         private readonly ChartDict m_charts = new ChartDict();
+
+        private readonly Dictionary<string, CollectionInfo> m_collections = new Dictionary<string, CollectionInfo>();
 
         private readonly StringSetDict m_chartSetsByFilePath = new StringSetDict();
 
@@ -75,8 +91,14 @@ namespace theori.Database
                 {
                     switch (vGot)
                     {
-                        case INITIAL_VERSION:
-                        {
+                        case VER_0_1_INITIAL:
+                        { // -> VER_0_2_ADD_COLLECTIONS
+                            Exec($@"CREATE TABLE Collections (
+                                id INTEGER PRIMARY KEY,
+                                chartId INTEGER NOT NULL,
+                                collection STRING NOT NULL,
+                                FOREIGN KEY(chartId) REFERENCES Charts(id)
+                            )");
                         } break;
                     }
 
@@ -86,40 +108,39 @@ namespace theori.Database
 
                 Exec("UPDATE Database SET `version`=? WHERE `rowid`=1", Version);
             }
-            else LoadData();
+            
+            if (!rebuild) LoadData();
         }
 
         private int Exec(string commandText)
         {
-            using (var command = new SQLiteCommand(commandText, m_connection))
-                return command.ExecuteNonQuery();
+            using var command = new SQLiteCommand(commandText, m_connection);
+            return command.ExecuteNonQuery();
         }
 
         private object ExecScalar(string commandText)
         {
-            using (var command = new SQLiteCommand(commandText, m_connection))
-                return command.ExecuteScalar();
+            using var command = new SQLiteCommand(commandText, m_connection);
+            return command.ExecuteScalar();
         }
 
         private SQLiteDataReader ExecReader(string commandText)
         {
-            using (var command = new SQLiteCommand(commandText, m_connection))
-                return command.ExecuteReader();
+            using var command = new SQLiteCommand(commandText, m_connection);
+            return command.ExecuteReader();
         }
 
         private int Exec(string commandText, params object?[] values)
         {
-            using (var command = new SQLiteCommand(commandText, m_connection))
+            using var command = new SQLiteCommand(commandText, m_connection);
+            for (int i = 0; i < values.Length; i++)
             {
-                for (int i = 0; i < values.Length; i++)
-                {
-                    var param = command.CreateParameter();
-                    param.Value = values[i];
+                var param = command.CreateParameter();
+                param.Value = values[i];
 
-                    command.Parameters.Add(param);
-                }
-                return command.ExecuteNonQuery();
+                command.Parameters.Add(param);
             }
+            return command.ExecuteNonQuery();
         }
 
         /// <summary>
@@ -142,6 +163,8 @@ namespace theori.Database
             Exec($"DROP TABLE IF EXISTS Sets");
             Exec($"DROP TABLE IF EXISTS Charts");
             Exec($"DROP TABLE IF EXISTS Scores");
+            Exec($"DROP TABLE IF EXISTS LocalChartConfig");
+            Exec($"DROP TABLE IF EXISTS Collections");
 
             // lwt = last write time, and should likely be epoch time (the usual 1970 one)
             //  rather than C#'s (which starts from the year 0001) if we plan for other applications
@@ -195,6 +218,13 @@ namespace theori.Database
                 config STRING NOT NULL,
                 FOREIGN KEY(chartId) REFERENCES Charts(id)
             )");
+
+            Exec($@"CREATE TABLE Collections (
+                id INTEGER PRIMARY KEY,
+                chartId INTEGER NOT NULL,
+                collection STRING NOT NULL,
+                FOREIGN KEY(chartId) REFERENCES Charts(id)
+            )");
         }
 
         public bool ContainsSetAtLocation(string entrySubDirectory)
@@ -240,6 +270,46 @@ namespace theori.Database
         public void SaveLocalConfigForChart(ChartInfo chartInfo, string config)
         {
             Exec("UPDATE LocalChartConfig SET config=? WHERE chartId=?", config, chartInfo.ID);
+        }
+
+        public string[] GetCollectionNames() => m_collections.Keys.ToArray();
+
+        public IEnumerable<ChartInfo> GetChartsInCollection(string collectionName)
+        {
+            if (!m_collections.TryGetValue(collectionName, out var collection))
+                return Enumerable.Empty<ChartInfo>();
+
+            return from chartId in collection.ChartIds
+                   where m_charts.ContainsKey(chartId)
+                   select m_charts[chartId];
+        }
+
+        public void CreateCollection(string collectionName)
+        {
+            if (!m_collections.ContainsKey(collectionName))
+                m_collections[collectionName] = new CollectionInfo(collectionName);
+        }
+
+        public void AddChartToCollection(string collectionName, ChartInfo chart)
+        {
+            CreateCollection(collectionName);
+            var collection = m_collections[collectionName];
+
+            if (!collection.ChartIds.Contains(chart.ID))
+            {
+                Exec("INSERT INTO Collections (collection, chartId) VALUES (?,?)", collectionName, chart.ID);
+                collection.ChartIds.Add(chart.ID);
+            }
+        }
+
+        public void RemoveChartFromCollection(string collectionName, ChartInfo chart)
+        {
+            if (m_collections.TryGetValue(collectionName, out var collection) &&
+                collection.ChartIds.Contains(chart.ID))
+            {
+                Exec("DELETE FROM Collections WHERE collection=? AND chartId=?", collectionName, chart.ID);
+                collection.ChartIds.Remove(chart.ID);
+            }
         }
 
         private void AddSetInfoToDatabase(string relPath, ChartSetInfo setInfo)
@@ -354,6 +424,21 @@ namespace theori.Database
                     chart.Set = set;
 
                     m_charts[chart.ID] = chart;
+                }
+            }
+
+            using (var reader = ExecReader("SELECT id,chartId,collection FROM Collections"))
+            {
+                while (reader.Read())
+                {
+                    long id = reader.GetInt64(0);
+
+                    string name = reader.GetString(2);
+                    if (!m_collections.TryGetValue(name, out var collection))
+                        collection = new CollectionInfo(name);
+
+                    collection.ChartIds.Add(reader.GetInt64(1));
+                    m_collections[collection.Name] = collection;
                 }
             }
         }

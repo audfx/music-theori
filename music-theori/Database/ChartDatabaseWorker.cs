@@ -36,6 +36,12 @@ namespace theori.Database
         public IEnumerable<ChartSetInfo> ChartSets => ChartDatabaseService.ChartSets;
         public IEnumerable<ChartInfo> Charts => ChartDatabaseService.Charts;
 
+        public string[] CollectionNames => ChartDatabaseService.CollectionNames;
+        public void CreateCollection(string collectionName) => ChartDatabaseService.CreateCollection(collectionName);
+        public void AddChartToCollection(string collectionName, ChartInfo chart) => ChartDatabaseService.AddToCollection(collectionName, chart);
+        public void RemoveChartFromCollection(string collectionName, ChartInfo chart) => ChartDatabaseService.RemoveFromCollection(collectionName, chart);
+        public IEnumerable<ChartInfo> GetChartsInCollection(string collectionName) => ChartDatabaseService.GetChartsInCollection(collectionName);
+
         public ChartDatabaseWorker()
         {
         }

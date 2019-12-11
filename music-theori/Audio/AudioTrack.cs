@@ -97,10 +97,10 @@ namespace theori.Audio
                 stream.Dispose();
                 return;
             }
-            var source = ext switch
+            ISampleSource source = ext switch
             {
-                //case ".wav": source = new WaveFileReader(stream); break;
-                ".ogg" => new NVorbis.NVorbisSource(stream),
+                //".wav" => new WaveFileReader(stream),
+                ".ogg" => new NVorbisSource(stream),
                 _ => throw new NotImplementedException(),
             };
             Source = new ResamplingSampleSource(source, Mixer.Format);

@@ -12,6 +12,12 @@ namespace theori.Database
         public static IEnumerable<ChartSetInfo> ChartSets => m_database!.ChartSets;
         public static IEnumerable<ChartInfo> Charts => m_database!.Charts;
 
+        public static string[] CollectionNames => m_database!.GetCollectionNames();
+        public static void CreateCollection(string collectionName) => m_database!.CreateCollection(collectionName);
+        public static void AddToCollection(string collectionName, ChartInfo chart) => m_database!.AddChartToCollection(collectionName, chart);
+        public static void RemoveFromCollection(string collectionName, ChartInfo chart) => m_database!.RemoveChartFromCollection(collectionName, chart);
+        public static IEnumerable<ChartInfo> GetChartsInCollection(string collectionName) => m_database!.GetChartsInCollection(collectionName);
+
         public static string ChartsDirectory => TheoriConfig.ChartsDirectory;
 
         public static void Initialize(string localDatabaseName = "theori-charts.sqlite")

@@ -64,6 +64,7 @@ namespace theori.Graphics
         public void BeginFrame()
         {
             m_transform = Transform.Identity;
+            m_scissor = null;
             m_drawColor = Vector4.One;
             m_imageColor = Vector4.One;
             m_textAlign = Anchor.TopLeft;
@@ -187,8 +188,7 @@ namespace theori.Graphics
                 m_scissor = new Rect(x, y, w, h);
             else
             {
-                var o = m_scissor!;
-                m_scissor = new Rect();
+                //m_scissor = new Rect();
             }
         }
 
@@ -215,7 +215,9 @@ namespace theori.Graphics
             p["MainTexture"] = Texture.Empty;
             p["Color"] = m_drawColor;
 
-            m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
+            if (m_scissor is Rect scissor)
+                m_queue!.Draw(scissor, transform * m_transform, m_rectMesh, m_basicMaterial, p);
+            else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
         }
 
         public void SetImageColor(float r, float g, float b) => SetImageColor(r, g, b, 255);
@@ -233,7 +235,9 @@ namespace theori.Graphics
             p["MainTexture"] = texture;
             p["Color"] = m_imageColor;
 
-            m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
+            if (m_scissor is Rect scissor)
+                m_queue!.Draw(scissor, transform * m_transform, m_rectMesh, m_basicMaterial, p);
+            else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
         }
 
         public void SetFont(Font? font)
@@ -281,7 +285,9 @@ namespace theori.Graphics
             p["MainTexture"] = rasterizer.Texture;
             p["Color"] = m_drawColor;
 
-            m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
+            if (m_scissor is Rect scissor)
+                m_queue!.Draw(scissor, transform * m_transform, m_rectMesh, m_basicMaterial, p);
+            else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
         }
 
         #endregion

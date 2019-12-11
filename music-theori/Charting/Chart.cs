@@ -136,13 +136,13 @@ namespace theori.Charting
             }
         }
 
-        public Chart(GameMode gameMode = null)
+        public Chart(GameMode gameMode)
         {
             GameMode = gameMode;
             ControlPoints = new ControlPointList(this);
         }
 
-        public Chart(int laneCount, GameMode gameMode = null)
+        public Chart(int laneCount, GameMode gameMode)
         {
             GameMode = gameMode;
             ControlPoints = new ControlPointList(this);
