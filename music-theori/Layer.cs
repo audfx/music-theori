@@ -127,7 +127,7 @@ namespace theori
 
         protected ClientResourceManager StaticResources => theori.Host.StaticResources;
 
-        protected Layer(ClientResourceLocator? resourceLocator = null, string? layerPathLua = null, params DynValue[] args)
+        public Layer(ClientResourceLocator? resourceLocator = null, string? layerPathLua = null, params DynValue[] args)
         {
             ResourceLocator = resourceLocator ?? ClientResourceLocator.Default;
             m_spriteRenderer = new BasicSpriteRenderer(ResourceLocator);
