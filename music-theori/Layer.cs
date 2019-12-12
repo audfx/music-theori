@@ -5,6 +5,7 @@ using System.Numerics;
 
 using MoonSharp.Interpreter;
 using theori.Charting;
+using theori.GameModes;
 using theori.Graphics;
 using theori.Graphics.OpenGL;
 using theori.IO;
@@ -97,6 +98,7 @@ namespace theori
         public readonly Table tblTheoriGraphics;
         public readonly Table tblTheoriInput;
         public readonly Table tblTheoriLayer;
+        public readonly Table tblTheoriModes;
         public readonly Table tblTheoriInputKeyboard;
         public readonly Table tblTheoriInputMouse;
         public readonly Table tblTheoriInputGamepad;
@@ -150,6 +152,7 @@ namespace theori
             tblTheori["graphics"] = tblTheoriGraphics = m_script.NewTable();
             tblTheori["input"] = tblTheoriInput = m_script.NewTable();
             tblTheori["layer"] = tblTheoriLayer = m_script.NewTable();
+            tblTheori["modes"] = tblTheoriModes = m_script.NewTable();
 
             tblTheoriInput["keyboard"] = tblTheoriInputKeyboard = m_script.NewTable();
             tblTheoriInput["mouse"] = tblTheoriInputMouse = m_script.NewTable();
@@ -198,6 +201,21 @@ namespace theori
                 Action? callback = args.Count == 0 ? (Action?)null : () => ctx.Call(args[0]);
                 Client.DatabaseWorker.SetToPopulate(callback);
                 return Nil;
+            });
+
+            tblTheoriCharts["create"] = (Func<string, Chart>)(modeName =>
+            {
+                var mode = GameMode.GetInstance(modeName);
+                //if (mode == null) return DynValue.Nil;
+                return mode!.CreateChartFactory().CreateNew();
+            });
+            tblTheoriCharts["newEntity"] = (Func<string, Entity>)(entityTypeId =>
+            {
+                var entityType = Entity.GetEntityTypeById(entityTypeId);
+                return (Entity)Activator.CreateInstance(entityType!);
+            });
+            tblTheoriCharts["saveChartToDatabase"] = (Action<Chart>)(chart =>
+            {
             });
 
             tblTheoriCharts["createCollection"] = (Action<string>)(collectionName => Client.DatabaseWorker.CreateCollection(collectionName));

@@ -42,6 +42,11 @@ namespace theori.Charting
         private readonly Dictionary<HybridLabel, ChartLane> m_lanes = new Dictionary<HybridLabel, ChartLane>();
         public IEnumerable<ChartLane> Lanes => m_lanes.Values;
 
+        private IEnumerable controlPoints => ControlPoints;
+        private IEnumerable lanes => m_lanes.Values;
+
+        private Dictionary<HybridLabel, ChartLane> GetLanes() => m_lanes;
+
         public readonly ControlPointList ControlPoints;
 
         public time_t LastObjectTime
@@ -258,16 +263,19 @@ namespace theori.Charting
 
             public IEnumerable<Type> AllowedTypes => m_allowedTypes;
 
-            public Entity First => m_entities.Count == 0 ? null : m_entities[0];
-            public Entity Last => m_entities.Count == 0 ? null : m_entities[m_entities.Count - 1];
-            
+            public Entity? First => m_entities.Count == 0 ? null : m_entities[0];
+            public Entity? Last => m_entities.Count == 0 ? null : m_entities[m_entities.Count - 1];
+
             public int Count => m_entities.Count;
             public Entity this[int index] => m_entities[index];
+
+            private IEnumerable entities => m_entities;
 
             internal ChartLane(Chart chart, HybridLabel name)
             {
                 m_chart = chart;
                 Label = name;
+                m_allowedTypes = new Type[0];
                 Relation = EntityRelation.None;
             }
 
@@ -356,6 +364,17 @@ namespace theori.Charting
                 obj.m_lane = Label;
 
                 m_entities.Add(obj);
+            }
+
+            private Entity Add(string entityId, tick_t position, tick_t duration = default)
+            {
+                var type = Entity.GetEntityTypeById(entityId);
+                ValidateTypeRequirement(type);
+                var entity = (Entity)Activator.CreateInstance(type);
+                entity.Position = position;
+                entity.Duration = duration;
+                Add(entity);
+                return entity;
             }
 
             /// <summary>

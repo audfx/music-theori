@@ -1,9 +1,36 @@
-﻿using theori.Charting;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
+using theori.Charting;
 
 namespace theori.GameModes
 {
     public abstract class GameMode
     {
+        private static IEnumerable<Type>? m_available;
+        public static IEnumerable<Type> GetAvailableGameModeTypes()
+        {
+            return m_available ?? (m_available = Gather());
+
+            static IEnumerable<Type> Gather()
+            {
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    foreach (var type in asm.GetTypes())
+                    {
+                        if (typeof(GameMode).IsAssignableFrom(type))
+                            yield return type;
+                    }
+                }
+            }
+        }
+
+        private static readonly Dictionary<Type, GameMode> instances = new Dictionary<Type, GameMode>();
+
+        public static GameMode? GetInstance(string name) => instances.Where(p => p.Value.Name == name).Select(p => (GameMode?)p.Value).SingleOrDefault();
+        public static GameMode? GetInstance(Type type) => instances.TryGetValue(type, out var result) ? result : null;
+
         #region Meta Info
 
         public readonly string Name;
@@ -50,6 +77,10 @@ namespace theori.GameModes
 
         protected GameMode(string name)
         {
+            if (instances.ContainsKey(GetType()))
+                throw new InvalidOperationException("Cannot instantiate a game mode multiple times.");
+            instances[GetType()] = this;
+
             Name = name;
         }
 
