@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using theori.Charting;
+using theori.GameModes;
 using theori.Graphics;
 
 namespace theori.Database
@@ -88,29 +89,34 @@ namespace theori.Database
                 Initialize();
             else if (update)
             {
-                while (vGot < Version)
+                const int MAX_REBUILD_VER = VER_0_3_ADD_GAMEMODES;
+                if (vGot < MAX_REBUILD_VER)
+                    Initialize();
+                else
                 {
-                    switch (vGot)
+                    while (vGot < Version)
                     {
-                        case VER_0_1_INITIAL:
-                        { // -> VER_0_2_ADD_COLLECTIONS
-                            Exec($@"CREATE TABLE Collections (
+                        switch (vGot)
+                        {
+                            case VER_0_1_INITIAL:
+                            { // -> VER_0_2_ADD_COLLECTIONS
+                                Exec($@"CREATE TABLE Collections (
                                 id INTEGER PRIMARY KEY,
                                 chartId INTEGER NOT NULL,
                                 collection STRING NOT NULL,
                                 FOREIGN KEY(chartId) REFERENCES Charts(id)
                             )");
-                        } break;
+                            } break;
 
-                        case VER_0_2_ADD_COLLECTIONS:
-                        { // -> VER_0_3_ADD_MODES_AND_TYPES
-                            Exec($@"ALTER TABLE Charts ADD gameMode TEXT NOT NULL");
+                            case VER_0_2_ADD_COLLECTIONS:
+                            { // -> VER_0_3_ADD_MODES_AND_TYPES
+                                // requires a full rebuild, no sensible default exists.
+                            } break;
                         }
-                        break;
-                    }
 
-                    int vLast = vGot++;
-                    Logger.Log($"  Updated Chart Database from Version { vLast } to { vGot }");
+                        int vLast = vGot++;
+                        Logger.Log($"  Updated Chart Database from Version { vLast } to { vGot }");
+                    }
                 }
 
                 Exec("UPDATE Database SET `version`=? WHERE `rowid`=1", Version);
@@ -353,6 +359,7 @@ namespace theori.Database
                         setInfo.ID,
                         chart.LastWriteTime,
                         chart.FileName,
+                        chart.GameMode!.Name,
                         chart.SongTitle,
                         chart.SongArtist,
                         chart.SongFileName,
@@ -401,7 +408,8 @@ namespace theori.Database
                 }
             }
 
-            using (var reader = ExecReader("SELECT id,setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,chartOffset,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags FROM Charts"))
+            // TODO(local): Add potential aliases to the query and extensions to the reader to make this much easier
+            using (var reader = ExecReader("SELECT id,setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,chartOffset,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags,gameMode FROM Charts"))
             {
                 while (reader.Read())
                 {
@@ -410,6 +418,7 @@ namespace theori.Database
                     chart.ID = reader.GetInt64(0);
                     chart.LastWriteTime = reader.GetInt64(2);
                     chart.FileName = reader.GetString(3);
+                    chart.GameMode = GameMode.GetInstance(reader.GetString(21));
                     chart.SongTitle = reader.GetString(4);
                     chart.SongArtist = reader.GetString(5);
                     chart.SongFileName = reader.GetString(6);
