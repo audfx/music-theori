@@ -160,7 +160,7 @@ namespace theori.Database
             string chartsDirectory = ChartDatabaseService.ChartsDirectory;
             if (!Directory.Exists(chartsDirectory)) return;
 
-            var setSerializer = new ChartSetSerializer();
+            var setSerializer = new ChartSetSerializer(chartsDirectory);
             SearchDirectory(chartsDirectory, null);
 
             void SearchDirectory(string directory, string? currentSubDirectory)
@@ -176,7 +176,7 @@ namespace theori.Database
                     {
                         // TODO(local): see if this can be updated rather than just skipped
                         if (ChartDatabaseService.ContainsSetAtLocation(Path.Combine(entrySubDirectory, ".theori-set"))) continue;
-                        EnqueuePopulateEntry(setSerializer.LoadFromFile(chartsDirectory, entrySubDirectory, ".theori-set"));
+                        EnqueuePopulateEntry(setSerializer.LoadFromFile(entrySubDirectory, ".theori-set"));
                     }
                     else SearchDirectory(entry, entrySubDirectory);
                 }
@@ -264,8 +264,8 @@ namespace theori.Database
 
             Debug.Assert(Path.Combine(setDir, setFile) == relPath);
 
-            var setSerializer = new ChartSetSerializer();
-            var setInfo = setSerializer.LoadFromFile(ChartDatabaseService.ChartsDirectory, setDir, setFile);
+            var setSerializer = new ChartSetSerializer(ChartDatabaseService.ChartsDirectory);
+            var setInfo = setSerializer.LoadFromFile(setDir, setFile);
 
             ChartDatabaseService.AddSet(setInfo);
         }
