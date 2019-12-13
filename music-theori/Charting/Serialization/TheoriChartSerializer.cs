@@ -12,13 +12,17 @@ using theori.GameModes;
 
 namespace theori.Charting.Serialization
 {
-    public sealed class ChartSerializer
+    /// <summary>
+    /// The default chart format for all :theori game modes.
+    /// A .theori file is a json object 
+    /// </summary>
+    public sealed class TheoriChartSerializer : IChartSerializer
     {
         public string ParentDirectory { get; }
 
         private readonly GameMode m_gameMode;
 
-        public ChartSerializer(string chartsDir, GameMode gameMode = null)
+        public TheoriChartSerializer(string chartsDir, GameMode gameMode)
         {
             ParentDirectory = chartsDir;
             m_gameMode = gameMode;
@@ -29,7 +33,8 @@ namespace theori.Charting.Serialization
             string chartFile = Path.Combine(ParentDirectory, chartInfo.Set.FilePath, chartInfo.FileName);
 
             // TODO(local): We don't need to be creating chart factories like this aaa but it's a start
-            Chart chart = m_gameMode.CreateChartFactory().CreateNew();
+            Chart chart = m_gameMode.GetChartFactory().CreateNew();
+            //chart.GameMode = m_gameMode; // this is done by the factory, because it's required.
             chart.Offset = chartInfo.ChartOffset;
             chart.Info = chartInfo;
 

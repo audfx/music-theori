@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using theori.Charting;
+using theori.Charting.Serialization;
 
 namespace theori.Database
 {

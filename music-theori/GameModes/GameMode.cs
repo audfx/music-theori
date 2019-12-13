@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using theori.Charting;
+using theori.Charting.Serialization;
 
 namespace theori.GameModes
 {
@@ -33,6 +34,9 @@ namespace theori.GameModes
 
         #region Meta Info
 
+        /// <summary>
+        /// The name of a gamemode should be unique.
+        /// </summary>
         public readonly string Name;
 
         #endregion
@@ -84,6 +88,7 @@ namespace theori.GameModes
             Name = name;
         }
 
-        public virtual ChartFactory CreateChartFactory() => throw new System.NotImplementedException();
+        public virtual ChartFactory GetChartFactory() => throw new NotImplementedException();
+        public virtual IChartSerializer? CreateChartSerializer(string chartsDirectory, string? fileFormat) => null;
     }
 }

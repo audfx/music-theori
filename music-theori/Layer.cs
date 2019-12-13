@@ -207,7 +207,7 @@ namespace theori
             {
                 var mode = GameMode.GetInstance(modeName);
                 //if (mode == null) return DynValue.Nil;
-                return mode!.CreateChartFactory().CreateNew();
+                return mode!.GetChartFactory().CreateNew();
             });
             tblTheoriCharts["newEntity"] = (Func<string, Entity>)(entityTypeId =>
             {

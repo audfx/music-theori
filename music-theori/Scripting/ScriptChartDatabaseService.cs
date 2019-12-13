@@ -35,7 +35,7 @@ namespace theori.Scripting
     {
         public static implicit operator T(LuaObjectHandle<T> handle) => handle.Object;
 
-        protected readonly T Object;
+        public readonly T Object;
 
         protected LuaObjectHandle(T obj)
         {
