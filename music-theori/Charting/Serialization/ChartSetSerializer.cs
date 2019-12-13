@@ -54,7 +54,7 @@ namespace theori.Charting.Serialization
                     switch (key)
                     {
                         case "game-mode": chartInfo.GameMode = GameMode.GetInstance(value); break;
-                        case "file-type": chartInfo.ChartFileType = value; break;
+                        //case "file-type": chartInfo.ChartFileType = value; break;
 
                         case "chart-file": chartInfo.FileName = value; break;
                         case "song-title": chartInfo.SongTitle = value; break;

@@ -19,8 +19,9 @@ namespace theori.Database
     {
         private const int VER_0_1_INITIAL = 1;
         private const int VER_0_2_ADD_COLLECTIONS = 2;
+        private const int VER_0_3_ADD_GAMEMODES = 3;
 
-        private const int CURRENT_VERSION = VER_0_2_ADD_COLLECTIONS;
+        private const int CURRENT_VERSION = VER_0_3_ADD_GAMEMODES;
 
         private class CollectionInfo
         {
@@ -100,6 +101,12 @@ namespace theori.Database
                                 FOREIGN KEY(chartId) REFERENCES Charts(id)
                             )");
                         } break;
+
+                        case VER_0_2_ADD_COLLECTIONS:
+                        { // -> VER_0_3_ADD_MODES_AND_TYPES
+                            Exec($@"ALTER TABLE Charts ADD gameMode TEXT NOT NULL");
+                        }
+                        break;
                     }
 
                     int vLast = vGot++;
@@ -184,6 +191,7 @@ namespace theori.Database
                 id INTEGER PRIMARY KEY,
                 setId INTEGER NOT NULL,
                 lwt INTEGER NOT NULL,
+                gameMode TEXT NOT NULL,
                 fileName TEXT NOT NULL,
                 songTitle TEXT NOT NULL COLLATE NOCASE,
                 songArtist TEXT NOT NULL COLLATE NOCASE,
