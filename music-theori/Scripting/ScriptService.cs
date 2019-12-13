@@ -28,7 +28,7 @@ namespace theori.Scripting
             Script.GlobalOptions.CustomConverters.SetClrToScriptCustomConversion<tick_t>((s, v) => DynValue.NewNumber((double)v));
             Script.GlobalOptions.CustomConverters.SetClrToScriptCustomConversion<time_t>((s, v) => DynValue.NewNumber((double)v));
             Script.GlobalOptions.CustomConverters.SetClrToScriptCustomConversion<HybridLabel>((s, v) => v.LabelKind == HybridLabel.Kind.Number ? DynValue.NewNumber((int)v) : DynValue.NewString((string)v));
-            Script.GlobalOptions.CustomConverters.SetClrToScriptCustomConversion<Chart>((s, v) => UserData.Create(new ChartHandle(v)));
+            //Script.GlobalOptions.CustomConverters.SetClrToScriptCustomConversion<Chart>((s, v) => UserData.Create(new ChartHandle(v)));
 
             Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.Number, typeof(tick_t), v => (tick_t)v.Number);
             Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.Number, typeof(time_t), v => (time_t)v.Number);
