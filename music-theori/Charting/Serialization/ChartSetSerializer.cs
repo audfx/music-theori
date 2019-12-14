@@ -99,9 +99,15 @@ namespace theori.Charting.Serialization
         {
             foreach (var chartInfo in setInfo.Charts)
             {
+                if (chartInfo.GameMode == null)
+                {
+                    Logger.Log($"Cannot serialize a chart without a gamemode. Skipping for {Path.Combine(chartInfo.Set.FilePath, chartInfo.FileName)}");
+                    continue;
+                }
+
                 writer.WriteLine($"[chart-info]");
                 writer.WriteLine($"chart-file={ chartInfo.FileName }");
-                writer.WriteLine($"chart-file={ chartInfo.FileName }");
+                writer.WriteLine($"game-mode={ chartInfo.GameMode!.Name }");
                 writer.WriteLine($"song-title={ chartInfo.SongTitle }");
                 writer.WriteLine($"song-artist={ chartInfo.SongArtist }");
                 writer.WriteLine($"song-file={ chartInfo.SongFileName }");
@@ -110,7 +116,6 @@ namespace theori.Charting.Serialization
                 writer.WriteLine($"charter={ chartInfo.Charter }");
                 writer.WriteLine($"chart-duration={ chartInfo.ChartDuration.Seconds }");
 
-                WriteOptS("game-mode", chartInfo.GameMode?.Name);
                 WriteOptS("file-type", chartInfo.ChartFileType);
                 WriteOptS("jacket-file", chartInfo.JacketFileName);
                 WriteOptS("jacket-artist", chartInfo.JacketArtist);
