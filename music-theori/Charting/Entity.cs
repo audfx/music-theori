@@ -117,7 +117,6 @@ namespace theori.Charting
             RegisterTheoriTypes();
         }
 
-        // NOTE(local): ONLY used for sorting when entities are otherwise equal. Not needed otherwise, likely needs removal for simplification.
         private readonly long m_id = ++creationIndexCounter;
 
         private tick_t m_position, m_duration;
@@ -301,6 +300,8 @@ namespace theori.Charting
         }
 
         object ICloneable.Clone() => Clone();
+
+        public override int GetHashCode() => m_id.GetHashCode();
 
         [MoonSharpHidden]
         public virtual int CompareTo(Entity other)
