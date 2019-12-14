@@ -171,14 +171,16 @@ namespace theori.Database
                         ct.ThrowIfCancellationRequested();
 
                     string entrySubDirectory = currentSubDirectory == null ? Path.GetFileName(entry) : Path.Combine(currentSubDirectory, Path.GetFileName(entry));
-                    // TODO(local): check for anything eith any .theori-set extension
-                    if (File.Exists(Path.Combine(entry, ".theori-set")))
+                    // TODO(local): check for anything with any .theori-set extension
+                    var sets = new DirectoryInfo(entry).GetFiles("*.theori-set");
+                    foreach (var setFile in sets)
                     {
                         // TODO(local): see if this can be updated rather than just skipped
-                        if (ChartDatabaseService.ContainsSetAtLocation(Path.Combine(entrySubDirectory, ".theori-set"))) continue;
-                        EnqueuePopulateEntry(setSerializer.LoadFromFile(entrySubDirectory, ".theori-set"));
+                        if (ChartDatabaseService.ContainsSetAtLocation(Path.Combine(entrySubDirectory, setFile.Name))) continue;
+                        EnqueuePopulateEntry(setSerializer.LoadFromFile(entrySubDirectory, setFile.Name));
                     }
-                    else SearchDirectory(entry, entrySubDirectory);
+                    
+                    SearchDirectory(entry, entrySubDirectory);
                 }
             }
         }
