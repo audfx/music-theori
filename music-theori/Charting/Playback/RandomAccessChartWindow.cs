@@ -4,7 +4,18 @@ namespace theori.Charting.Playback
 {
     public class RandomAccessChartWindow : IChartWindow
     {
-        public Chart Chart { get; }
+        private Chart m_chart;
+        public Chart Chart
+        {
+            get => m_chart;
+            set
+            {
+                if (value == m_chart) return;
+
+                m_chart = value;
+                Refresh();
+            }
+        }
 
         private time_t m_position = 0, m_lookBehind = 0, m_lookAhead = 1;
 
@@ -52,7 +63,7 @@ namespace theori.Charting.Playback
 
         public RandomAccessChartWindow(Chart chart)
         {
-            Chart = chart;
+            m_chart = chart;
             Refresh();
         }
 

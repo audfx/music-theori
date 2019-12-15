@@ -34,6 +34,8 @@ namespace theori.Charting
             Chart = chart;
         }
 
+        public ControlPoint MostRecentControlPointAtTime(time_t time) => Chart.ControlPoints.MostRecent(time);
+
         public Entity? GetEntityAtTick(HybridLabel laneLabel, tick_t tick) => Chart[laneLabel].Find(tick, true);
         public Entity? GetEntityAtTick(HybridLabel laneLabel, tick_t tick, bool includeDuration) => Chart[laneLabel].Find(tick, includeDuration);
 

@@ -12,6 +12,7 @@ using theori.Resources;
 using theori.Scoring;
 
 using MoonSharp.Interpreter;
+using theori.Audio;
 
 namespace theori.Scripting
 {
@@ -35,6 +36,7 @@ namespace theori.Scripting
             Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.Number, typeof(HybridLabel), v => (HybridLabel)v.Number);
             Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.String, typeof(HybridLabel), v => (HybridLabel)v.String);
             Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.UserData, typeof(Chart), v => v.UserData.Object is ChartHandle handle ? handle.Chart : null);
+            Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.UserData, typeof(AudioTrack), v => v.UserData.Object is AudioHandle handle ? handle.Object : null);
 
             RegisterType<Anchor>();
             RegisterType<LinearDirection>();

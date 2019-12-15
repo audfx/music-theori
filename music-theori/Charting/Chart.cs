@@ -708,7 +708,7 @@ namespace theori.Charting
                     if (cp.Position <= position)
                         return cp;
                 }
-                return null;
+                return m_controlPoints[0];
             }
 
             public ControlPoint MostRecent(time_t position)

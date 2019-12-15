@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 
 using MoonSharp.Interpreter;
+using theori.Audio;
 using theori.Charting;
 using theori.GameModes;
 using theori.Graphics;
@@ -187,7 +188,8 @@ namespace theori
             tblTheoriAudio["getStaticAudio"] = (Func<string, AudioHandle>)(audioName => StaticResources.GetAudio($"audio/{ audioName }"));
             tblTheoriAudio["queueAudioLoad"] = (Func<string, AudioHandle>)(audioName => m_resources.QueueAudioLoad($"audio/{ audioName }"));
             tblTheoriAudio["getAudio"] = (Func<string, AudioHandle>)(audioName => m_resources.GetAudio($"audio/{ audioName }"));
-
+            tblTheoriAudio["createFakeAudio"] = (Func<int, int, AudioHandle>)((sampleRate, channels) => new FakeAudioSource(sampleRate, channels));
+            
             tblTheoriCharts["setDatabaseToIdle"] = (Action)(() => Client.DatabaseWorker.SetToIdle());
             tblTheoriCharts["getDatabaseState"] = (Func<string>)(() => Client.DatabaseWorker.State.ToString());
 
