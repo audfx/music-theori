@@ -17,7 +17,7 @@ namespace theori.Charting.Playback
             }
         }
 
-        private time_t m_position = 0, m_lookBehind = 0, m_lookAhead = 1;
+        private time_t m_position = 0, m_lookBehind = 0.1, m_lookAhead = 1;
 
         public time_t Position
         {
@@ -74,6 +74,7 @@ namespace theori.Charting.Playback
 
             foreach (var lane in Chart.Lanes)
             {
+                m_toRemoveCache.Clear();
                 if (!m_inView.TryGetValue(lane.Label, out var entities))
                     entities = m_inView[lane.Label] = new HashSet<Entity>();
                 m_toRemoveCache.AddRange(entities);

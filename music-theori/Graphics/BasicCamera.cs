@@ -121,6 +121,9 @@ namespace theori.Graphics
             }
         }
 
+        public Vector3 Forward => new Vector3(ViewMatrix.Matrix.M13, ViewMatrix.Matrix.M23, ViewMatrix.Matrix.M33);
+        public Vector3 Up => new Vector3(ViewMatrix.Matrix.M12, ViewMatrix.Matrix.M22, ViewMatrix.Matrix.M32);
+
         public void SetPerspectiveFoV(float fov, float aspect, float near, float far)
         {
             projection.Invalidate();

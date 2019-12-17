@@ -26,6 +26,8 @@ namespace theori.Charting
         public IEnumerable ControlPoints => Chart.ControlPoints;
         public IEnumerable Lanes => Chart.Lanes.Select(lane => lane.Label);
 
+        public time_t TimeStart => Chart.TimeStart;
+
         public ChartHandle(ClientResourceManager resources, ScriptProgram script, ChartDatabaseWorker worker, Chart chart)
         {
             Resources = resources;
