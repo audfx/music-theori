@@ -13,7 +13,7 @@ namespace theori.Charting.Playback
                 if (value == m_chart) return;
 
                 m_chart = value;
-                Refresh();
+                Update();
             }
         }
 
@@ -27,7 +27,7 @@ namespace theori.Charting.Playback
                 if (m_position == value)
                     return;
                 m_position = value;
-                Refresh();
+                Update();
             }
         }
 
@@ -39,7 +39,7 @@ namespace theori.Charting.Playback
                 if (m_lookBehind == value)
                     return;
                 m_lookBehind = value;
-                Refresh();
+                Update();
             }
         }
 
@@ -51,7 +51,7 @@ namespace theori.Charting.Playback
                 if (m_lookAhead == value)
                     return;
                 m_lookAhead = value;
-                Refresh();
+                Update();
             }
         }
 
@@ -64,10 +64,22 @@ namespace theori.Charting.Playback
         public RandomAccessChartWindow(Chart chart)
         {
             m_chart = chart;
-            Refresh();
+            Update();
         }
 
         public void Refresh()
+        {
+            foreach (var (label, entities) in m_inView)
+            {
+                foreach (var entity in entities)
+                    OnEntityExit(label, entity);
+            }
+            m_inView.Clear();
+
+            Update();
+        }
+
+        public void Update()
         {
             time_t startTime = Position - LookBehind;
             time_t endTime = Position + LookAhead;

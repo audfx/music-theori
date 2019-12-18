@@ -6,6 +6,8 @@ using System.Numerics;
 using MoonSharp.Interpreter;
 using theori.Audio;
 using theori.Charting;
+using theori.Charting.Serialization;
+using theori.Configuration;
 using theori.GameModes;
 using theori.Graphics;
 using theori.Graphics.OpenGL;
@@ -204,12 +206,12 @@ namespace theori
                 Client.DatabaseWorker.SetToPopulate(callback);
                 return Nil;
             });
-
-            tblTheoriCharts["create"] = (Func<string, Chart>)(modeName =>
+            
+            tblTheoriCharts["create"] = (Func<string, ChartHandle>)(modeName =>
             {
                 var mode = GameMode.GetInstance(modeName);
                 //if (mode == null) return DynValue.Nil;
-                return mode!.GetChartFactory().CreateNew();
+                return new ChartHandle(m_resources, m_script, Client.DatabaseWorker, mode!.GetChartFactory().CreateNew());
             });
             tblTheoriCharts["newEntity"] = (Func<string, Entity>)(entityTypeId =>
             {
@@ -218,6 +220,11 @@ namespace theori
             });
             tblTheoriCharts["saveChartToDatabase"] = (Action<Chart>)(chart =>
             {
+                var ser = chart.GameMode.CreateChartSerializer(TheoriConfig.ChartsDirectory, chart.Info.ChartFileType) ?? new TheoriChartSerializer(TheoriConfig.ChartsDirectory, chart.GameMode);
+                var setSer = new ChartSetSerializer(TheoriConfig.ChartsDirectory);
+
+                setSer.SaveToFile(chart.SetInfo);
+                ser.SaveToFile(chart);
             });
 
             tblTheoriCharts["createCollection"] = (Action<string>)(collectionName => Client.DatabaseWorker.CreateCollection(collectionName));

@@ -96,14 +96,18 @@ namespace theori.Charting
         {
             get
             {
-                time_t start = double.MaxValue;
+                time_t? start = null;
                 foreach (var lane in Lanes)
                 {
                     var last = lane.First;
                     if (last != null)
-                        start = start > last.AbsolutePosition ? last.AbsolutePosition : start;
+                    {
+                        if (start is time_t value)
+                            start = value > last.AbsolutePosition ? last.AbsolutePosition : value;
+                        else start = last.AbsolutePosition;
+                    }
                 }
-                return start;
+                return start ?? 0;
             }
         }
 
@@ -438,7 +442,7 @@ namespace theori.Charting
                     var obj = m_entities[i];
                     if (includeDuration)
                     {
-                        if (obj.Position <= position && obj.Duration >= position)
+                        if (obj.Position <= position && obj.EndPosition >= position)
                             return obj;
                     }
                     else if (obj.Position == position)
@@ -457,7 +461,7 @@ namespace theori.Charting
                     var obj = m_entities[i];
                     if (includeDuration)
                     {
-                        if (obj.Position <= position && obj.Duration >= position && obj is T t)
+                        if (obj.Position <= position && obj.EndPosition >= position && obj is T t)
                             return t;
                     }
                     else if (obj.Position == position && obj is T t)
