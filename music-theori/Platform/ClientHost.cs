@@ -25,8 +25,6 @@ namespace theori.Platform
     {
         private const string GAME_CONFIG_FILE = "theori-config.ini";
 
-        public readonly TheoriConfig Config = new TheoriConfig();
-
         public event Action? Activated;
         public event Action? Deactivated;
         public event Action? Exited;
@@ -45,12 +43,10 @@ namespace theori.Platform
 
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 
-            if (File.Exists(GAME_CONFIG_FILE))
-                LoadConfig();
-            else SaveConfig();
+            LoadConfig();
 
             Window.Create(this);
-            Window.VSync = Config.GetEnum<VSyncMode>(TheoriConfigKey.VSync);
+            Window.VSync = TheoriConfig.VerticalSync;
             Window.ClientSizeChanged += Window_ClientSizeChanged;
 
             Mixer.Initialize(new AudioFormat(48000, 2));
@@ -224,12 +220,12 @@ namespace theori.Platform
 
         internal void WindowMoved(int x, int y)
         {
-            Config.Set(TheoriConfigKey.Maximized, false);
+            TheoriConfig.Maximized = false;
         }
 
         internal void WindowMaximized()
         {
-            Config.Set(TheoriConfigKey.Maximized, true);
+            TheoriConfig.Maximized = true;
         }
 
         internal void WindowMinimized()
@@ -245,15 +241,13 @@ namespace theori.Platform
         public void LoadConfig()
         {
             using var _ = Profiler.Scope("ClientHost::LoadConfig");
-            using var reader = new StreamReader(File.OpenRead(GAME_CONFIG_FILE));
-            Config.Load(reader);
+            UserConfigManager.LoadFromFile();
         }
 
         public void SaveConfig()
         {
             using var _ = Profiler.Scope("ClientHost::SaveConfig");
-            using var writer = new StreamWriter(File.Open(GAME_CONFIG_FILE, FileMode.Create));
-            Config.Save(writer);
+            UserConfigManager.SaveToFile();
         }
 
         #endregion
@@ -273,6 +267,7 @@ namespace theori.Platform
         {
             //Profiler.EndSession();
 
+            UserConfigManager.SaveToFile(); // TODO(local): Save to the proper file
             Exited?.Invoke();
 
             Logger.Flush();

@@ -80,14 +80,14 @@ namespace theori.Graphics
             SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_STENCIL_SIZE, 2);
 
             var windowFlags = SDL_WindowFlags.SDL_WINDOW_OPENGL | SDL_WindowFlags.SDL_WINDOW_RESIZABLE | SDL_WindowFlags.SDL_WINDOW_SHOWN;
-            if (host.Config.GetBool(Configuration.TheoriConfigKey.Maximized))
+            if (Configuration.TheoriConfig.Maximized)
                 windowFlags |= SDL_WindowFlags.SDL_WINDOW_MAXIMIZED;
 
             {
                 using var __ = Profiler.Scope("Window::Create - Create SDL2 Window");
 
-                int width = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenWidth);
-                int height = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenHeight);
+                int width = Configuration.TheoriConfig.WindowWidth;
+                int height = Configuration.TheoriConfig.WindowHeight;
                 // we're pretty sure this takes as long as it does because of the OpenGL flag
                 window = SDL_CreateWindow("theori", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
             }

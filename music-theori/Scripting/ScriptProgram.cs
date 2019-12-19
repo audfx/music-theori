@@ -23,7 +23,7 @@ namespace theori.Scripting
             scriptLocator.AddManifestResourceLoader(ManifestResourceLoader.GetResourceLoader(typeof(ScriptProgram).Assembly, "theori.Resources"));
         }
 
-        private readonly Script m_script;
+        internal readonly Script Script;
 
         private readonly Dictionary<Type, DynValue> m_luaConverters = new Dictionary<Type, DynValue>();
 
@@ -34,12 +34,12 @@ namespace theori.Scripting
 
         public object? this[string globalKey]
         {
-            get => m_script.Globals[globalKey];
+            get => Script.Globals[globalKey];
             set
             {
                 if (value != null && m_luaConverters.TryGetValue(value.GetType(), out var converter))
-                    m_script.Globals[globalKey] = m_script.Call(converter, value);
-                else m_script.Globals[globalKey] = value;
+                    Script.Globals[globalKey] = Script.Call(converter, value);
+                else Script.Globals[globalKey] = value;
             }
         }
 
@@ -48,7 +48,7 @@ namespace theori.Scripting
             ResourceLocator = resourceLocator ?? ClientResourceLocator.Default;
             Resources = new ClientResourceManager(ResourceLocator);
 
-            m_script = new Script(CoreModules.Basic
+            Script = new Script(CoreModules.Basic
                                  | CoreModules.String
                                  | CoreModules.Bit32
                                  | CoreModules.Coroutine
@@ -94,10 +94,10 @@ namespace theori.Scripting
 
             this["include"] = (Func<string, DynValue>)LoadScriptResourceFile;
 
-            m_script.Globals.Get("math").Table["sign"] = (Func<double, int>)Math.Sign;
-            m_script.Globals.Get("math").Table["clamp"] = (Func<double, double, double, double>)MathL.Clamp;
+            Script.Globals.Get("math").Table["sign"] = (Func<double, int>)Math.Sign;
+            Script.Globals.Get("math").Table["clamp"] = (Func<double, double, double, double>)MathL.Clamp;
 
-            m_script.Globals.Get("table").Table["shallowCopy"] = (Func<DynValue, DynValue>)(table =>
+            Script.Globals.Get("table").Table["shallowCopy"] = (Func<DynValue, DynValue>)(table =>
             {
                 var result = NewTable();
                 foreach (var pair in table.Table.Pairs)
@@ -106,7 +106,7 @@ namespace theori.Scripting
             });
 
             // TODO(local): remove global resource manager!!!
-            m_script.Globals["res"] = Resources;
+            Script.Globals["res"] = Resources;
 
             this["Anchor"] = typeof(Anchor);
             this["ScoreRank"] = typeof(ScoreRank);
@@ -180,7 +180,7 @@ namespace theori.Scripting
             }
         }
 
-        public DynValue DoString(string code, string? codeFriendlyName = null) => m_script.DoString(code, codeFriendlyName: codeFriendlyName);
+        public DynValue DoString(string code, string? codeFriendlyName = null) => Script.DoString(code, codeFriendlyName: codeFriendlyName);
 
         /// <summary>
         /// Takes ownership of the file stream.
@@ -207,25 +207,25 @@ namespace theori.Scripting
 
         public DynValue Call(string name, params object[] args)
         {
-            return m_script.Call(this[name], args);
+            return Script.Call(this[name], args);
         }
 
         public DynValue? CallIfExists(string name, params object[] args)
         {
             var target = this[name];
             if (target is Closure || target is CallbackFunction)
-                return m_script.Call(target, args);
+                return Script.Call(target, args);
             else return null;
         }
 
         public DynValue Call(object val, params object[] args)
         {
-            return m_script.Call(val, args);
+            return Script.Call(val, args);
         }
 
         #region New
 
-        public Table NewTable() => new Table(m_script);
+        public Table NewTable() => new Table(Script);
         public ScriptEvent NewEvent() => new ScriptEvent(this);
 
         #endregion

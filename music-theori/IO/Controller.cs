@@ -2,9 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.Interop;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace theori.IO
 {
@@ -34,8 +37,335 @@ namespace theori.IO
         public int Direction;
     }
 
+    internal class ControllerButton
+    {
+        public HybridLabel ButtonId { get; }
+
+        public readonly Dictionary<object, IControllerButtonBinding> Bindings = new Dictionary<object, IControllerButtonBinding>();
+
+        private readonly HashSet<IControllerButtonBinding> m_pressed = new HashSet<IControllerButtonBinding>();
+
+        public bool IsDown => Bindings.Values.Any(binding => binding.IsDown);
+
+        public event Action<HybridLabel>? Pressed;
+        public event Action<HybridLabel>? Released;
+
+        public ControllerButton(HybridLabel buttonId)
+        {
+            ButtonId = buttonId;
+        }
+
+        public void RegisterBinding(object key, IControllerButtonBinding binding)
+        {
+            if (Bindings.TryGetValue(key, out var lastBinding))
+            {
+                lastBinding.Pressed -= BindingPressed;
+                lastBinding.Released -= BindingReleased;
+            }
+
+            binding.Label = ButtonId;
+            Bindings[key] = binding;
+
+            binding.Pressed += BindingPressed;
+            binding.Released += BindingReleased;
+        }
+
+        private void BindingPressed(IControllerButtonBinding binding, HybridLabel obj)
+        {
+            m_pressed.Add(binding);
+            if (m_pressed.Count == 1)
+                Pressed?.Invoke(ButtonId);
+        }
+
+        private void BindingReleased(IControllerButtonBinding binding, HybridLabel obj)
+        {
+            m_pressed.Remove(binding);
+            if (m_pressed.Count == 0)
+                Released?.Invoke(ButtonId);
+        }
+    }
+
+    internal class ControllerAxis
+    {
+        public HybridLabel AxisId { get; }
+
+        public readonly Dictionary<(object Positive, object? Negative), IControllerAxisBinding> Bindings = new Dictionary<(object, object?), IControllerAxisBinding>();
+
+        public event Action<HybridLabel, float, float>? AxisChanged;
+        public event Action<HybridLabel, int>? AxisTicked;
+
+        public ControllerAxis(HybridLabel buttonId)
+        {
+            AxisId = buttonId;
+        }
+
+        public void RegisterBinding(object key0, object? key1, IControllerAxisBinding binding)
+        {
+            var key = (key0, key1);
+
+            if (Bindings.TryGetValue(key, out var lastBinding))
+            {
+                lastBinding.Changed -= BindingChanged;
+                lastBinding.Ticked -= BindingTicked;
+            }
+
+            binding.Label = AxisId;
+            Bindings[key] = binding;
+
+            binding.Changed += BindingChanged;
+            binding.Ticked += BindingTicked;
+        }
+
+        private void BindingChanged(IControllerAxisBinding binding, HybridLabel obj, float value, float delta)
+        {
+            AxisChanged?.Invoke(AxisId, value, delta);
+        }
+
+        private void BindingTicked(IControllerAxisBinding binding, HybridLabel obj, int direction)
+        {
+            AxisTicked?.Invoke(AxisId, direction);
+        }
+    }
+
     public class Controller
     {
+        struct GamepadButtonPair
+        {
+            public string Name;
+            public uint Button;
+
+            public GamepadButtonPair(string name, uint button)
+            {
+                Name = name;
+                Button = button;
+            }
+        }
+
+        struct GamepadAxisPair
+        {
+            public string Name;
+            public uint Axis;
+
+            public GamepadAxisPair(string name, uint axis)
+            {
+                Name = name;
+                Axis = axis;
+            }
+        }
+
+        public static Controller? TryCreateFromFile(string filePath)
+        {
+            using var reader = new JsonTextReader(new StreamReader(File.OpenRead(filePath)));
+            var jObject = JObject.Load(reader);
+
+            var obj = (dynamic)jObject;
+
+            //try
+            //{
+                string name = obj.name;
+                var con = new Controller(name);
+
+                foreach (var button in obj.buttons)
+                {
+                    HybridLabel id = button.id.Type == JTokenType.Integer ? (HybridLabel)(int)button.id : (HybridLabel)(string)button.id;
+                    foreach (var binding in button.bindings)
+                    {
+                        string key = binding.key;
+                        if (key.TrySplit(':', out string kind, out string value))
+                        {
+                            var result = ParseKey(kind, value);
+                            if (result is KeyCode keyCode)
+                                con.SetButtonToKey(id, keyCode);
+                            else if (result is MouseButton mouseButton)
+                                con.SetButtonToMouseButton(id, mouseButton);
+                            else if (result is (Gamepad gamepad, uint gamepadButton))
+                                con.SetButtonToGamepadButton(id, gamepad, gamepadButton);
+                        }
+                    }
+                }
+
+                foreach (var axis in obj.axes)
+                {
+                    HybridLabel id = axis.id.Type == JTokenType.Integer ? (HybridLabel)(int)axis.id : (HybridLabel)(string)axis.id;
+                    foreach (var binding in axis.bindings)
+                    {
+                        string keyPositive = binding.keyPositive;
+                        if (((JObject)binding).ContainsKey("keyNegative"))
+                        {
+                            string keyNegative = binding.keyNegative;
+                            if (keyPositive.TrySplit(':', out string kind, out string value))
+                            {
+                                if (!keyNegative.TrySplit(':', out string kind2, out string value2) || kind2 != kind) continue;
+
+                                var resultPos = ParseKey(kind, value);
+                                var resultNeg = ParseKey(kind, value2);
+
+                                if (resultPos is KeyCode keyCode && resultNeg is KeyCode keyCode2)
+                                {
+                                    if (((JObject)binding).ContainsKey("style") && binding.style == ControllerAxisStyle.Linear)
+                                        con.SetAxisToKeysLinear(id, keyCode, keyCode2);
+                                    else con.SetAxisToKeysRadial(id, keyCode, keyCode2);
+                                }
+                                else if (resultPos is MouseButton mouseButton && resultNeg is MouseButton mouseButton2)
+                                {
+                                    if (((JObject)binding).ContainsKey("style") && binding.style == ControllerAxisStyle.Linear)
+                                        con.SetAxisToMouseButtonsLinear(id, mouseButton, mouseButton2);
+                                    else con.SetAxisToMouseButtonsRadial(id, mouseButton, mouseButton2);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (keyPositive.TrySplit(':', out string kind, out string value))
+                            {
+                                var result = ParseKey(kind, value);
+
+                                if (result is KeyCode keyCode)
+                                {
+                                    if (((JObject)binding).ContainsKey("style") && binding.style == ControllerAxisStyle.Linear)
+                                        con.SetAxisToKeyLinear(id, keyCode);
+                                    else con.SetAxisToKeyRadial(id, keyCode);
+                                }
+                                else if (result is MouseButton mouseButton)
+                                {
+                                    if (((JObject)binding).ContainsKey("style") && binding.style == ControllerAxisStyle.Linear)
+                                        con.SetAxisToMouseButtonLinear(id, mouseButton);
+                                    else con.SetAxisToMouseButtonRadial(id, mouseButton);
+                                }
+                                else if (result is (Gamepad gamepad, uint gamepadIndex))
+                                {
+                                    var style = ((JObject)binding).ContainsKey("style") ? (ControllerAxisStyle)binding.style : ControllerAxisStyle.Linear;
+                                    con.SetAxisToGamepadAxis(id, gamepad, gamepadIndex, style, (float)binding.sens, (int)binding.smoothing);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                static object? ParseKey(string kind, string value)
+                {
+                    switch (kind)
+                    {
+                        case "Key": return Enum.Parse<KeyCode>(value);
+                        case "MouseButton": return Enum.Parse<MouseButton>(value);
+                        case "MouseAxis": return Enum.Parse<Axis>(value);
+                        case "GamepadButton":
+                        {
+                            if (value.TrySplit(',', out string gamepadName, out string buttonIndex) && UserInputService.TryGetGamepadFromName(gamepadName) is Gamepad gamepad)
+                                return (gamepad, uint.Parse(buttonIndex));
+                        } break;
+                        case "GamepadAxis":
+                        {
+                            if (value.TrySplit(',', out string gamepadName, out string axisIndex) && UserInputService.TryGetGamepadFromName(gamepadName) is Gamepad gamepad)
+                                return (gamepad, uint.Parse(axisIndex));
+                        } break;
+                    }
+                    return null;
+                }
+
+                return con;
+            //}
+            //catch (Exception e) { }
+
+            return null;
+        }
+
+        [MoonSharpHidden]
+        public void SaveToFile(string filePath)
+        {
+            Directory.CreateDirectory(Directory.GetParent(filePath).FullName);
+            using var writer = new JsonTextWriter(new StreamWriter(File.OpenWrite(filePath)));
+
+            writer.WriteStartObject();
+            {
+                writer.WritePropertyName("name");
+                writer.WriteValue(Name);
+
+                writer.WritePropertyName("buttons");
+                writer.WriteStartArray();
+                {
+                    foreach (var (id, button) in m_buttons)
+                    {
+                        writer.WriteStartObject();
+                        {
+                            writer.WritePropertyName("id");
+                            if (id.LabelKind == HybridLabel.Kind.Number)
+                                writer.WriteValue((int)id);
+                            else writer.WriteValue((string)id);
+
+                            writer.WritePropertyName("bindings");
+                            writer.WriteStartArray();
+                            {
+                                foreach (var (key, binding) in button.Bindings)
+                                {
+                                    writer.WriteStartObject();
+                                    writer.WritePropertyName("key");
+                                    WriteKeyValue(key);
+                                    writer.WriteEndObject();
+                                }
+                            }
+                            writer.WriteEndArray();
+                        }
+                        writer.WriteEndObject();
+                    }
+                }
+                writer.WriteEndArray();
+
+                writer.WritePropertyName("axes");
+                writer.WriteStartArray();
+                {
+                    foreach (var (id, axis) in m_axes)
+                    {
+                        writer.WriteStartObject();
+                        {
+                            writer.WritePropertyName("id");
+                            if (id.LabelKind == HybridLabel.Kind.Number)
+                                writer.WriteValue((int)id);
+                            else writer.WriteValue((string)id);
+
+                            writer.WritePropertyName("bindings");
+                            writer.WriteStartArray();
+                            {
+                                foreach (var (key, binding) in axis.Bindings)
+                                {
+                                    writer.WriteStartObject();
+                                    writer.WritePropertyName("keyPositive");
+                                    WriteKeyValue(key.Positive);
+
+                                    if (key.Negative != null)
+                                    {
+                                        writer.WritePropertyName("keyNegative");
+                                        WriteKeyValue(key.Negative!);
+                                    }
+
+                                    binding.WriteDataToJson(writer);
+                                    writer.WriteEndObject();
+                                }
+                            }
+                            writer.WriteEndArray();
+                        }
+                        writer.WriteEndObject();
+                    }
+                }
+                writer.WriteEndArray();
+            }
+            writer.WriteEndObject();
+
+            void WriteKeyValue(object key)
+            {
+                if (key is KeyCode keyCode)
+                    writer.WriteValue($"Key:{keyCode}");
+                else if (key is MouseButton mouseButton)
+                    writer.WriteValue($"MouseButton:{mouseButton}");
+                else if (key is Axis mouseAxis)
+                    writer.WriteValue($"MouseAxis:{mouseAxis}");
+                else if (key is GamepadButtonPair buttonPair)
+                    writer.WriteValue($"GamepadButton:{buttonPair.Name},{buttonPair.Button}");
+                else if (key is GamepadAxisPair axisPair)
+                    writer.WriteValue($"GamepadAxis:{axisPair.Name},{axisPair.Axis}");
+            }
+        }
+
         [MoonSharpHidden]
         public event Action<Controller, HybridLabel>? Pressed;
         [MoonSharpHidden]
@@ -45,14 +375,8 @@ namespace theori.IO
         [MoonSharpHidden]
         public event Action<Controller, HybridLabel, int>? AxisTicked;
 
-        private readonly Dictionary<HybridLabel, bool> m_buttonStates = new Dictionary<HybridLabel, bool>();
-        private readonly Dictionary<HybridLabel, float> m_axisValues = new Dictionary<HybridLabel, float>();
-#if STORE_AXIS_DELTAS
-        private readonly Dictionary<HybridLabel, float> m_axisDeltas = new Dictionary<HybridLabel, float>();
-#endif
-
-        private readonly Dictionary<HybridLabel, IControllerButton> m_buttons = new Dictionary<HybridLabel, IControllerButton>();
-        private readonly Dictionary<HybridLabel, IControllerAxis> m_axes = new Dictionary<HybridLabel, IControllerAxis>();
+        private readonly Dictionary<HybridLabel, ControllerButton> m_buttons = new Dictionary<HybridLabel, ControllerButton>();
+        private readonly Dictionary<HybridLabel, ControllerAxis> m_axes = new Dictionary<HybridLabel, ControllerAxis>();
 
         public string Name { get; }
 
@@ -63,14 +387,20 @@ namespace theori.IO
             {
                 foreach (var (label, button) in m_buttons)
                 {
-                    if (button is MouseControllerButton)
-                        return true;
+                    foreach (var (key, binding) in button.Bindings)
+                    {
+                        if (binding is MouseControllerButton)
+                            return true;
+                    }
                 }
 
                 foreach (var (label, axis) in m_axes)
                 {
-                    if (axis is MouseMotionControllerAxis || axis is MouseButtonControllerAxis)
-                        return true;
+                    foreach (var (key, binding) in axis.Bindings)
+                    {
+                        if (binding is MouseMotionControllerAxis || binding is MouseButtonControllerAxis)
+                            return true;
+                    }
                 }
 
                 return false;
@@ -83,8 +413,8 @@ namespace theori.IO
             Name = visibleName;
         }
 
-        [MoonSharpVisible(true)] private bool IsDown(int buttonId) => m_buttons[buttonId].IsDown;
-        [MoonSharpVisible(true)] private bool IsDown(string buttonName) => m_buttons[buttonName].IsDown;
+        [MoonSharpVisible(true)] private bool IsDown(int buttonId) => m_buttons.Where(button => button.Key == buttonId).Any(button => button.Value.Bindings.Any(binding => binding.Value.IsDown)); //m_buttons[buttonId].IsDown;
+        [MoonSharpVisible(true)] private bool IsDown(string buttonName) => m_buttons.Where(button => button.Key == buttonName).Any(button => button.Value.Bindings.Any(binding => binding.Value.IsDown)); //m_buttons[buttonName].IsDown;
 
 #if false
         public float GetAxisValue(HybridLabel label)
@@ -104,94 +434,98 @@ namespace theori.IO
         public void Update(float delta)
         {
             foreach (var (label, axis) in m_axes)
-                axis.Update(delta);
+            {
+                foreach (var (key, binding) in axis.Bindings)
+                    binding.Update(delta);
+            }
         }
 
-        internal IEnumerable<HybridLabel> GetAllHeldButtons() => from pair in m_buttonStates where pair.Value select pair.Key;
+        internal IEnumerable<HybridLabel> GetAllHeldButtons() => from pair in m_buttons where pair.Value.IsDown select pair.Key;
 
-        private void ButtonPressedListener(HybridLabel buttonLabel) { Pressed?.Invoke(this, buttonLabel); m_buttonStates[buttonLabel] = true; }
-        private void ButtonReleasedListener(HybridLabel buttonLabel) { Released?.Invoke(this, buttonLabel); m_buttonStates[buttonLabel] = false; }
-        private void AxisChangedListener(HybridLabel axisLabel, float value, float delta) => AxisChanged?.Invoke(this, axisLabel, m_axisValues[axisLabel] = value,
-#if STORE_AXIS_DELTAS
-            m_axisDeltas[axisLabel] =
-#endif
-            delta);
+        private void ButtonPressedListener(HybridLabel buttonLabel) { Pressed?.Invoke(this, buttonLabel); }
+        private void ButtonReleasedListener(HybridLabel buttonLabel) { Released?.Invoke(this, buttonLabel); }
+        private void AxisChangedListener(HybridLabel axisLabel, float value, float delta) => AxisChanged?.Invoke(this, axisLabel, value, delta);
         private void AxisTickListener(HybridLabel axisLabel, int tickDirection) => AxisTicked?.Invoke(this, axisLabel, tickDirection);
 
-        private void RegisterButton(HybridLabel label, IControllerButton button)
+        private void RegisterButton(HybridLabel label, object key, IControllerButtonBinding binding)
         {
-            if (m_buttons.TryGetValue(label, out var oldButton))
+            if (!m_buttons.TryGetValue(label, out var button))
             {
-                oldButton.Pressed -= ButtonPressedListener;
-                oldButton.Released -= ButtonReleasedListener;
+                button = m_buttons[label] = new ControllerButton(label);
+
+                button.Pressed += ButtonPressedListener;
+                button.Released += ButtonReleasedListener;
             }
 
-            button.Label = label;
-            m_buttons[label] = button;
-
-            button.Pressed += ButtonPressedListener;
-            button.Released += ButtonReleasedListener;
+            binding.Label = label;
+            button.RegisterBinding(key, binding);
         }
 
-        public void SetButtonToKey(HybridLabel label, KeyCode key) => RegisterButton(label, new KeyboardControllerButton(key));
-        public void SetButtonToMouseButton(HybridLabel label, MouseButton button) => RegisterButton(label, new MouseControllerButton(button));
-        public void SetButtonToGamepadButton(HybridLabel label, Gamepad gamepad, uint button) => RegisterButton(label, new GamepadControllerButton(gamepad, button));
+        public void SetButtonToKey(HybridLabel label, KeyCode key) => RegisterButton(label, key, new KeyboardControllerButton(key));
+        public void SetButtonToMouseButton(HybridLabel label, MouseButton button) => RegisterButton(label, button, new MouseControllerButton(button));
+        public void SetButtonToGamepadButton(HybridLabel label, Gamepad gamepad, uint button) => RegisterButton(label, new GamepadButtonPair(gamepad.Name, button), new GamepadControllerButton(gamepad, button));
 
         // TODO(local): possibly figure out how to convert (linear) axes to buttons
 
-        private void RegisterAxis(HybridLabel label, IControllerAxis axis)
+        private void RegisterAxis(HybridLabel label, object key0, object? key1, IControllerAxisBinding binding)
         {
-            if (m_axes.TryGetValue(label, out var oldAxis))
+            if (!m_axes.TryGetValue(label, out var axis))
             {
-                oldAxis.Changed -= AxisChangedListener;
-                oldAxis.Ticked -= AxisTickListener;
+                axis = m_axes[label] = new ControllerAxis(label);
+
+                axis.AxisChanged += AxisChangedListener;
+                axis.AxisTicked += AxisTickListener;
             }
 
-            axis.Label = label;
-            m_axes[label] = axis;
-
-            axis.Changed += AxisChangedListener;
-            axis.Ticked += AxisTickListener;
+            binding.Label = label;
+            axis.RegisterBinding(key0, key1, binding);
         }
 
-        public void SetAxisToKeyLinear(HybridLabel label, KeyCode key0) => RegisterAxis(label, new KeyboardControllerAxis(ControllerAxisStyle.Linear, key0));
-        public void SetAxisToKeysLinear(HybridLabel label, KeyCode key0, KeyCode key1) => RegisterAxis(label, new KeyboardControllerAxis(ControllerAxisStyle.Radial, key0, key1));
-        public void SetAxisToKeyRadial(HybridLabel label, KeyCode key0) => RegisterAxis(label, new KeyboardControllerAxis(ControllerAxisStyle.Linear, key0));
-        public void SetAxisToKeysRadial(HybridLabel label, KeyCode key0, KeyCode key1) => RegisterAxis(label, new KeyboardControllerAxis(ControllerAxisStyle.Radial, key0, key1));
+        public void SetAxisToKeyLinear(HybridLabel label, KeyCode key0) => RegisterAxis(label, key0, null, new KeyboardControllerAxis(ControllerAxisStyle.Linear, key0));
+        public void SetAxisToKeysLinear(HybridLabel label, KeyCode key0, KeyCode key1) => RegisterAxis(label, key0, key1, new KeyboardControllerAxis(ControllerAxisStyle.Linear, key0, key1));
+        public void SetAxisToKeyRadial(HybridLabel label, KeyCode key0) => RegisterAxis(label, key0, null, new KeyboardControllerAxis(ControllerAxisStyle.Radial, key0));
+        public void SetAxisToKeysRadial(HybridLabel label, KeyCode key0, KeyCode key1) => RegisterAxis(label, key0, key1, new KeyboardControllerAxis(ControllerAxisStyle.Radial, key0, key1));
 
-        public void SetAxisToMouseButtonLinear(HybridLabel label, MouseButton button0) => RegisterAxis(label, new MouseButtonControllerAxis(ControllerAxisStyle.Linear, button0));
-        public void SetAxisToMouseButtonsLinear(HybridLabel label, MouseButton button0, MouseButton button1) => RegisterAxis(label, new MouseButtonControllerAxis(ControllerAxisStyle.Radial, button0, button1));
-        public void SetAxisToMouseButtonRadial(HybridLabel label, MouseButton button0) => RegisterAxis(label, new MouseButtonControllerAxis(ControllerAxisStyle.Linear, button0));
-        public void SetAxisToMouseButtonsRadial(HybridLabel label, MouseButton button0, MouseButton button1) => RegisterAxis(label, new MouseButtonControllerAxis(ControllerAxisStyle.Radial, button0, button1));
+        public void SetAxisToMouseButtonLinear(HybridLabel label, MouseButton button0) => RegisterAxis(label, button0, null, new MouseButtonControllerAxis(ControllerAxisStyle.Linear, button0));
+        public void SetAxisToMouseButtonsLinear(HybridLabel label, MouseButton button0, MouseButton button1) => RegisterAxis(label, button0, button1, new MouseButtonControllerAxis(ControllerAxisStyle.Linear, button0, button1));
+        public void SetAxisToMouseButtonRadial(HybridLabel label, MouseButton button0) => RegisterAxis(label, button0, null, new MouseButtonControllerAxis(ControllerAxisStyle.Radial, button0));
+        public void SetAxisToMouseButtonsRadial(HybridLabel label, MouseButton button0, MouseButton button1) => RegisterAxis(label, button0, button1, new MouseButtonControllerAxis(ControllerAxisStyle.Radial, button0, button1));
 
-        public void SetAxisToMouseAxis(HybridLabel label, Axis axis, float sens = 1.0f) => RegisterAxis(label, new MouseMotionControllerAxis(axis, sens));
+        public void SetAxisToMouseAxis(HybridLabel label, Axis axis, float sens = 1.0f) => RegisterAxis(label, axis, null, new MouseMotionControllerAxis(axis, sens));
 
-        public void SetAxisToGamepadAxis(HybridLabel label, Gamepad gamepad, uint axis, ControllerAxisStyle style = ControllerAxisStyle.Linear, float sens = 1.0f, int smoothing = 5) => RegisterAxis(label, new GamepadAxisControllerAxis(style, gamepad, axis, sens, smoothing));
+        public void SetAxisToGamepadAxis(HybridLabel label, Gamepad gamepad, uint axis, ControllerAxisStyle style = ControllerAxisStyle.Linear, float sens = 1.0f, int smoothing = 5) =>
+            RegisterAxis(label, new GamepadAxisPair(gamepad.Name, axis), null, new GamepadAxisControllerAxis(style, gamepad, axis, sens, smoothing));
 
         internal bool Keyboard_KeyPress(KeyInfo info)
         {
             foreach (var (label, button) in m_buttons)
             {
-                if (button is KeyboardControllerButton kbutton && kbutton.Key == info.KeyCode)
+                foreach (var (key, binding) in button.Bindings)
                 {
-                    kbutton.OnPressed();
-                    return true;
+                    if (binding is KeyboardControllerButton kbutton && kbutton.Key == info.KeyCode)
+                    {
+                        kbutton.OnPressed();
+                        return true;
+                    }
                 }
             }
 
             foreach (var (label, axis) in m_axes)
             {
-                if (axis is KeyboardControllerAxis kaxis)
+                foreach (var (key, binding) in axis.Bindings)
                 {
-                    if (kaxis.Negative == info.KeyCode)
+                    if (binding is KeyboardControllerAxis kaxis)
                     {
-                        kaxis.PressNegative();
-                        return true;
-                    }
-                    else if (kaxis.Positive == info.KeyCode)
-                    {
-                        kaxis.PressPositive();
-                        return true;
+                        if (kaxis.Negative == info.KeyCode)
+                        {
+                            kaxis.PressNegative();
+                            return true;
+                        }
+                        else if (kaxis.Positive == info.KeyCode)
+                        {
+                            kaxis.PressPositive();
+                            return true;
+                        }
                     }
                 }
             }
@@ -203,26 +537,32 @@ namespace theori.IO
         {
             foreach (var (label, button) in m_buttons)
             {
-                if (button is KeyboardControllerButton kbutton && kbutton.Key == info.KeyCode)
+                foreach (var (key, binding) in button.Bindings)
                 {
-                    kbutton.OnReleased();
-                    return true;
+                    if (binding is KeyboardControllerButton kbutton && kbutton.Key == info.KeyCode)
+                    {
+                        kbutton.OnReleased();
+                        return true;
+                    }
                 }
             }
 
             foreach (var (label, axis) in m_axes)
             {
-                if (axis is KeyboardControllerAxis kaxis)
+                foreach (var (key, binding) in axis.Bindings)
                 {
-                    if (kaxis.Negative == info.KeyCode)
+                    if (binding is KeyboardControllerAxis kaxis)
                     {
-                        kaxis.ReleaseNegative();
-                        return true;
-                    }
-                    else if (kaxis.Positive == info.KeyCode)
-                    {
-                        kaxis.ReleasePositive();
-                        return true;
+                        if (kaxis.Negative == info.KeyCode)
+                        {
+                            kaxis.ReleaseNegative();
+                            return true;
+                        }
+                        else if (kaxis.Positive == info.KeyCode)
+                        {
+                            kaxis.ReleasePositive();
+                            return true;
+                        }
                     }
                 }
             }
@@ -234,26 +574,32 @@ namespace theori.IO
         {
             foreach (var (label, button) in m_buttons)
             {
-                if (button is MouseControllerButton mbutton && mbutton.Button == info.Button)
+                foreach (var (key, binding) in button.Bindings)
                 {
-                    mbutton.OnPressed();
-                    return true;
+                    if (binding is MouseControllerButton mbutton && mbutton.Button == info.Button)
+                    {
+                        mbutton.OnPressed();
+                        return true;
+                    }
                 }
             }
 
             foreach (var (label, axis) in m_axes)
             {
-                if (axis is MouseButtonControllerAxis maxis)
+                foreach (var (key, binding) in axis.Bindings)
                 {
-                    if (maxis.Negative == info.Button)
+                    if (binding is MouseButtonControllerAxis maxis)
                     {
-                        maxis.PressNegative();
-                        return true;
-                    }
-                    else if (maxis.Positive == info.Button)
-                    {
-                        maxis.PressPositive();
-                        return true;
+                        if (maxis.Negative == info.Button)
+                        {
+                            maxis.PressNegative();
+                            return true;
+                        }
+                        else if (maxis.Positive == info.Button)
+                        {
+                            maxis.PressPositive();
+                            return true;
+                        }
                     }
                 }
             }
@@ -265,26 +611,32 @@ namespace theori.IO
         {
             foreach (var (label, button) in m_buttons)
             {
-                if (button is MouseControllerButton mbutton && mbutton.Button == info.Button)
+                foreach (var (key, binding) in button.Bindings)
                 {
-                    mbutton.OnReleased();
-                    return true;
+                    if (binding is MouseControllerButton mbutton && mbutton.Button == info.Button)
+                    {
+                        mbutton.OnReleased();
+                        return true;
+                    }
                 }
             }
 
             foreach (var (label, axis) in m_axes)
             {
-                if (axis is MouseButtonControllerAxis maxis)
+                foreach (var (key, binding) in axis.Bindings)
                 {
-                    if (maxis.Negative == info.Button)
+                    if (binding is MouseButtonControllerAxis maxis)
                     {
-                        maxis.ReleaseNegative();
-                        return true;
-                    }
-                    else if (maxis.Positive == info.Button)
-                    {
-                        maxis.ReleasePositive();
-                        return true;
+                        if (maxis.Negative == info.Button)
+                        {
+                            maxis.ReleaseNegative();
+                            return true;
+                        }
+                        else if (maxis.Positive == info.Button)
+                        {
+                            maxis.ReleasePositive();
+                            return true;
+                        }
                     }
                 }
             }
@@ -297,10 +649,13 @@ namespace theori.IO
             bool anyAccepted = false;
             foreach (var (label, axis) in m_axes)
             {
-                if (axis is MouseMotionControllerAxis maxis)
+                foreach (var (key, binding) in axis.Bindings)
                 {
-                    maxis.Motion(dx, dy);
-                    anyAccepted = true;
+                    if (binding is MouseMotionControllerAxis maxis)
+                    {
+                        maxis.Motion(dx, dy);
+                        anyAccepted = true;
+                    }
                 }
             }
 
@@ -311,10 +666,13 @@ namespace theori.IO
         {
             foreach (var (label, button) in m_buttons)
             {
-                if (button is GamepadControllerButton gbutton && gbutton.Button == info.Button)
+                foreach (var (key, binding) in button.Bindings)
                 {
-                    gbutton.OnPressed();
-                    return true;
+                    if (binding is GamepadControllerButton gbutton && gbutton.Button == info.Button)
+                    {
+                        gbutton.OnPressed();
+                        return true;
+                    }
                 }
             }
 
@@ -325,10 +683,13 @@ namespace theori.IO
         {
             foreach (var (label, button) in m_buttons)
             {
-                if (button is GamepadControllerButton gbutton && gbutton.Button == info.Button)
+                foreach (var (key, binding) in button.Bindings)
                 {
-                    gbutton.OnReleased();
-                    return true;
+                    if (binding is GamepadControllerButton gbutton && gbutton.Button == info.Button)
+                    {
+                        gbutton.OnReleased();
+                        return true;
+                    }
                 }
             }
 
@@ -339,10 +700,13 @@ namespace theori.IO
         {
             foreach (var (label, axis) in m_axes)
             {
-                if (axis is GamepadAxisControllerAxis gaxis && gaxis.Axis == info.Axis)
+                foreach (var (key, binding) in axis.Bindings)
                 {
-                    gaxis.Motion(info.Value);
-                    return true;
+                    if (binding is GamepadAxisControllerAxis gaxis && gaxis.Axis == info.Axis)
+                    {
+                        gaxis.Motion(info.Value);
+                        return true;
+                    }
                 }
             }
 
@@ -355,17 +719,17 @@ namespace theori.IO
         }
     }
 
-    internal interface IControllerButton
+    internal interface IControllerButtonBinding
     {
         public HybridLabel Label { get; set; }
 
         public bool IsDown { get; }
 
-        public event Action<HybridLabel>? Pressed;
-        public event Action<HybridLabel>? Released;
+        public event Action<IControllerButtonBinding, HybridLabel>? Pressed;
+        public event Action<IControllerButtonBinding, HybridLabel>? Released;
     }
 
-    internal interface IControllerAxis
+    internal interface IControllerAxisBinding
     {
         public HybridLabel Label { get; set; }
 
@@ -376,29 +740,30 @@ namespace theori.IO
 #endif
         public float PartialTick { get; }
 
-        public event Action<HybridLabel, float, float>? Changed;
-        public event Action<HybridLabel, int>? Ticked;
+        public event Action<IControllerAxisBinding, HybridLabel, float, float>? Changed;
+        public event Action<IControllerAxisBinding, HybridLabel, int>? Ticked;
 
         void Update(float delta);
+        void WriteDataToJson(JsonTextWriter writer);
     }
 
-    internal abstract class SimpleButtonTrigger : IControllerButton
+    internal abstract class SimpleButtonTrigger : IControllerButtonBinding
     {
         public HybridLabel Label { get; set; }
 
         public bool IsDown { get; private set; }
 
-        public event Action<HybridLabel>? Pressed;
-        public event Action<HybridLabel>? Released;
+        public event Action<IControllerButtonBinding, HybridLabel>? Pressed;
+        public event Action<IControllerButtonBinding, HybridLabel>? Released;
 
         protected SimpleButtonTrigger()
         {
-            Pressed += _ => IsDown = true;
-            Released += _ => IsDown = false;
+            Pressed += (a, b) => IsDown = true;
+            Released += (a, b) => IsDown = false;
         }
 
-        public void OnPressed() => Pressed?.Invoke(Label);
-        public void OnReleased() => Released?.Invoke(Label);
+        public void OnPressed() => Pressed?.Invoke(this, Label);
+        public void OnReleased() => Released?.Invoke(this, Label);
     }
 
     internal sealed class KeyboardControllerButton : SimpleButtonTrigger
@@ -469,7 +834,7 @@ namespace theori.IO
         }
     }
 
-    internal abstract class SimpleAxisButtonTrigger : IControllerAxis
+    internal abstract class SimpleAxisButtonTrigger : IControllerAxisBinding
     {
         public HybridLabel Label { get; set; }
 
@@ -479,7 +844,7 @@ namespace theori.IO
         }
 
         public readonly ControllerAxisStyle Style;
-        public readonly RangeKind Kind;
+        //public readonly RangeKind Kind;
 
         public float AxisValue { get; private set; }
 #if STORE_AXIS_DELTAS
@@ -488,10 +853,10 @@ namespace theori.IO
 
         public float PartialTick { get; private set; }
 
-        public event Action<HybridLabel, float, float>? Changed;
-        public event Action<HybridLabel, int>? Ticked;
+        public event Action<IControllerAxisBinding, HybridLabel, float, float>? Changed;
+        public event Action<IControllerAxisBinding, HybridLabel, int>? Ticked;
 
-        public float Speed = 2.0f;
+        public float Speed = 10.0f;
 
         private bool m_positive, m_negative;
         private float m_currentValue, m_targetValue;
@@ -499,19 +864,28 @@ namespace theori.IO
         /// <summary>
         /// Number of ticks per second.
         /// </summary>
-        public float TickRate { get; set; } = 3;
+        public float TickRate { get; set; } = 10;
 
-        public SimpleAxisButtonTrigger(ControllerAxisStyle style, RangeKind kind)
+        public SimpleAxisButtonTrigger(ControllerAxisStyle style, RangeKind kind = RangeKind.Single)
         {
             Style = style;
-            Kind = kind;
-            Changed += (_, value, delta) =>
+            //Kind = kind;
+            Changed += (a, _, value, delta) =>
             {
                 AxisValue = value;
 #if STORE_AXIS_DELTAS
                 AxisDelta = delta;
 #endif
             };
+        }
+
+        public virtual void WriteDataToJson(JsonTextWriter writer)
+        {
+            writer.WritePropertyName("style");
+            writer.WriteValue($"{Style}");
+
+            writer.WritePropertyName("speed");
+            writer.WriteValue(Speed);
         }
 
         public void Update(float delta)
@@ -534,7 +908,7 @@ namespace theori.IO
                         OnTicked(-1);
                         PartialTick += 1.0f;
                     }
-                    PartialTick += delta * TickRate;
+                    PartialTick -= delta * TickRate;
                 }
             }
             else PartialTick =  PartialTick > 0 ? Math.Max(0, PartialTick - delta * 3 * TickRate)
@@ -567,14 +941,14 @@ namespace theori.IO
             }
         }
 
-        internal void PressPositive() => m_positive = true;
+        internal void PressPositive() { if (m_negative != (m_positive = true)) PartialTick = 1; }
         internal void ReleasePositive() => m_positive = false;
 
-        internal void PressNegative() => m_negative = true;
+        internal void PressNegative() { if ((m_negative = true) != m_positive) PartialTick = -1; }
         internal void ReleaseNegative() => m_negative = false;
 
-        private void OnChanged(float value, float delta) => Changed?.Invoke(Label, value, delta);
-        private void OnTicked(int direction) => Ticked?.Invoke(Label, direction);
+        private void OnChanged(float value, float delta) => Changed?.Invoke(this, Label, value, delta);
+        private void OnTicked(int direction) => Ticked?.Invoke(this, Label, direction);
     }
 
     internal sealed class KeyboardControllerAxis : SimpleAxisButtonTrigger
@@ -582,7 +956,7 @@ namespace theori.IO
         public readonly KeyCode Positive, Negative;
 
         public KeyboardControllerAxis(ControllerAxisStyle style, KeyCode positive, KeyCode negative = KeyCode.UNKNOWN)
-            : base(style, negative == KeyCode.UNKNOWN ? RangeKind.Single : RangeKind.Double)
+            : base(style)
         {
             Positive = positive;
             Negative = negative;
@@ -594,14 +968,14 @@ namespace theori.IO
         public readonly MouseButton Positive, Negative;
 
         public MouseButtonControllerAxis(ControllerAxisStyle style, MouseButton positive, MouseButton negative = MouseButton.Unknown)
-            : base(style, negative == MouseButton.Unknown ? RangeKind.Single : RangeKind.Double)
+            : base(style)
         {
             Positive = positive;
             Negative = negative;
         }
     }
 
-    internal sealed class MouseMotionControllerAxis : IControllerAxis
+    internal sealed class MouseMotionControllerAxis : IControllerAxisBinding
     {
         public HybridLabel Label { get; set; }
 
@@ -613,8 +987,8 @@ namespace theori.IO
         public float AxisDelta { get; set; }
 #endif
 
-        public event Action<HybridLabel, float, float>? Changed;
-        public event Action<HybridLabel, int>? Ticked;
+        public event Action<IControllerAxisBinding, HybridLabel, float, float>? Changed;
+        public event Action<IControllerAxisBinding, HybridLabel, int>? Ticked;
 
         public float PartialTick { get; private set; }
 
@@ -622,13 +996,19 @@ namespace theori.IO
         {
             Axis = axis;
             Sensitivity = sens;
-            Changed += (_, value, delta) =>
+            Changed += (a, _, value, delta) =>
             {
                 AxisValue = value;
 #if STORE_AXIS_DELTAS
                 AxisDelta = delta;
 #endif
             };
+        }
+
+        public void WriteDataToJson(JsonTextWriter writer)
+        {
+            writer.WritePropertyName("sens");
+            writer.WriteValue(Sensitivity);
         }
 
         public void Update(float delta)
@@ -652,13 +1032,13 @@ namespace theori.IO
         private void OnChanged(float value, float delta)
         {
             PartialTick = AxisHelper.AxisChanged(PartialTick, delta, OnTicked);
-            Changed?.Invoke(Label, value, delta);
+            Changed?.Invoke(this, Label, value, delta);
         }
 
-        private void OnTicked(int direction) => Ticked?.Invoke(Label, direction);
+        private void OnTicked(int direction) => Ticked?.Invoke(this, Label, direction);
     }
 
-    internal sealed class GamepadAxisControllerAxis : IControllerAxis
+    internal sealed class GamepadAxisControllerAxis : IControllerAxisBinding
     {
         public HybridLabel Label { get; set; }
 
@@ -673,8 +1053,8 @@ namespace theori.IO
         public float AxisDelta => m_currentDelta;
 #endif
 
-        public event Action<HybridLabel, float, float>? Changed;
-        public event Action<HybridLabel, int>? Ticked;
+        public event Action<IControllerAxisBinding, HybridLabel, float, float>? Changed;
+        public event Action<IControllerAxisBinding, HybridLabel, int>? Ticked;
 
         public float PartialTick { get; private set; }
 
@@ -697,7 +1077,7 @@ namespace theori.IO
             Axis = axis;
             Sensitivity = sens;
             SampleSmoothing = smoothing;
-            Changed += (_, value, delta) =>
+            Changed += (a, _, value, delta) =>
             {
                 AxisValue = value;
 #if STORE_AXIS_DELTAS
@@ -706,6 +1086,18 @@ namespace theori.IO
             };
 
             m_axisDeltas = new float[smoothing];
+        }
+
+        public void WriteDataToJson(JsonTextWriter writer)
+        {
+            writer.WritePropertyName("style");
+            writer.WriteValue($"{Style}");
+
+            writer.WritePropertyName("sens");
+            writer.WriteValue(Sensitivity);
+
+            writer.WritePropertyName("smoothing");
+            writer.WriteValue(SampleSmoothing);
         }
 
         public void Update(float delta)
@@ -787,9 +1179,9 @@ namespace theori.IO
                 PartialTick = AxisHelper.AxisChanged(PartialTick, delta, OnTicked);
             }
 
-            Changed?.Invoke(Label, value, delta);
+            Changed?.Invoke(this, Label, value, delta);
         }
 
-        private void OnTicked(int direction) => Ticked?.Invoke(Label, direction);
+        private void OnTicked(int direction) => Ticked?.Invoke(this, Label, direction);
     }
 }

@@ -224,24 +224,8 @@ namespace theori.Charting.Serialization
                 string result = stringWriter.ToString();
 
                 Directory.CreateDirectory(Directory.GetParent(chartFile).FullName);
-                File.WriteAllText(chartFile, FormatJson(result));
+                File.WriteAllText(chartFile, result.FormatJson());
             }
-        }
-
-        private string FormatJson(string json)
-        {
-            const string INDENT_STRING = "    ";
-            int indentation = 0;
-            int quoteCount = 0;
-            var result =
-                from ch in json
-                let quotes = ch == '"' ? quoteCount++ : quoteCount
-                let lineBreak = ch == ',' && quotes % 2 == 0 ? ch + Environment.NewLine + string.Concat(Enumerable.Repeat(INDENT_STRING, indentation)) : null
-                let openChar = ch == '{' || ch == '[' ? ch + Environment.NewLine + string.Concat(Enumerable.Repeat(INDENT_STRING, ++indentation)) : ch.ToString()
-                let closeChar = ch == '}' || ch == ']' ? Environment.NewLine + string.Concat(Enumerable.Repeat(INDENT_STRING, --indentation)) + ch : ch.ToString()
-                select lineBreak ?? (openChar.Length > 1 ? openChar : closeChar);
-
-            return string.Concat(result);
         }
     }
 }

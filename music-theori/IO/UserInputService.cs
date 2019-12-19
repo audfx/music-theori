@@ -128,6 +128,16 @@ namespace theori.IO
             return null;
         }
 
+        public static Gamepad? TryGetGamepadFromName(string name)
+        {
+            foreach (var gamepad in gamepads.Values)
+            {
+                if (gamepad.Name == name)
+                    return gamepad;
+            }
+            return null;
+        }
+
         private static Gamepad? TryGetGamepadFromInstanceId(int instanceId)
         {
             foreach (var (deviceIndex, gamepad) in gamepads)

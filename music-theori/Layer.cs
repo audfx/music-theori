@@ -267,6 +267,9 @@ namespace theori
                 return groupedCharts;
             });
 
+            tblTheoriConfig["get"] = (Func<string, DynValue>)(key => FromObject(m_script.Script, UserConfigManager.GetFromKey(key)));
+            tblTheoriConfig["set"] = (Action<string, DynValue>)((key, value) => UserConfigManager.SetFromKey(key, value.ToObject()));
+
             tblTheoriGame["exit"] = (Action)(() => Host.Exit());
 
             tblTheoriGraphics["queueStaticTextureLoad"] = (Func<string, Texture>)(textureName => StaticResources.QueueTextureLoad($"textures/{ textureName }"));
@@ -281,7 +284,7 @@ namespace theori
             tblTheoriGraphics["rotate"] = (Action<float>)(d => m_spriteRenderer.Rotate(d));
             tblTheoriGraphics["scale"] = (Action<float, float>)((x, y) => m_spriteRenderer.Scale(x, y));
             tblTheoriGraphics["shear"] = (Action<float, float>)((x, y) => m_spriteRenderer.Shear(x, y));
-            tblTheoriGraphics["getViewportSize"] = (Func<DynValue>)(() => DynValue.NewTuple(DynValue.NewNumber(Window.Width), DynValue.NewNumber(Window.Height)));
+            tblTheoriGraphics["getViewportSize"] = (Func<DynValue>)(() => NewTuple(NewNumber(Window.Width), NewNumber(Window.Height)));
             tblTheoriGraphics["setColor"] = (Action<float, float, float, float>)((r, g, b, a) => m_spriteRenderer.SetColor(r, g, b, a));
             tblTheoriGraphics["setImageColor"] = (Action<float, float, float, float>)((r, g, b, a) => m_spriteRenderer.SetImageColor(r, g, b, a));
             tblTheoriGraphics["fillRect"] = (Action<float, float, float, float>)((x, y, w, h) => m_spriteRenderer.FillRect(x, y, w, h));
@@ -297,7 +300,7 @@ namespace theori
             tblTheoriGraphics["openCurtain"] = (Action)OpenCurtain;
             tblTheoriGraphics["closeCurtain"] = (Action<float, DynValue?>)((duration, callback) =>
             {
-                Action? onClosed = (callback == null || callback == DynValue.Nil) ? (Action?)null : () => m_script.Call(callback!);
+                Action? onClosed = (callback == null || callback == Nil) ? (Action?)null : () => m_script.Call(callback!);
                 if (duration <= 0)
                     CloseCurtain(onClosed);
                 else CloseCurtain(duration, onClosed);
@@ -327,13 +330,13 @@ namespace theori
             tblTheoriLayer["construct"] = (Action)(() => { });
             tblTheoriLayer["push"] = DynValue.NewCallback((context, args) =>
             {
-                if (args.Count == 0) return DynValue.Nil;
+                if (args.Count == 0) return Nil;
 
                 string layerPath = args.AsStringUsingMeta(context, 0, "push");
                 DynValue[] rest = args.GetArray(1);
 
                 Push(CreateNewLuaLayer(layerPath, rest));
-                return DynValue.Nil;
+                return Nil;
             });
             tblTheoriLayer["pop"] = (Action)(() => Pop());
             tblTheoriLayer["setInvalidForResume"] = (Action)(() => SetInvalidForResume());
