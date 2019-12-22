@@ -112,4 +112,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="LibTessDotNet\" />
+  </ItemGroup>
+
 </Project>

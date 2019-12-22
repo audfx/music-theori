@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
-
+using LibTessDotNet;
 using theori.Graphics.OpenGL;
 using theori.Resources;
 
@@ -395,6 +395,31 @@ namespace theori.Graphics
 
         private void Fill(Path2D[] paths)
         {
+#if true
+            var t = new Tess();
+            foreach (var path in paths)
+            {
+                var cVerts = path.Points.Select(pt => new ContourVertex(new Vec3(pt.Position.X, pt.Position.Y, 0)));
+                t.AddContour(cVerts.ToArray(), path.Winding == AngularDirection.Clockwise ? ContourOrientation.Clockwise : ContourOrientation.CounterClockwise);
+            }
+
+            t.Tessellate();
+
+            int vidx = m_vertexCount;
+            for (int i = 0; i < t.Vertices.Length; i++)
+            {
+                var v = t.Vertices[i];
+                m_vertices[vidx + i] = new VertexRB2D(32, new Vector2(v.Position.X, v.Position.Y), Vector2.Zero, Vector4.One);
+            }
+
+            int iidx = m_indexCount;
+            for (int i = 0; i < t.Elements.Length; i++)
+                m_indices[iidx + i] = (ushort)(vidx + t.Elements[i]);
+
+            m_vertexCount += t.Vertices.Length;
+            m_indexCount += t.Elements.Length;
+#else
+
             // TODO(local): triangulate based on winding for carving shapes etc.
             foreach (var path in paths)
             {
@@ -431,6 +456,7 @@ namespace theori.Graphics
                 m_vertexCount += vertexCount;
                 m_indexCount += indexCount;
             }
+#endif
         }
 
         private void Stroke(Path2D[] paths, float pos, float neg)
@@ -612,6 +638,57 @@ namespace theori.Graphics
 
             var paths = Flatten(cmds);
             Stroke(paths, strokePos, strokeNeg);
+        }
+
+        public void Test(float x, float y, float w, float h)
+        {
+            const float k = Kappa90;
+            float r = h * 0.1f;
+
+            var cmds = new Path2DCommands();
+            cmds.MoveTo(x + r, y);
+            cmds.LineTo(x + w / 4, y);
+            cmds.LineTo(x + w / 2, y + h / 4);
+            cmds.LineTo(x + w / 2, y + h / 2);
+            cmds.LineTo(x + w * 3 / 4, y + h / 2);
+            cmds.LineTo(x + w * 3 / 4, y);
+            cmds.LineTo(x + w, y);
+            cmds.LineTo(x + w, y + h);
+            cmds.LineTo(x, y + h);
+            cmds.LineTo(x, y + r);
+            cmds.BezierTo(x, y + r * (1 - k), x + r * (1 - k), y, x + r, y);
+            cmds.Close();
+
+            var paths = Flatten(cmds);
+            Fill(paths);
+            Stroke(paths, 15, -5);
+        }
+
+        public void Test2(float x, float y, float w, float h)
+        {
+            const float k = Kappa90;
+
+            float r = w / 2;
+
+            var cmds = new Path2DCommands();
+            cmds.MoveTo(x, y);
+            cmds.LineTo(x + w - r, y);
+            cmds.BezierTo(x + w - r * (1 - k), y, x + w, y + r * (1 - k), x + w, y + r);
+            cmds.BezierTo(x + w, y + r + r * (1 - k), x + w - r * (1 - k), y + 2 * r, x + w - r, y + 2 * r);
+            cmds.LineTo(x + w * 0.25f, y + 2 * r);
+            cmds.LineTo(x + w * 0.25f, y + h);
+            cmds.LineTo(x, y + h);
+            cmds.Close();
+            cmds.MoveTo(x + r / 2, y + r / 2);
+            cmds.LineTo(x + r / 2, y + 3 * r / 2);
+            cmds.LineTo(x + 3 * r / 2, y + 3 * r / 2);
+            cmds.LineTo(x + 3 * r / 2, y + r / 2);
+            cmds.Winding(AngularDirection.CounterClockwise);
+            cmds.Close();
+
+            var paths = Flatten(cmds);
+            Fill(paths);
+            Stroke(paths, 15, -5);
         }
     }
 }
