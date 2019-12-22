@@ -28,7 +28,21 @@ namespace theori.Graphics.OpenGL
             Bind();
             buffer.Bind();
 
-            GL.VertexAttribPointer(index, size, (uint)type, normalized, stride, new IntPtr(offset));
+            switch (type)
+            {
+                case DataType.Byte:
+                case DataType.UnsignedByte:
+                case DataType.Short:
+                case DataType.UnsignedShort:
+                case DataType.Int:
+                case DataType.UnsignedInt:
+                    GL.VertexAttribIPointer(index, size, (uint)type, stride, new IntPtr(offset));
+                    break;
+
+                default:
+                    GL.VertexAttribPointer(index, size, (uint)type, normalized, stride, new IntPtr(offset));
+                    break;
+            }
             GL.EnableVertexAttribArray(index);
         }
     }

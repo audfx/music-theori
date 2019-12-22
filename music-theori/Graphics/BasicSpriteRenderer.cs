@@ -32,11 +32,9 @@ namespace theori.Graphics
         private readonly Stack<Rect?> m_savedScissors = new Stack<Rect?>();
 
         private RenderQueue? m_queue;
-        private Font m_font = Font.Default;
-        private float m_fontSize = 16.0f;
 
-        private readonly List<TextRasterizer> m_rasterizers = new List<TextRasterizer>();
-        private readonly Dictionary<Font, TextRasterizer> m_labels = new Dictionary<Font, TextRasterizer>();
+        private FontCollection m_font = FontCollection.Default;
+        private int m_fontSize = 48;
 
         [MoonSharpHidden]
         public BasicSpriteRenderer(ClientResourceLocator? locator = null, Vector2? viewportSize = null)
@@ -84,10 +82,6 @@ namespace theori.Graphics
         public void EndFrame()
         {
             Flush();
-
-            foreach (var r in m_rasterizers)
-                r.Dispose();
-            m_rasterizers.Clear();
 
             m_queue!.Dispose();
             m_queue = null;
@@ -213,6 +207,7 @@ namespace theori.Graphics
 
             var p = new MaterialParams();
             p["MainTexture"] = Texture.Empty;
+            p["TempMappedTextureCoords"] = new Vector4(0, 0, 1, 1);
             p["Color"] = m_drawColor;
 
             if (m_scissor is Rect scissor)
@@ -233,6 +228,7 @@ namespace theori.Graphics
 
             var p = new MaterialParams();
             p["MainTexture"] = texture;
+            p["TempMappedTextureCoords"] = new Vector4(0, 0, 1, 1);
             p["Color"] = m_imageColor;
 
             if (m_scissor is Rect scissor)
@@ -240,13 +236,13 @@ namespace theori.Graphics
             else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
         }
 
-        public void SetFont(Font? font)
+        public void SetFont(FontCollection? font)
         {
-            if (font == null) font = Font.Default;
+            if (font == null) font = FontCollection.Default;
             m_font = font;
         }
 
-        public void SetFontSize(float size)
+        public void SetFontSize(int size)
         {
             m_fontSize = size;
         }
@@ -258,6 +254,64 @@ namespace theori.Graphics
 
         public void Write(string text, float x, float y)
         {
+            // sort by texture to facilitate batching in the future
+            Dictionary<Texture, List<(int X, int Y, (int X, int Y, GlyphInfo Info) GlyphInfo)>> glyphs = new Dictionary<Texture, List<(int, int, (int, int, GlyphInfo))>>();
+
+            var atlas = m_font.GetFontAtlas(m_fontSize);
+            int dx = 0, dh = 0;
+
+            foreach (char c in text)
+            {
+                if (c == ' ')
+                {
+                    dx += atlas.SpaceWidth;
+                    continue;
+                }
+
+                var info = atlas.GetTextureInfoForCharacter(c);
+                if (!glyphs.TryGetValue(info.Texture, out var glyphList))
+                    glyphList = glyphs[info.Texture] = new List<(int, int, (int, int, GlyphInfo))>();
+
+                glyphList.Add((dx, 0, (info.X, info.Y, info.Info)));
+                dx += info.Info.Width;
+                dh = MathL.Max(dh, info.Info.Height);
+            }
+
+            Vector2 offset = Vector2.Zero, size = new Vector2(dx, dh);
+            switch ((Anchor)((int)m_textAlign & 0x0F))
+            {
+                case Anchor.Top: break;
+                case Anchor.Middle: offset.Y = (int)(-size.Y / 2); break;
+                case Anchor.Bottom: offset.Y = -size.Y; break;
+            }
+
+            switch ((Anchor)((int)m_textAlign & 0xF0))
+            {
+                case Anchor.Left: break;
+                case Anchor.Center: offset.X = (int)(-size.X / 2); break;
+                case Anchor.Right: offset.X = -size.X; break;
+            }
+
+            foreach (var (texture, glyphList) in glyphs)
+            {
+                foreach (var glyph in glyphList)
+                {
+                    var p = new MaterialParams();
+                    p["MainTexture"] = texture;
+                    p["TempMappedTextureCoords"] = new Vector4(glyph.GlyphInfo.X / (float)texture.Width, (glyph.GlyphInfo.Y) / (float)texture.Height,
+                        glyph.GlyphInfo.Info.Width / (float)texture.Width, glyph.GlyphInfo.Info.Height / (float)texture.Height);
+                    p["Color"] = m_drawColor;
+
+                    var transform = Transform.Scale(glyph.GlyphInfo.Info.Width, glyph.GlyphInfo.Info.Height, 1)
+                            * Transform.Translation(x + glyph.X + offset.X, y + glyph.Y + offset.Y, 0);
+
+                    if (m_scissor is Rect scissor)
+                        m_queue!.Draw(scissor, transform * m_transform, m_rectMesh, m_basicMaterial, p);
+                    else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
+                }
+            }
+
+#if false
             var rasterizer = new TextRasterizer(m_font, m_fontSize, text);
             rasterizer.Rasterize();
 
@@ -288,8 +342,9 @@ namespace theori.Graphics
             if (m_scissor is Rect scissor)
                 m_queue!.Draw(scissor, transform * m_transform, m_rectMesh, m_basicMaterial, p);
             else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
+#endif
         }
 
-        #endregion
+#endregion
     }
 }

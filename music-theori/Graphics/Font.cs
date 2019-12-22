@@ -30,7 +30,7 @@ namespace theori.Graphics
             Default.CreateSize(64.0f);
         }
 
-        private readonly FontCollection m_collection = new FontCollection();
+        private readonly SixLabors.Fonts.FontCollection m_collection = new SixLabors.Fonts.FontCollection();
 
         private FontFamily? m_family = null;
         private readonly List<SL_Font> m_fonts = new List<SL_Font>();

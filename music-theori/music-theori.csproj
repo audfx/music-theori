@@ -73,8 +73,8 @@
     <None Remove="Resources\fonts\osaka.unicode.ttf" />
     <None Remove="Resources\materials\basic.fs" />
     <None Remove="Resources\materials\basic.vs" />
-    <None Remove="Resources\materials\gui_texture.fs" />
-    <None Remove="Resources\materials\gui_texture.vs" />
+    <None Remove="Resources\materials\renderBatch2D.fs" />
+    <None Remove="Resources\materials\renderBatch2D.vs" />
     <None Remove="Resources\scripts\lib\standard.lua" />
     <None Remove="Resources\scripts\lib\vectors.lua" />
     <None Remove="Resources\textures\audfx-text-large.png" />
@@ -98,8 +98,8 @@
     <EmbeddedResource Include="Resources\fonts\osaka.unicode.ttf" />
     <EmbeddedResource Include="Resources\materials\basic.fs" />
     <EmbeddedResource Include="Resources\materials\basic.vs" />
-    <EmbeddedResource Include="Resources\materials\gui_texture.fs" />
-    <EmbeddedResource Include="Resources\materials\gui_texture.vs" />
+    <EmbeddedResource Include="Resources\materials\renderBatch2D.fs" />
+    <EmbeddedResource Include="Resources\materials\renderBatch2D.vs" />
     <EmbeddedResource Include="Resources\scripts\lib\standard.lua" />
     <EmbeddedResource Include="Resources\scripts\lib\vectors.lua" />
     <EmbeddedResource Include="Resources\textures\audfx-text-large.png" />

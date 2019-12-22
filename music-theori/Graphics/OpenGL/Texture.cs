@@ -36,6 +36,17 @@ namespace theori.Graphics.OpenGL
             return empty;
         }
 
+        public static void Unbind(TextureTarget target, uint unit)
+        {
+            if (false && GL.IsExtensionFunctionSupported("glBindTextureUnit"))
+                GL.BindTextureUnit(unit, 0);
+            else
+            {
+                GL.ActiveTexture(GL.GL_TEXTURE0 + unit);
+                GL.BindTexture((uint)target, 0);
+            }
+        }
+
         public TextureTarget Target = TextureTarget.Texture2D;
         public int Width, Height, Depth;
 

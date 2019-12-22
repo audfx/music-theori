@@ -67,7 +67,7 @@ namespace theori.Graphics
 
         static Material()
         {
-            void AddBindFunc<T>(Action<ShaderProgram, int, T> bind)
+            static void AddBindFunc<T>(Action<ShaderProgram, int, T> bind)
             {
                 BindFuncs[typeof(T)] = bind;
             }

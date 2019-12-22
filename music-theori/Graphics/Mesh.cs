@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 using theori.Graphics.OpenGL;
@@ -69,10 +70,10 @@ namespace theori.Graphics
         public virtual unsafe void SetVertices<T>(T[] vertices)
             where T : struct
         {
-            object[] attribs = typeof(T).GetCustomAttributes(typeof(VertexTypeAttribute), false);
-            if (attribs.Length == 0)
+            var attrib = typeof(T).GetCustomAttribute<VertexTypeAttribute>(false);
+            if (attrib is null)
                 throw new ArgumentException($"{ typeof(T).Name } is not a valid vertex type.");
-            var desc = (attribs[0] as VertexTypeAttribute).Descriptors;
+            var desc = attrib.Descriptors;
 
             int structSize = Marshal.SizeOf<T>();
             int bufSize = vertices.Length * structSize;
@@ -93,36 +94,36 @@ namespace theori.Graphics
             for (int count = desc.Count, i = 0; i < count; i++)
                 vertexSize += desc[i].ComponentCount * desc[i].ComponentSize;
 
-			uint index = 0;
-			uint offset = 0;
+            uint index = 0;
+            uint offset = 0;
             for (int count = desc.Count, i = 0; i < count; i++)
-			{
+            {
                 var e = desc[i];
 
-				uint type = uint.MaxValue;
-				if (!e.IsFloat)
-				{
-					if (e.ComponentSize == 4)
-						type = e.IsSigned ? GL_INT : GL_UNSIGNED_INT;
-					else if (e.ComponentSize == 2)
-						type = e.IsSigned ? GL_SHORT : GL_UNSIGNED_SHORT;
-					else if (e.ComponentSize == 1)
-						type = e.IsSigned ? GL_BYTE : GL_UNSIGNED_BYTE;
-				}
-				else
-				{
-					if (e.ComponentSize == 4)
-						type = GL_FLOAT;
-					else if (e.ComponentSize == 8)
-						type = GL_DOUBLE;
-				}
-				Debug.Assert(type != uint.MaxValue);
+                uint type = uint.MaxValue;
+                if (!e.IsFloat)
+                {
+                    if (e.ComponentSize == 4)
+                        type = e.IsSigned ? GL_INT : GL_UNSIGNED_INT;
+                    else if (e.ComponentSize == 2)
+                        type = e.IsSigned ? GL_SHORT : GL_UNSIGNED_SHORT;
+                    else if (e.ComponentSize == 1)
+                        type = e.IsSigned ? GL_BYTE : GL_UNSIGNED_BYTE;
+                }
+                else
+                {
+                    if (e.ComponentSize == 4)
+                        type = GL_FLOAT;
+                    else if (e.ComponentSize == 8)
+                        type = GL_DOUBLE;
+                }
+                Debug.Assert(type != uint.MaxValue);
 
                 vao.SetVertexAttrib(index, vertexBuffer, (int)e.ComponentCount, (DataType)type, true, (int)vertexSize, offset);
 
-				offset += e.ComponentSize * e.ComponentCount;
-				index++;
-			}
+                offset += e.ComponentSize * e.ComponentCount;
+                index++;
+            }
         }
 
         public virtual void SetIndices(params ushort[] indices)

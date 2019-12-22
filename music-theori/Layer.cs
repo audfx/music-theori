@@ -87,6 +87,7 @@ namespace theori
         #region Scripting Interface
 
         private readonly BasicSpriteRenderer m_spriteRenderer;
+        private readonly RenderBatch2D m_renderer2D;
 
         protected readonly ScriptProgram m_script;
 
@@ -128,6 +129,9 @@ namespace theori
         public readonly ScriptEvent evtControllerAxisChanged;
         public readonly ScriptEvent evtControllerAxisTicked;
 
+        private FontCollection m_currentFont = FontCollection.Default;
+        private int m_currentFontSize = 24;
+
         #endregion
 
         protected ClientResourceManager StaticResources => theori.Host.StaticResources;
@@ -139,6 +143,8 @@ namespace theori
 
             m_resources = new ClientResourceManager(ResourceLocator);
             m_script = new ScriptProgram(ResourceLocator);
+
+            m_renderer2D = new RenderBatch2D(m_resources);
 
             m_drivingScriptFileName = layerPathLua;
             m_drivingScriptArgs = args;
@@ -289,7 +295,7 @@ namespace theori
             tblTheoriGraphics["setImageColor"] = (Action<float, float, float, float>)((r, g, b, a) => m_spriteRenderer.SetImageColor(r, g, b, a));
             tblTheoriGraphics["fillRect"] = (Action<float, float, float, float>)((x, y, w, h) => m_spriteRenderer.FillRect(x, y, w, h));
             tblTheoriGraphics["draw"] = (Action<Texture, float, float, float, float>)((texture, x, y, w, h) => m_spriteRenderer.Image(texture, x, y, w, h));
-            tblTheoriGraphics["setFontSize"] = (Action<float>)(size => m_spriteRenderer.SetFontSize(size));
+            tblTheoriGraphics["setFontSize"] = (Action<int>)(size => m_spriteRenderer.SetFontSize(size));
             tblTheoriGraphics["setTextAlign"] = (Action<Anchor>)(align => m_spriteRenderer.SetTextAlign(align));
             tblTheoriGraphics["drawString"] = (Action<string, float, float>)((text, x, y) => m_spriteRenderer.Write(text, x, y));
             tblTheoriGraphics["saveScissor"] = (Action)(() => m_spriteRenderer.SaveScissor());
@@ -559,7 +565,38 @@ namespace theori
         {
             m_spriteRenderer.BeginFrame();
             m_script.Call(tblTheoriLayer["render"]);
+
+#if true
+            m_spriteRenderer.Flush();
+            m_spriteRenderer.ResetScissor();
+            m_spriteRenderer.ResetTransform();
+            m_spriteRenderer.SetImageColor(255, 255, 255, 255);
+
+            float x = 10, y = 10;
+            foreach (var sheet in m_currentFont.GetFontAtlas(m_currentFontSize).DebugAllTextures)
+            {
+                float w = sheet.Width, h = sheet.Height;
+                if (x + w + 10 >= Window.Width)
+                {
+                    x = 10;
+                    y += h;
+                }
+
+                m_spriteRenderer.Image(sheet, x, y, w, h);
+            }
+#endif
+
             m_spriteRenderer.EndFrame();
+
+#if true
+            using var batch = m_renderer2D.Use();
+            static float R(int i) => MathL.Abs(MathL.Sin(Time.Total + i * MathL.Pi / 4)) * 250;
+            batch.FillRoundedRectangleVarying(100, 100, 500, 500, R(0), R(1), R(2), R(3));
+            batch.StrokeRoundedRectangleVarying(100, 100, 500, 500, 20, -5, R(0), R(1), R(2), R(3));
+
+            batch.FillRectangle(700, 100, 500, 500);
+            batch.StrokeRectangle(700, 100, 500, 500, 20, -5);
+#endif
         }
         public virtual void LateRender() { }
 
