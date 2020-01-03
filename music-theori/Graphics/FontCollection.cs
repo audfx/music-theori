@@ -42,6 +42,7 @@ namespace theori.Graphics
         public class Atlas
         {
             private readonly SL_Font m_font;
+            public SL_Font Font => m_font;
 
             private readonly int m_recResolution;
             private readonly List<Texture> m_pages = new List<Texture>();
@@ -62,6 +63,10 @@ namespace theori.Graphics
             public Atlas(SL_Font font, int recResolution = 1024)
             {
                 m_font = font;
+
+                var tempGlyph = font.Instance.GetGlyph('C');
+                Logger.Log(string.Join(", ", tempGlyph.ControlPoints.Zip(tempGlyph.OnCurves, (v, b) => $"<{v.X},{v.Y}>({(b ? 'c' : 'l')})")));
+
                 m_recResolution = recResolution;
                 m_curImage = new Image<Rgba32>(m_recResolution, m_recResolution);
 

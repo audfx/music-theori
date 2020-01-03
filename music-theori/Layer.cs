@@ -129,8 +129,8 @@ namespace theori
         public readonly ScriptEvent evtControllerAxisChanged;
         public readonly ScriptEvent evtControllerAxisTicked;
 
-        private FontCollection m_currentFont = FontCollection.Default;
-        private int m_currentFontSize = 24;
+        private VectorFont m_currentFont = VectorFont.Default;
+        private int m_currentFontSize = 64;
 
         #endregion
 
@@ -566,7 +566,7 @@ namespace theori
             m_spriteRenderer.BeginFrame();
             m_script.Call(tblTheoriLayer["render"]);
 
-#if true
+#if false
             m_spriteRenderer.Flush();
             m_spriteRenderer.ResetScissor();
             m_spriteRenderer.ResetTransform();
@@ -591,15 +591,26 @@ namespace theori
 #if true
             using var batch = m_renderer2D.Use();
 
+            batch.SetFont(m_currentFont, m_currentFontSize + 32 * MathL.Abs(MathL.Sin(Time.Total * 1.5f)));
+            batch.DrawString("Hello, world! 日本語です。", 10, Window.Height - 10);
+#endif
+
+#if false
+            using var batch = m_renderer2D.Use();
+
+            batch.Test0(100, 100, 400, 400);
+
             batch.Test(200, 700, 200, 200);
             batch.Test2(500, 700, 100, 200);
 
+#if false
             static float R(int i) => MathL.Abs(MathL.Sin(Time.Total + i * MathL.Pi / 4)) * 250;
             batch.FillRoundedRectangleVarying(100, 100, 500, 500, R(0), R(1), R(2), R(3));
             batch.StrokeRoundedRectangleVarying(100, 100, 500, 500, 20, -5, R(0), R(1), R(2), R(3));
 
             batch.FillRectangle(700, 100, 500, 500);
             batch.StrokeRectangle(700, 100, 500, 500, 20, -5);
+#endif
 #endif
         }
         public virtual void LateRender() { }

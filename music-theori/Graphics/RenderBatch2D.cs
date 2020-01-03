@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -24,32 +25,6 @@ namespace theori.Graphics
             Position = pos;
             TexCoord = texCoord;
             Color = color;
-        }
-    }
-
-    internal struct ScreenSpacePointData
-    {
-        public Vector2 Position;
-        public Vector2 RelativeTextureCoord;
-
-        public ScreenSpacePointData(Vector2 pos, Vector2? texCoord)
-        {
-            Position = pos;
-            RelativeTextureCoord = texCoord ?? pos;
-        }
-    }
-
-    internal struct Path2D
-    {
-        public ScreenSpacePointData[] Points;
-        public AngularDirection Winding;
-        public bool IsClosed;
-
-        public Path2D(ScreenSpacePointData[] points, AngularDirection winding, bool isClosed)
-        {
-            Points = points;
-            Winding = winding;
-            IsClosed = isClosed;
         }
     }
 
@@ -113,7 +88,6 @@ namespace theori.Graphics
         public const int MaxVertexCount = ushort.MaxValue;
 
         public const float Kappa90 = 0.5522847493f;
-        public const float TesselationTolerance = 0.25f;
 
         private readonly RenderBatch2D m_batch;
 
@@ -133,6 +107,9 @@ namespace theori.Graphics
         /// </summary>
         private readonly List<Texture> m_textures = new List<Texture>();
 
+        private VectorFont m_font = VectorFont.Default;
+        private float m_fontSize = 64.0f;
+
         internal RenderBatcher2D(RenderBatch2D parent, int vertexCount = 0)
         {
             if (vertexCount < 0 || vertexCount > MaxVertexCount)
@@ -148,6 +125,13 @@ namespace theori.Graphics
 
             m_indices = new ushort[vertexCount];
             m_vertices = new VertexRB2D[vertexCount];
+        }
+
+        public void SetFont(VectorFont? font, float? size = null)
+        {
+            if (size is float sizeValue)
+                m_fontSize = sizeValue;
+            m_font = font ?? VectorFont.Default;
         }
 
         internal void Begin()
@@ -242,164 +226,14 @@ namespace theori.Graphics
             return index;
         }
 
-        private void BezierToPoints(List<ScreenSpacePointData> toData,
-            Vector2 v0, Vector2 v1, Vector2 v2, Vector2 v3, 
-           int level, int type)
+        private void Fill(Path2DGroup pathGroup, Vector2 offset = default)
         {
-            float x01, y01, x12, y12, x23, y23, x012, y012, x123, y123, x0123, y0123;
-            float dx, dy, d2, d3;
+            var paths = pathGroup.Paths;
 
-            if (level > 10) return;
-
-            x01 = (v0.X + v1.X) * 0.5f;
-            y01 = (v0.Y + v1.Y) * 0.5f;
-            x12 = (v1.X + v2.X) * 0.5f;
-            y12 = (v1.Y + v2.Y) * 0.5f;
-            x23 = (v2.X + v3.X) * 0.5f;
-            y23 = (v2.Y + v3.Y) * 0.5f;
-            x012 = (x01 + x12) * 0.5f;
-            y012 = (y01 + y12) * 0.5f;
-
-            dx = v3.X - v0.X;
-            dy = v3.Y - v0.Y;
-            d2 = MathL.Abs((v1.X - v3.X) * dy - (v1.Y - v3.Y) * dx);
-            d3 = MathL.Abs((v2.X - v3.X) * dy - (v2.Y - v3.Y) * dx);
-
-            if ((d2 + d3) * (d2 + d3) < TesselationTolerance * (dx * dx + dy * dy))
-            {
-                toData.Add(new ScreenSpacePointData(v3, null));
-                return;
-            }
-
-            x123 = (x12 + x23) * 0.5f;
-            y123 = (y12 + y23) * 0.5f;
-            x0123 = (x012 + x123) * 0.5f;
-            y0123 = (y012 + y123) * 0.5f;
-
-            BezierToPoints(toData, v0, new Vector2(x01, y01), new Vector2(x012, y012), new Vector2(x0123, y0123), level + 1, 0);
-            BezierToPoints(toData, new Vector2(x0123, y0123), new Vector2(x123, y123), new Vector2(x23, y23), v3, level + 1, type);
-        }
-
-        private static bool IsClockwise(Path2D path)
-        {
-            float sum = 0;
-            for (int i = 1; i < path.Points.Length; i++)
-            {
-                sum += (path.Points[i].Position.X - path.Points[i - 1].Position.X) *
-                       (path.Points[i].Position.Y + path.Points[i - 1].Position.Y);
-            }
-            sum += (path.Points[0].Position.X - path.Points[^1].Position.X) *
-                   (path.Points[0].Position.Y + path.Points[^1].Position.Y);
-            return sum < 0;
-        }
-
-        private Path2D[] Flatten(Path2DCommands cmds, Vector2 off = default)
-        {
-            var result = new List<Path2D>();
-
-            var data = new List<ScreenSpacePointData>();
-            AngularDirection winding = AngularDirection.Clockwise;
-            bool isClosed = false;
-
-            Vector2 minComponent = new Vector2(float.MaxValue);
-            Vector2 maxComponent = new Vector2(float.MinValue);
-
-            void SetMinMax(Vector2 point)
-            {
-                minComponent.X = MathL.Min(minComponent.X, point.X);
-                minComponent.Y = MathL.Min(minComponent.Y, point.Y);
-                maxComponent.X = MathL.Max(maxComponent.X, point.X);
-                maxComponent.Y = MathL.Max(maxComponent.Y, point.Y);
-            }
-
-            void FinishPath()
-            {
-                if (data.Count > 0)
-                {
-                    result.Add(new Path2D(data.ToArray(), winding, isClosed));
-                    data.Clear();
-                }
-            }
-            
-            foreach (var cmd in cmds)
-            {
-                switch (cmd.Command)
-                {
-                    case Path2DCommandKind.MoveTo:
-                    {
-                        FinishPath();
-
-                        var point = off + cmd.Points[0];
-                        SetMinMax(cmd.Points[0]);
-
-                        data.Add(new ScreenSpacePointData(point, cmd.Points[0]));
-                    } break;
-
-                    case Path2DCommandKind.LineTo:
-                    {
-                        var point = off + cmd.Points[0];
-                        SetMinMax(cmd.Points[0]);
-
-                        data.Add(new ScreenSpacePointData(point, cmd.Points[0]));
-                    } break;
-
-                    case Path2DCommandKind.BezierTo:
-                    {
-                        int dataIndex = data.Count;
-                        BezierToPoints(data, data[^1].Position, cmd.Points[0], cmd.Points[1], cmd.Points[2], 0, 0);
-
-                        for (int i = dataIndex; i < data.Count; i++)
-                            SetMinMax(data[i].Position);
-                    } break;
-
-                    case Path2DCommandKind.Close: isClosed = true; break;
-                    case Path2DCommandKind.Winding: winding = cmd.WindingArgument; break;
-                }
-            }
-
-            FinishPath();
-
-            var paths = result.ToArray();
-            for (int i = 0; i < paths.Length; i++)
-            {
-                ref var path = ref paths[i];
-
-                if (path.Points[0].Position == path.Points[^1].Position)
-                {
-                    path.IsClosed = true;
-                    var points = path.Points;
-                    path.Points = new ScreenSpacePointData[points.Length - 1];
-                    Array.Copy(points, 0, path.Points, 0, points.Length - 1);
-                }
-
-                if (path.Points.Length > 2)
-                {
-                    bool isClockwise = IsClockwise(path);
-                    if ((isClockwise && path.Winding != AngularDirection.Clockwise) ||
-                        (!isClockwise && path.Winding != AngularDirection.CounterClockwise))
-                    {
-                        Array.Reverse(path.Points);
-                    }
-                }
-
-                for (int j = 0; j < path.Points.Length; j++)
-                {
-                    ref var d = ref path.Points[j];
-                    d.RelativeTextureCoord = (d.RelativeTextureCoord - minComponent) / (maxComponent - minComponent);
-                    path.Points[j] = d;
-                }
-            }
-
-            return paths;
-        }
-
-        private void Fill(Path2D[] paths)
-        {
-#if true
             var t = new Tess();
             foreach (var path in paths)
             {
-                var cVerts = path.Points.Select(pt => new ContourVertex(new Vec3(pt.Position.X, pt.Position.Y, 0)));
+                var cVerts = path.Points.Select(pt => new ContourVertex(new Vec3(pt.Position.X + offset.X, pt.Position.Y + offset.Y, 0)));
                 t.AddContour(cVerts.ToArray(), path.Winding == AngularDirection.Clockwise ? ContourOrientation.Clockwise : ContourOrientation.CounterClockwise);
             }
 
@@ -418,105 +252,6 @@ namespace theori.Graphics
 
             m_vertexCount += t.Vertices.Length;
             m_indexCount += t.Elements.Length;
-#else
-
-            // TODO(local): triangulate based on winding for carving shapes etc.
-            foreach (var path in paths)
-            {
-                if (!path.IsClosed || path.Points.Length < 3)
-                    throw new ArgumentException();
-
-                var center = path.Points.Aggregate(new ScreenSpacePointData(Vector2.Zero, null), (a, b) => new ScreenSpacePointData(a.Position + b.Position, a.RelativeTextureCoord + b.RelativeTextureCoord));
-                center.Position /= path.Points.Length;
-                center.RelativeTextureCoord /= path.Points.Length;
-
-                int vertexCount = 1 + path.Points.Length, indexCount = 3 * (vertexCount - 1);
-                if (m_indexCount + indexCount >= MaxVertexCount || m_vertexCount + vertexCount >= MaxVertexCount)
-                    Flush();
-
-                int vidx = m_vertexCount;
-                m_vertices[vidx + 0] = new VertexRB2D(32, center.Position, center.RelativeTextureCoord, Vector4.One);
-                for (int i = 0; i < path.Points.Length; i++)
-                {
-                    var point = path.Points[i];
-                    m_vertices[vidx + i + 1] = new VertexRB2D(32, point.Position, point.RelativeTextureCoord, Vector4.One);
-                }
-
-                int iidx = m_indexCount;
-                for (int i = 0; i < vertexCount - 1; i++)
-                {
-                    m_indices[iidx + i * 3 + 0] = (ushort)(vidx);
-                    m_indices[iidx + i * 3 + 1] = (ushort)(vidx + i + 1);
-
-                    if (i == vertexCount - 2)
-                        m_indices[iidx + i * 3 + 2] = (ushort)(vidx + 1);
-                    else m_indices[iidx + i * 3 + 2] = (ushort)(vidx + i + 2);
-                }
-
-                m_vertexCount += vertexCount;
-                m_indexCount += indexCount;
-            }
-#endif
-        }
-
-        private void Stroke(Path2D[] paths, float pos, float neg)
-        {
-            foreach (var path in paths)
-            {
-                // TODO(local): figure out corner types ig
-
-                int vertexCount = path.Points.Length * 2;
-
-                int vidx = m_vertexCount;
-                for (int i = 0; i < path.Points.Length; i++)
-                {
-                    int il = i - 1 < 0 ? path.Points.Length - 1 : i - 1;
-                    int ir = i + 1 >= path.Points.Length ? 0 : i + 1;
-
-                    var l = path.Points[i].Position - path.Points[il].Position;
-                    var r = path.Points[ir].Position - path.Points[i].Position;
-
-                    var lnorm = Vector2.Normalize(new Vector2(l.Y, -l.X));
-                    var rnorm = Vector2.Normalize(new Vector2(r.Y, -r.X));
-
-                    var norm = Vector2.Normalize((lnorm + rnorm) * 0.5f);
-
-                    var point = path.Points[i];
-                    var pPos = point.Position + norm * pos;
-                    var pNeg = point.Position - norm * neg;
-
-                    // TODO(local): update relative texcoords
-                    m_vertices[vidx + i * 2 + 0] = new VertexRB2D(32, pNeg, point.RelativeTextureCoord, new Vector4(1, 0, 1, 1));
-                    m_vertices[vidx + i * 2 + 1] = new VertexRB2D(32, pPos, point.RelativeTextureCoord, new Vector4(1, 1, 0, 1));
-                }
-
-                int indexCount = path.Points.Length * 6;
-                if (!path.IsClosed)
-                    indexCount -= 6;
-
-                int iidx = m_indexCount;
-                for (int i = 0; i < path.Points.Length; i++)
-                {
-                    if (i == path.Points.Length - 1 && !path.IsClosed)
-                        break;
-
-                    int n0 = i * 2, p0 = n0 + 1, n1 = n0 + 2, p1 = n0 + 3;
-                    if (n1 >= vertexCount)
-                    {
-                        n1 = 0; p1 = 1;
-                    }
-
-                    m_indices[iidx + i * 6 + 0] = (ushort)(vidx + n0);
-                    m_indices[iidx + i * 6 + 1] = (ushort)(vidx + p0);
-                    m_indices[iidx + i * 6 + 2] = (ushort)(vidx + p1);
-                    m_indices[iidx + i * 6 + 3] = (ushort)(vidx + n0);
-                    m_indices[iidx + i * 6 + 4] = (ushort)(vidx + p1);
-                    m_indices[iidx + i * 6 + 5] = (ushort)(vidx + n1);
-                }
-
-                m_vertexCount += vertexCount;
-                m_indexCount += indexCount;
-            }
         }
 
         private void AddTriangle(VertexRB2D v0, VertexRB2D v1, VertexRB2D v2)
@@ -570,21 +305,8 @@ namespace theori.Graphics
             cmds.LineTo(x, y + h);
             cmds.Close();
 
-            var paths = Flatten(cmds);
+            var paths = cmds.Flatten();
             Fill(paths);
-        }
-
-        public void StrokeRectangle(float x, float y, float w, float h, float strokePos, float strokeNeg)
-        {
-            var cmds = new Path2DCommands();
-            cmds.MoveTo(x, y);
-            cmds.LineTo(x + w, y);
-            cmds.LineTo(x + w, y + h);
-            cmds.LineTo(x, y + h);
-            cmds.Close();
-
-            var paths = Flatten(cmds);
-            Stroke(paths, strokePos, strokeNeg);
         }
 
         public void FillRoundedRectangle(float x, float y, float w, float h, float r)
@@ -599,96 +321,44 @@ namespace theori.Graphics
             cmds.MoveTo(x + rtl, y);
 
             cmds.LineTo(x + w - rtr, y);
-            cmds.BezierTo(x + w - rtr * (1 - k), y, x + w, y + rtr * (1 - k), x + w, y + rtr);
+            cmds.CubicBezierTo(x + w - rtr * (1 - k), y, x + w, y + rtr * (1 - k), x + w, y + rtr);
 
             cmds.LineTo(x + w, y + h - rbr);
-            cmds.BezierTo(x + w, y + h - rbr * (1 - k), x + w - rbr * (1 - k), y + h, x + w - rbr, y + h);
+            cmds.CubicBezierTo(x + w, y + h - rbr * (1 - k), x + w - rbr * (1 - k), y + h, x + w - rbr, y + h);
 
             cmds.LineTo(x + rbl, y + h);
-            cmds.BezierTo(x + rbl * (1 - k), y + h, x, y + h - rbl * (1 - k), x, y + h - rbl);
+            cmds.CubicBezierTo(x + rbl * (1 - k), y + h, x, y + h - rbl * (1 - k), x, y + h - rbl);
 
             cmds.LineTo(x, y + rtl);
-            cmds.BezierTo(x, y + rtl * (1 - k), x + rtl * (1 - k), y, x + rtl, y);
+            cmds.CubicBezierTo(x, y + rtl * (1 - k), x + rtl * (1 - k), y, x + rtl, y);
 
             cmds.Close();
 
-            var paths = Flatten(cmds);
+            var paths = cmds.Flatten();
             Fill(paths);
         }
 
-        public void StrokeRoundedRectangleVarying(float x, float y, float w, float h, float strokePos, float strokeNeg, float rtl, float rtr, float rbr, float rbl)
+        public void DrawString(string text, float x, float y)
         {
-            const float k = Kappa90;
-            var cmds = new Path2DCommands();
-            cmds.MoveTo(x + rtl, y);
+            float xOff = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (!m_font.TryGetGlyphData(text[i], out var info, out var cmds))
+                    continue;
 
-            cmds.LineTo(x + w - rtr, y);
-            cmds.BezierTo(x + w - rtr * (1 - k), y, x + w, y + rtr * (1 - k), x + w, y + rtr);
+                float pixelsPerEm = m_fontSize;
+                float scale = m_fontSize / info.EmSize;
 
-            cmds.LineTo(x + w, y + h - rbr);
-            cmds.BezierTo(x + w, y + h - rbr * (1 - k), x + w - rbr * (1 - k), y + h, x + w - rbr, y + h);
+                float advance = pixelsPerEm * info.AdvanceWidth / info.EmSize;
 
-            cmds.LineTo(x + rbl, y + h);
-            cmds.BezierTo(x + rbl * (1 - k), y + h, x, y + h - rbl * (1 - k), x, y + h - rbl);
+                if (text[i] != ' ')
+                {
+                    var paths = cmds.Flatten(scale);
+                    Fill(paths, new Vector2(x + xOff, y));
+                }
 
-            cmds.LineTo(x, y + rtl);
-            cmds.BezierTo(x, y + rtl * (1 - k), x + rtl * (1 - k), y, x + rtl, y);
-
-            cmds.Close();
-
-            var paths = Flatten(cmds);
-            Stroke(paths, strokePos, strokeNeg);
-        }
-
-        public void Test(float x, float y, float w, float h)
-        {
-            const float k = Kappa90;
-            float r = h * 0.1f;
-
-            var cmds = new Path2DCommands();
-            cmds.MoveTo(x + r, y);
-            cmds.LineTo(x + w / 4, y);
-            cmds.LineTo(x + w / 2, y + h / 4);
-            cmds.LineTo(x + w / 2, y + h / 2);
-            cmds.LineTo(x + w * 3 / 4, y + h / 2);
-            cmds.LineTo(x + w * 3 / 4, y);
-            cmds.LineTo(x + w, y);
-            cmds.LineTo(x + w, y + h);
-            cmds.LineTo(x, y + h);
-            cmds.LineTo(x, y + r);
-            cmds.BezierTo(x, y + r * (1 - k), x + r * (1 - k), y, x + r, y);
-            cmds.Close();
-
-            var paths = Flatten(cmds);
-            Fill(paths);
-            Stroke(paths, 15, -5);
-        }
-
-        public void Test2(float x, float y, float w, float h)
-        {
-            const float k = Kappa90;
-
-            float r = w / 2;
-
-            var cmds = new Path2DCommands();
-            cmds.MoveTo(x, y);
-            cmds.LineTo(x + w - r, y);
-            cmds.BezierTo(x + w - r * (1 - k), y, x + w, y + r * (1 - k), x + w, y + r);
-            cmds.BezierTo(x + w, y + r + r * (1 - k), x + w - r * (1 - k), y + 2 * r, x + w - r, y + 2 * r);
-            cmds.LineTo(x + w * 0.25f, y + 2 * r);
-            cmds.LineTo(x + w * 0.25f, y + h);
-            cmds.LineTo(x, y + h);
-            cmds.Close();
-            cmds.MoveTo(x + r / 2, y + r / 2);
-            cmds.LineTo(x + r / 2, y + 3 * r / 2);
-            cmds.LineTo(x + 3 * r / 2, y + 3 * r / 2);
-            cmds.LineTo(x + 3 * r / 2, y + r / 2);
-            cmds.Winding(AngularDirection.CounterClockwise);
-            cmds.Close();
-
-            var paths = Flatten(cmds);
-            Fill(paths);
-            Stroke(paths, 15, -5);
+                xOff += advance;
+            }
         }
     }
 }
