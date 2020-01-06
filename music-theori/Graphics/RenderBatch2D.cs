@@ -86,6 +86,8 @@ namespace theori.Graphics
     public sealed class RenderBatcher2D : IDisposable
     {
         public const int MaxVertexCount = ushort.MaxValue;
+        public const int MaxPaints = 16, MaxTextures = 16;
+        public const int PaintFillKind = 0, TextureFillKind = 16, SolidFillKind = 17;
 
         public const float Kappa90 = 0.5522847493f;
 
@@ -105,10 +107,21 @@ namespace theori.Graphics
         /// <summary>
         /// Textures are shared between paints and regular textured shapes.
         /// </summary>
-        private readonly List<Texture> m_textures = new List<Texture>();
+        private Texture? m_texture = null;
 
         private VectorFont m_font = VectorFont.Default;
         private float m_fontSize = 64.0f;
+
+        private int m_fillKind = 32;
+        private Vector4 m_vertexColor = Vector4.One;
+
+        private Transform m_transform = Transform.Identity;
+        private Rect? m_scissor = null;
+        private Anchor m_textAlign = Anchor.TopLeft;
+
+        private readonly Stack<int> m_savedTransformIndices = new Stack<int>();
+        private readonly List<Transform?> m_transformations = new List<Transform?>();
+        private readonly Stack<Rect?> m_savedScissors = new Stack<Rect?>();
 
         internal RenderBatcher2D(RenderBatch2D parent, int vertexCount = 0)
         {
@@ -134,6 +147,16 @@ namespace theori.Graphics
             m_font = font ?? VectorFont.Default;
         }
 
+        public void SetFontSize(float size)
+        {
+            m_fontSize = size;
+        }
+
+        public void SetTextAlign(Anchor align)
+        {
+            m_textAlign = align;
+        }
+
         internal void Begin()
         {
             m_vertexCount = 0;
@@ -143,7 +166,16 @@ namespace theori.Graphics
             m_projection = (Transform)Matrix4x4.CreateOrthographicOffCenter(0, Window.Width, Window.Height, 0, -10, 10);
             m_camera = Transform.Identity;
 
-            m_textures.Clear();
+            m_texture = null;
+
+            m_fillKind = SolidFillKind;
+            m_vertexColor = Vector4.One;
+
+            m_transform = Transform.Identity;
+            m_scissor = null;
+            m_transformations.Clear();
+            m_savedTransformIndices.Clear();
+            m_savedScissors.Clear();
 
             m_params = new MaterialParams();
         }
@@ -160,6 +192,101 @@ namespace theori.Graphics
             Flush();
         }
 
+        public void SaveTransform()
+        {
+            Flush();
+
+            m_savedTransformIndices.Push(m_transformations.Count);
+        }
+
+        public void RestoreTransform()
+        {
+            if (m_savedTransformIndices.Count == 0) return;
+
+            Flush();
+
+            int transformsCount = m_savedTransformIndices.Pop();
+            m_transformations.RemoveRange(transformsCount, m_transformations.Count - transformsCount);
+
+            UpdateTransform();
+        }
+
+        public void ResetTransform()
+        {
+            Flush();
+
+            m_transformations.Add(null);
+
+            UpdateTransform();
+        }
+
+        public void Translate(float x, float y)
+        {
+            m_transformations.Add(Transform.Translation(x, y, 0));
+            UpdateTransform();
+        }
+
+        public void Rotate(float rDeg)
+        {
+            m_transformations.Add(Transform.RotationZ(rDeg));
+            UpdateTransform();
+        }
+
+        public void Scale(float s) => Scale(s, s);
+        public void Scale(float sx, float sy)
+        {
+            m_transformations.Add(Transform.Scale(sx, sy, 1));
+            UpdateTransform();
+        }
+
+        public void Shear(float sx, float sy)
+        {
+            var shear = Matrix4x4.Identity;
+            shear.M21 = sx;
+            shear.M12 = sy;
+
+            m_transformations.Add(new Transform(shear));
+            UpdateTransform();
+        }
+
+        private void UpdateTransform()
+        {
+            m_transform = Transform.Identity;
+            for (int i = m_transformations.Count - 1; i >= 0; i--)
+            {
+                if (m_transformations[i] == null)
+                    break;
+                m_transform = m_transformations[i]!.Value * m_transform;
+            }
+        }
+
+        public void SaveScissor()
+        {
+            m_savedScissors.Push(m_scissor);
+        }
+
+        public void RestoreScissor()
+        {
+            if (m_savedScissors.Count == 0) return;
+            m_scissor = m_savedScissors.Pop();
+        }
+
+        public void ResetScissor()
+        {
+            m_savedScissors.Clear();
+            m_scissor = null;
+        }
+
+        public void Scissor(float x, float y, float w, float h)
+        {
+            if (m_scissor is null)
+                m_scissor = new Rect(x, y, w, h);
+            else
+            {
+                //m_scissor = new Rect();
+            }
+        }
+
         public void Flush()
         {
             var indices = new ushort[m_indexCount];
@@ -171,19 +298,10 @@ namespace theori.Graphics
             m_mesh.SetIndices(indices);
             m_mesh.SetVertices(vertices);
 
-            for (int i = 0; i < 16; i++)
-            {
-                if (i < m_textures.Count)
-                {
-                    m_textures[i].Bind((uint)i);
-                    m_params[$"Textures[{i}]"] = i;
-                }
-                else
-                {
-                    Texture.Unbind(TextureTarget.Texture2D, (uint)i);
-                    m_params[$"Textures[{i}]"] = 0;
-                }
-            }
+            m_params["Texture"] = 0;
+            if (m_texture is Texture tex)
+                tex.Bind(0);
+            else Texture.Unbind(TextureTarget.Texture2D, 0);
 
             //m_params["ViewportSize"] = new Vector2(Window.Width, Window.Height);
             //GL.Viewport(m_state.Viewport.X, -m_state.Viewport.Y, m_state.Viewport.Width, m_state.Viewport.Height);
@@ -209,21 +327,32 @@ namespace theori.Graphics
 
             m_indexCount = 0;
             m_vertexCount = 0;
+
+            m_texture = null;
         }
 
-        private int AddTexture(Texture texture)
+        public void SetFillColor(float r, float g, float b, float a) => SetFillColor(new Vector4(r, g, b, a));
+        public void SetFillColor(Vector4 tint)
         {
-            int index = m_textures.IndexOf(texture);
-            if (index < 0)
-            {
-                if (m_textures.Count >= 16)
-                    Flush();
+            m_fillKind = SolidFillKind;
+            m_vertexColor = tint;
+        }
 
-                index = m_textures.Count;
-                m_textures.Add(texture);
-            }
+        public void SetFillTexture(Texture texture, Vector4 tint)
+        {
+            if (m_texture != null && texture != m_texture)
+                Flush();
 
-            return index;
+            m_texture = texture;
+
+            m_fillKind = TextureFillKind;
+            m_vertexColor = tint;
+        }
+
+        public void SetPaintTexture(Texture texture)
+        {
+            // NOTE(local): this signature is only here because I want to remind myself of the difference between the term "fill" and "paint" in this renderer
+            throw new NotImplementedException();
         }
 
         private void Fill(Path2DGroup pathGroup, Vector2 offset = default)
@@ -233,7 +362,7 @@ namespace theori.Graphics
             var t = new Tess();
             foreach (var path in paths)
             {
-                var cVerts = path.Points.Select(pt => new ContourVertex(new Vec3(pt.Position.X + offset.X, pt.Position.Y + offset.Y, 0)));
+                var cVerts = path.Points.Select(pt => new ContourVertex(new Vec3(pt.Position.X + offset.X, pt.Position.Y + offset.Y, 0), pt));
                 t.AddContour(cVerts.ToArray(), path.Winding == AngularDirection.Clockwise ? ContourOrientation.Clockwise : ContourOrientation.CounterClockwise);
             }
 
@@ -242,8 +371,11 @@ namespace theori.Graphics
             int vidx = m_vertexCount;
             for (int i = 0; i < t.Vertices.Length; i++)
             {
-                var v = t.Vertices[i];
-                m_vertices[vidx + i] = new VertexRB2D(32, new Vector2(v.Position.X, v.Position.Y), Vector2.Zero, Vector4.One);
+                var vertex = t.Vertices[i];
+                var pointData = (ScreenSpacePointData)vertex.Data;
+                var tCoords = pointData.RelativeTextureCoord;
+                var tPos = Vector2.Transform(new Vector2(vertex.Position.X, vertex.Position.Y), m_transform.Matrix);
+                m_vertices[vidx + i] = new VertexRB2D(m_fillKind, tPos, tCoords, m_vertexColor);
             }
 
             int iidx = m_indexCount;
@@ -296,6 +428,20 @@ namespace theori.Graphics
             m_indexCount += 6;
         }
 
+        public void FillPath(Path2DCommands cmds)
+        {
+            var paths = cmds.Flatten();
+            paths.SetTextureCoordsToGroupLocal();
+            Fill(paths);
+        }
+
+        public void FillPathAt(Path2DCommands cmds, float x, float y, float sx, float sy)
+        {
+            var paths = cmds.Flatten(sx, sy);
+            paths.SetTextureCoordsToGroupLocal();
+            Fill(paths, new Vector2(x, y));
+        }
+
         public void FillRectangle(float x, float y, float w, float h)
         {
             var cmds = new Path2DCommands();
@@ -306,6 +452,7 @@ namespace theori.Graphics
             cmds.Close();
 
             var paths = cmds.Flatten();
+            paths.SetTextureCoordsToGroupLocal();
             Fill(paths);
         }
 
@@ -335,29 +482,52 @@ namespace theori.Graphics
             cmds.Close();
 
             var paths = cmds.Flatten();
+            paths.SetTextureCoordsToGroupLocal();
             Fill(paths);
         }
 
-        public void DrawString(string text, float x, float y)
+        public void FillString(string text, float x, float y)
         {
-            float xOff = 0;
+            float scale = m_fontSize / m_font.EmSize;
+
+            float xBounds = 0, yBounds = 0;
             for (int i = 0; i < text.Length; i++)
             {
                 if (!m_font.TryGetGlyphData(text[i], out var info, out var cmds))
                     continue;
 
-                float pixelsPerEm = m_fontSize;
-                float scale = m_fontSize / info.EmSize;
+                xBounds += scale * info.AdvanceWidth;
+                yBounds = MathL.Max(yBounds, info.LineHeight);
+            }
 
-                float advance = pixelsPerEm * info.AdvanceWidth / info.EmSize;
+            float xOffset = 0, yOffset = 0;
+            switch ((Anchor)((int)m_textAlign & 0x0F))
+            {
+                case Anchor.Top: break;
+                case Anchor.Middle: yOffset = (int)(-yBounds / 2); break;
+                case Anchor.Bottom: yOffset = -yBounds; break;
+            }
+
+            switch ((Anchor)((int)m_textAlign & 0xF0))
+            {
+                case Anchor.Left: break;
+                case Anchor.Center: xOffset = (int)(-xBounds / 2); break;
+                case Anchor.Right: xOffset = -xBounds; break;
+            }
+
+            float xPosition = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (!m_font.TryGetGlyphData(text[i], out var info, out var cmds))
+                    continue;
 
                 if (text[i] != ' ')
                 {
-                    var paths = cmds.Flatten(scale);
-                    Fill(paths, new Vector2(x + xOff, y));
+                    var paths = cmds.Flatten(scale, scale);
+                    Fill(paths, new Vector2(x + xPosition + xOffset, y + yOffset));
                 }
 
-                xOff += advance;
+                xPosition += scale * info.AdvanceWidth;
             }
         }
     }

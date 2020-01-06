@@ -82,6 +82,9 @@ namespace theori.Graphics
         public bool IsConvex;
         public int Bevel;
 
+        public Vector2 Min => Points.Aggregate((Vector2?)null, (m, v) => m == null ? v.Position : MathL.Min(m.Value, v.Position))!.Value; // Points.Aggregate(new Vector2(float.MaxValue), (m, v) => MathL.Min(m, v.Position));
+        public Vector2 Max => Points.Aggregate((Vector2?)null, (m, v) => m == null ? v.Position : MathL.Max(m.Value, v.Position))!.Value;
+
         public Path2D(ScreenSpacePointData[] points, AngularDirection winding, bool isClosed)
         {
             Points = points;
@@ -103,6 +106,13 @@ namespace theori.Graphics
                    (Points[0].Position.Y + Points[^1].Position.Y);
             return sum < 0;
         }
+
+        public void SetTextureCoordsToLocal() => SetTextureCoordsToBounds(Min, Max);
+        public void SetTextureCoordsToBounds(Vector2 min, Vector2 max)
+        {
+            for (int i = 0; i < Points.Length; i++)
+                Points[i].RelativeTextureCoord = (Points[i].Position - min) / (max - min);
+        }
     }
 
     public class Path2DGroup
@@ -118,12 +128,34 @@ namespace theori.Graphics
         public float MaxX => MaxValue(Paths, p => MaxValue(p.Points, x => x.Position.X));
         public float MaxY => MaxValue(Paths, p => MaxValue(p.Points, x => x.Position.Y));
 
+        public Vector2 Min => Paths.Select(path => path.Min).Aggregate((Vector2?)null, (m, v) => m == null ? v : MathL.Min(m.Value, v))!.Value; // Paths.Select(path => path.Min).Aggregate(new Vector2(float.MaxValue), (m, v) => MathL.Min(m, v));
+        public Vector2 Max => Paths.Select(path => path.Max).Aggregate((Vector2?)null, (m, v) => m == null ? v : MathL.Max(m.Value, v))!.Value; // Paths.Select(path => path.Max).Aggregate(new Vector2(float.MinValue), (m, v) => MathL.Max(m, v));
+
         public float SpanWidth => MaxX - MinX;
         public float SpanHeight => MaxY - MinY;
 
         public Path2DGroup(Path2D[] paths)
         {
             Paths = paths;
+        }
+
+        public void SetTextureCoordsToPathLocal()
+        {
+            for (int i = 0; i < Paths.Length; i++)
+                Paths[i].SetTextureCoordsToLocal();
+        }
+
+        public void SetTextureCoordsToGroupLocal()
+        {
+            Vector2 min = Min, max = Max;
+            for (int i = 0; i < Paths.Length; i++)
+                Paths[i].SetTextureCoordsToBounds(min, max);
+        }
+
+        public void SetTextureCoordsByBounds(Vector2 min, Vector2 max)
+        {
+            for (int i = 0; i < Paths.Length; i++)
+                Paths[i].SetTextureCoordsToBounds(min, max);
         }
 
         public Path2DGroup Expand(float amt)
@@ -221,17 +253,6 @@ namespace theori.Graphics
                 // 4. Add the new path to our results with the same settings as the parent path.
 
                 resultPaths.Add(new Path2D(points, path.Winding, path.IsClosed));
-            }
-
-            return new Path2DGroup(resultPaths.ToArray());
-        }
-
-        public Path2DGroup Stroke(float w)
-        {
-            var resultPaths = new List<Path2D>();
-
-            foreach (var path in Paths)
-            {
             }
 
             return new Path2DGroup(resultPaths.ToArray());
@@ -355,9 +376,11 @@ namespace theori.Graphics
         }
 
         [MoonSharpHidden]
-        public Path2DGroup Flatten(float scale = 1.0f)
+        public Path2DGroup Flatten(float scalex = 1.0f, float scaley = 1.0f)
         {
             var result = new List<Path2D>();
+
+            var scale = new Vector2(scalex, scaley);
 
             var data = new List<ScreenSpacePointData>();
             AngularDirection winding = AngularDirection.Clockwise;

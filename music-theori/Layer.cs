@@ -88,6 +88,7 @@ namespace theori
 
         private readonly BasicSpriteRenderer m_spriteRenderer;
         private readonly RenderBatch2D m_renderer2D;
+        private RenderBatcher2D? m_batch = null;
 
         protected readonly ScriptProgram m_script;
 
@@ -128,9 +129,6 @@ namespace theori
         public readonly ScriptEvent evtControllerReleased;
         public readonly ScriptEvent evtControllerAxisChanged;
         public readonly ScriptEvent evtControllerAxisTicked;
-
-        private VectorFont m_currentFont = VectorFont.Default;
-        private int m_currentFontSize = 64;
 
         #endregion
 
@@ -282,6 +280,37 @@ namespace theori
             tblTheoriGraphics["getStaticTexture"] = (Func<string, Texture>)(textureName => StaticResources.GetTexture($"textures/{ textureName }"));
             tblTheoriGraphics["queueTextureLoad"] = (Func<string, Texture>)(textureName => m_resources.QueueTextureLoad($"textures/{ textureName }"));
             tblTheoriGraphics["getTexture"] = (Func<string, Texture>)(textureName => m_resources.GetTexture($"textures/{ textureName }"));
+            //tblTheoriGraphics["getFont"] = (Func<string, VectorFont>)(fontName => m_resources.GetTexture($"fonts/{ fontName }"));
+            tblTheoriGraphics["getViewportSize"] = (Func<DynValue>)(() => NewTuple(NewNumber(Window.Width), NewNumber(Window.Height)));
+            tblTheoriGraphics["createPathCommands"] = (Func<Path2DCommands>)(() => new Path2DCommands());
+
+            tblTheoriGraphics["flush"] = (Action)(() => m_batch?.Flush());
+            tblTheoriGraphics["saveTransform"] = (Action)(() => m_batch?.SaveTransform());
+            tblTheoriGraphics["restoreTransform"] = (Action)(() => m_batch?.RestoreTransform());
+            tblTheoriGraphics["resetTransform"] = (Action)(() => m_batch?.ResetTransform());
+            tblTheoriGraphics["translate"] = (Action<float, float>)((x, y) => m_batch?.Translate(x, y));
+            tblTheoriGraphics["rotate"] = (Action<float>)(d => m_batch?.Rotate(d));
+            tblTheoriGraphics["scale"] = (Action<float, float>)((x, y) => m_batch?.Scale(x, y));
+            tblTheoriGraphics["shear"] = (Action<float, float>)((x, y) => m_batch?.Shear(x, y));
+            tblTheoriGraphics["setFillToColor"] = (Action<float, float, float, float>)((r, g, b, a) => m_batch?.SetFillColor(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f));
+            tblTheoriGraphics["setFillToTexture"] = (Action<Texture, float, float, float, float>)((texture, r, g, b, a) => m_batch?.SetFillTexture(texture, new Vector4(r, g, b, a) / 255.0f));
+            tblTheoriGraphics["fillRect"] = (Action<float, float, float, float>)((x, y, w, h) => m_batch?.FillRectangle(x, y, w, h));
+            tblTheoriGraphics["fillRoundedRect"] = (Action<float, float, float, float, float>)((x, y, w, h, r) => m_batch?.FillRoundedRectangle(x, y, w, h, r));
+            tblTheoriGraphics["fillRoundedRectVarying"] = (Action<float, float, float, float, float, float, float, float>)((x, y, w, h, rtl, rtr, rbr, rbl) => m_batch?.FillRoundedRectangleVarying(x, y, w, h, rtl, rtr, rbr, rbl));
+            tblTheoriGraphics["setFont"] = (Action<VectorFont?>)(font => m_batch?.SetFont(font));
+            tblTheoriGraphics["setFontSize"] = (Action<int>)(size => m_batch?.SetFontSize(size));
+            tblTheoriGraphics["setTextAlign"] = (Action<Anchor>)(align => m_batch?.SetTextAlign(align));
+            tblTheoriGraphics["fillString"] = (Action<string, float, float>)((text, x, y) => m_batch?.FillString(text, x, y));
+            tblTheoriGraphics["fillPathAt"] = (Action<Path2DCommands, float, float, float, float>)((path, x, y, sx, sy) => m_batch?.FillPathAt(path, x, y, sx, sy));
+            tblTheoriGraphics["saveScissor"] = (Action)(() => m_batch?.SaveScissor());
+            tblTheoriGraphics["restoreScissor"] = (Action)(() => m_batch?.RestoreScissor());
+            tblTheoriGraphics["resetScissor"] = (Action)(() => m_batch?.ResetScissor());
+            tblTheoriGraphics["scissor"] = (Action<float, float, float, float>)((x, y, w, h) => m_batch?.Scissor(x, y, w, h));
+            // setColor -> setFillToColor
+            // setImageColor -> setFillToTexture
+            // draw -> fillRect
+            // drawString -> fillString
+#if false
             tblTheoriGraphics["flush"] = (Action)(() => m_spriteRenderer.Flush());
             tblTheoriGraphics["saveTransform"] = (Action)(() => m_spriteRenderer.SaveTransform());
             tblTheoriGraphics["restoreTransform"] = (Action)(() => m_spriteRenderer.RestoreTransform());
@@ -297,11 +326,12 @@ namespace theori
             tblTheoriGraphics["draw"] = (Action<Texture, float, float, float, float>)((texture, x, y, w, h) => m_spriteRenderer.Image(texture, x, y, w, h));
             tblTheoriGraphics["setFontSize"] = (Action<int>)(size => m_spriteRenderer.SetFontSize(size));
             tblTheoriGraphics["setTextAlign"] = (Action<Anchor>)(align => m_spriteRenderer.SetTextAlign(align));
-            tblTheoriGraphics["drawString"] = (Action<string, float, float>)((text, x, y) => m_spriteRenderer.Write(text, x, y));
+            tblTheoriGraphics["drawString"] = (Action<string, float, float>)((text, x, y) => { });
             tblTheoriGraphics["saveScissor"] = (Action)(() => m_spriteRenderer.SaveScissor());
             tblTheoriGraphics["restoreScissor"] = (Action)(() => m_spriteRenderer.RestoreScissor());
             tblTheoriGraphics["resetScissor"] = (Action)(() => m_spriteRenderer.ResetScissor());
             tblTheoriGraphics["scissor"] = (Action<float, float, float, float>)((x, y, w, h) => m_spriteRenderer.Scissor(x, y, w, h));
+#endif
 
             tblTheoriGraphics["openCurtain"] = (Action)OpenCurtain;
             tblTheoriGraphics["closeCurtain"] = (Action<float, DynValue?>)((duration, callback) =>
@@ -563,55 +593,14 @@ namespace theori
 
         public virtual void Render()
         {
-            m_spriteRenderer.BeginFrame();
+            //m_spriteRenderer.BeginFrame();
+
+            using var batch = m_renderer2D.Use();
+            m_batch = batch;
+
             m_script.Call(tblTheoriLayer["render"]);
 
-#if false
-            m_spriteRenderer.Flush();
-            m_spriteRenderer.ResetScissor();
-            m_spriteRenderer.ResetTransform();
-            m_spriteRenderer.SetImageColor(255, 255, 255, 255);
-
-            float x = 10, y = 10;
-            foreach (var sheet in m_currentFont.GetFontAtlas(m_currentFontSize).DebugAllTextures)
-            {
-                float w = sheet.Width, h = sheet.Height;
-                if (x + w + 10 >= Window.Width)
-                {
-                    x = 10;
-                    y += h;
-                }
-
-                m_spriteRenderer.Image(sheet, x, y, w, h);
-            }
-#endif
-
-            m_spriteRenderer.EndFrame();
-
-#if true
-            using var batch = m_renderer2D.Use();
-
-            batch.SetFont(m_currentFont, m_currentFontSize + 32 * MathL.Abs(MathL.Sin(Time.Total * 1.5f)));
-            batch.DrawString("Hello, world! 日本語です。", 10, Window.Height - 10);
-#endif
-
-#if false
-            using var batch = m_renderer2D.Use();
-
-            batch.Test0(100, 100, 400, 400);
-
-            batch.Test(200, 700, 200, 200);
-            batch.Test2(500, 700, 100, 200);
-
-#if false
-            static float R(int i) => MathL.Abs(MathL.Sin(Time.Total + i * MathL.Pi / 4)) * 250;
-            batch.FillRoundedRectangleVarying(100, 100, 500, 500, R(0), R(1), R(2), R(3));
-            batch.StrokeRoundedRectangleVarying(100, 100, 500, 500, 20, -5, R(0), R(1), R(2), R(3));
-
-            batch.FillRectangle(700, 100, 500, 500);
-            batch.StrokeRectangle(700, 100, 500, 500, 20, -5);
-#endif
-#endif
+            //m_spriteRenderer.EndFrame();
         }
         public virtual void LateRender() { }
 

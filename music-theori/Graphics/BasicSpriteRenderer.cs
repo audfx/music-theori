@@ -33,7 +33,6 @@ namespace theori.Graphics
 
         private RenderQueue? m_queue;
 
-        private FontCollection m_font = FontCollection.Default;
         private int m_fontSize = 48;
 
         [MoonSharpHidden]
@@ -66,8 +65,7 @@ namespace theori.Graphics
             m_drawColor = Vector4.One;
             m_imageColor = Vector4.One;
             m_textAlign = Anchor.TopLeft;
-
-            SetFont(null);
+            
             SetFontSize(16);
 
             Vector2 viewportSize = m_viewport ?? new Vector2(Window.Width, Window.Height);
@@ -236,12 +234,6 @@ namespace theori.Graphics
             else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
         }
 
-        public void SetFont(FontCollection? font)
-        {
-            if (font == null) font = FontCollection.Default;
-            m_font = font;
-        }
-
         public void SetFontSize(int size)
         {
             m_fontSize = size;
@@ -250,99 +242,6 @@ namespace theori.Graphics
         public void SetTextAlign(Anchor align)
         {
             m_textAlign = align;
-        }
-
-        public void Write(string text, float x, float y)
-        {
-            // sort by texture to facilitate batching in the future
-            Dictionary<Texture, List<(int X, int Y, (int X, int Y, GlyphInfo Info) GlyphInfo)>> glyphs = new Dictionary<Texture, List<(int, int, (int, int, GlyphInfo))>>();
-
-            var atlas = m_font.GetFontAtlas(m_fontSize);
-            int dx = 0, dh = 0;
-
-            foreach (char c in text)
-            {
-                if (c == ' ')
-                {
-                    dx += atlas.SpaceWidth;
-                    continue;
-                }
-
-                var info = atlas.GetTextureInfoForCharacter(c);
-                if (!glyphs.TryGetValue(info.Texture, out var glyphList))
-                    glyphList = glyphs[info.Texture] = new List<(int, int, (int, int, GlyphInfo))>();
-
-                glyphList.Add((dx, 0, (info.X, info.Y, info.Info)));
-                dx += info.Info.Width;
-                dh = MathL.Max(dh, info.Info.Height);
-            }
-
-            Vector2 offset = Vector2.Zero, size = new Vector2(dx, dh);
-            switch ((Anchor)((int)m_textAlign & 0x0F))
-            {
-                case Anchor.Top: break;
-                case Anchor.Middle: offset.Y = (int)(-size.Y / 2); break;
-                case Anchor.Bottom: offset.Y = -size.Y; break;
-            }
-
-            switch ((Anchor)((int)m_textAlign & 0xF0))
-            {
-                case Anchor.Left: break;
-                case Anchor.Center: offset.X = (int)(-size.X / 2); break;
-                case Anchor.Right: offset.X = -size.X; break;
-            }
-
-            foreach (var (texture, glyphList) in glyphs)
-            {
-                foreach (var glyph in glyphList)
-                {
-                    var p = new MaterialParams();
-                    p["MainTexture"] = texture;
-                    p["TempMappedTextureCoords"] = new Vector4(glyph.GlyphInfo.X / (float)texture.Width, (glyph.GlyphInfo.Y) / (float)texture.Height,
-                        glyph.GlyphInfo.Info.Width / (float)texture.Width, glyph.GlyphInfo.Info.Height / (float)texture.Height);
-                    p["Color"] = m_drawColor;
-
-                    var transform = Transform.Scale(glyph.GlyphInfo.Info.Width, glyph.GlyphInfo.Info.Height, 1)
-                            * Transform.Translation(x + glyph.X + offset.X, y + glyph.Y + offset.Y, 0);
-
-                    if (m_scissor is Rect scissor)
-                        m_queue!.Draw(scissor, transform * m_transform, m_rectMesh, m_basicMaterial, p);
-                    else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
-                }
-            }
-
-#if false
-            var rasterizer = new TextRasterizer(m_font, m_fontSize, text);
-            rasterizer.Rasterize();
-
-            m_rasterizers.Add(rasterizer);
-
-            Vector2 offset = Vector2.Zero, size = new Vector2(rasterizer.Width, rasterizer.Height);
-            switch ((Anchor)((int)m_textAlign & 0x0F))
-            {
-                case Anchor.Top: break;
-                case Anchor.Middle: offset.Y = (int)(-size.Y / 2); break;
-                case Anchor.Bottom: offset.Y = -size.Y; break;
-            }
-
-            switch ((Anchor)((int)m_textAlign & 0xF0))
-            {
-                case Anchor.Left: break;
-                case Anchor.Center: offset.X = (int)(-size.X / 2); break;
-                case Anchor.Right: offset.X = -size.X; break;
-            }
-
-            var transform = Transform.Scale(rasterizer.Width, rasterizer.Height, 1)
-                          * Transform.Translation(x + offset.X, y + offset.Y, 0);
-
-            var p = new MaterialParams();
-            p["MainTexture"] = rasterizer.Texture;
-            p["Color"] = m_drawColor;
-
-            if (m_scissor is Rect scissor)
-                m_queue!.Draw(scissor, transform * m_transform, m_rectMesh, m_basicMaterial, p);
-            else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
-#endif
         }
 
 #endregion

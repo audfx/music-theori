@@ -4,18 +4,20 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 
-using theori.Graphics.OpenGL;
+using theori.Resources;
+
+using MoonSharp.Interpreter;
 
 using SixLabors.Fonts;
 
 using SL_Font = SixLabors.Fonts.Font;
-using theori.Resources;
 
 namespace theori.Graphics
 {
     public struct VectorGlyphInfo
     {
         public float EmSize, AdvanceWidth;
+        public float LineHeight;
     }
 
     public class VectorFont
@@ -27,27 +29,35 @@ namespace theori.Graphics
             Default = new VectorFont(ClientResourceLocator.Default.OpenFileStream("fonts/osaka.unicode.ttf"));
         }
 
-        private readonly SixLabors.Fonts.FontCollection m_collection = new SixLabors.Fonts.FontCollection();
+        private readonly FontCollection m_collection = new FontCollection();
         private readonly FontFamily m_family;
         private readonly SL_Font m_font;
 
         private readonly Dictionary<int, VectorGlyphInfo> m_infos = new Dictionary<int, VectorGlyphInfo>();
         private readonly Dictionary<int, Path2DCommands> m_paths = new Dictionary<int, Path2DCommands>();
 
+        [MoonSharpHidden]
+        public float EmSize => m_font.EmSize;
+
+        [MoonSharpHidden]
         public VectorFont(string systemFont)
         {
             m_family = SystemFonts.Families.Where(family => family.Name == systemFont).SingleOrDefault() ?? throw new ArgumentException(nameof(systemFont));
             m_font = m_family.CreateFont(64, FontStyle.Regular);
+
             AddCharacters("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,<.>/?;:'\"\\|]}[{`~_-=+!@#$%^&^*()");
         }
 
+        [MoonSharpHidden]
         public VectorFont(Stream fontStream)
         {
             m_family = m_collection.Install(fontStream);
             m_font = m_family.CreateFont(64, FontStyle.Regular);
+
             AddCharacters("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,<.>/?;:'\"\\|]}[{`~_-=+!@#$%^&^*()");
         }
 
+        [MoonSharpHidden]
         public bool TryGetGlyphData(char c, out VectorGlyphInfo info, out Path2DCommands cmds)
         {
             AddCharacter(c);
@@ -75,6 +85,7 @@ namespace theori.Graphics
             {
                 EmSize = glyph.SizeOfEm,
                 AdvanceWidth = glyph.AdvanceWidth,
+                LineHeight = m_font.LineHeight,
             };
 
             var cmds = new Path2DCommands();
