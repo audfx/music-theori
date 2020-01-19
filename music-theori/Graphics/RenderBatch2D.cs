@@ -357,33 +357,18 @@ namespace theori.Graphics
 
         private void Fill(Path2DGroup pathGroup, Vector2 offset = default)
         {
-            var paths = pathGroup.Paths;
-
-            var t = new Tess();
-            foreach (var path in paths)
-            {
-                var cVerts = path.Points.Select(pt => new ContourVertex(new Vec3(pt.Position.X + offset.X, pt.Position.Y + offset.Y, 0), pt));
-                t.AddContour(cVerts.ToArray(), path.Winding == AngularDirection.Clockwise ? ContourOrientation.Clockwise : ContourOrientation.CounterClockwise);
-            }
-
-            t.Tessellate();
+            var pathVerts = pathGroup.GetVertices().Select(v => new VertexRB2D(m_fillKind, Vector2.Transform(v.Position + offset, m_transform.Matrix), v.TexCoord, m_vertexColor));
 
             int vidx = m_vertexCount;
-            for (int i = 0; i < t.Vertices.Length; i++)
-            {
-                var vertex = t.Vertices[i];
-                var pointData = (ScreenSpacePointData)vertex.Data;
-                var tCoords = pointData.RelativeTextureCoord;
-                var tPos = Vector2.Transform(new Vector2(vertex.Position.X, vertex.Position.Y), m_transform.Matrix);
-                m_vertices[vidx + i] = new VertexRB2D(m_fillKind, tPos, tCoords, m_vertexColor);
-            }
+            foreach (var vert in pathVerts)
+                m_vertices[vidx++] = vert;
 
             int iidx = m_indexCount;
-            for (int i = 0; i < t.Elements.Length; i++)
-                m_indices[iidx + i] = (ushort)(vidx + t.Elements[i]);
+            foreach (ushort index in pathGroup.GetIndices())
+                m_indices[iidx++] = (ushort)(m_vertexCount + index);
 
-            m_vertexCount += t.Vertices.Length;
-            m_indexCount += t.Elements.Length;
+            m_vertexCount = vidx;
+            m_indexCount = iidx;
         }
 
         private void AddTriangle(VertexRB2D v0, VertexRB2D v1, VertexRB2D v2)
@@ -497,15 +482,15 @@ namespace theori.Graphics
                     continue;
 
                 xBounds += scale * info.AdvanceWidth;
-                yBounds = MathL.Max(yBounds, info.LineHeight);
+                yBounds = MathL.Max(yBounds, info.LineHeight * scale);
             }
 
             float xOffset = 0, yOffset = 0;
             switch ((Anchor)((int)m_textAlign & 0x0F))
             {
-                case Anchor.Top: break;
-                case Anchor.Middle: yOffset = (int)(-yBounds / 2); break;
-                case Anchor.Bottom: yOffset = -yBounds; break;
+                case Anchor.Top: yOffset = yBounds; break;
+                case Anchor.Middle: yOffset = (int)(yBounds / 2); break;
+                case Anchor.Bottom: break;
             }
 
             switch ((Anchor)((int)m_textAlign & 0xF0))
@@ -524,7 +509,9 @@ namespace theori.Graphics
                 if (text[i] != ' ')
                 {
                     var paths = cmds.Flatten(scale, scale);
-                    Fill(paths, new Vector2(x + xPosition + xOffset, y + yOffset));
+                    var offs = new Vector2(x + xPosition + xOffset, y + yOffset);
+
+                    Fill(paths, offs);
                 }
 
                 xPosition += scale * info.AdvanceWidth;

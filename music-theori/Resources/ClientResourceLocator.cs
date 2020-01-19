@@ -39,7 +39,7 @@ namespace theori.Resources
             m_resourceLoaders.Add(loader);
         }
 
-        private Stream OpenStreamWithExtension(string resourcePath, string[] exts, out string fileExtension)
+        public Stream OpenFileStreamWithExtension(string resourcePath, string[] exts, out string fileExtension)
         {
             if (FileSearchDirectory != null)
             {
@@ -94,13 +94,13 @@ namespace theori.Resources
         public Stream OpenAudioStream(string resourcePath, out string fileExtension)
         {
             string[] exts = { ".ogg", ".wav" };
-            return OpenStreamWithExtension(resourcePath, exts, out fileExtension);
+            return OpenFileStreamWithExtension(resourcePath, exts, out fileExtension);
         }
 
         public Stream OpenTextureStream(string resourcePath, out string fileExtension)
         {
             string[] exts = { ".png" };
-            return OpenStreamWithExtension(resourcePath, exts, out fileExtension);
+            return OpenFileStreamWithExtension(resourcePath, exts, out fileExtension);
         }
 
         public Stream OpenShaderStream(string resourcePath, string fileExtension, out bool usedFallback)

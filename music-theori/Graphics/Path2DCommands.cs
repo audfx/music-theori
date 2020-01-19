@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using LibTessDotNet;
 using MoonSharp.Interpreter;
 using theori;
 
@@ -134,9 +135,52 @@ namespace theori.Graphics
         public float SpanWidth => MaxX - MinX;
         public float SpanHeight => MaxY - MinY;
 
+        private (Vector2 Position, Vector2 TexCoord)[]? m_vertices;
+        private ushort[]? m_indices;
+
         public Path2DGroup(Path2D[] paths)
         {
             Paths = paths;
+        }
+
+        private void Tesselate()
+        {
+            if (m_vertices is null || m_indices is null)
+            {
+                var t = new Tess();
+                foreach (var path in Paths)
+                {
+                    var cVerts = path.Points.Select(pt => new ContourVertex(new Vec3(pt.Position.X, pt.Position.Y, 0), pt));
+                    t.AddContour(cVerts.ToArray(), path.Winding == AngularDirection.Clockwise ? ContourOrientation.Clockwise : ContourOrientation.CounterClockwise);
+                }
+
+                t.Tessellate();
+
+                var vertices = new (Vector2, Vector2)[t.Vertices.Length];
+                for (int i = 0; i < t.Vertices.Length; i++)
+                {
+                    var vertex = t.Vertices[i];
+                    var pointData = vertex.Data as ScreenSpacePointData?;
+                    var tCoords = pointData?.RelativeTextureCoord ?? Vector2.Zero;
+                    var tPos = new Vector2(vertex.Position.X, vertex.Position.Y);
+                    vertices[i] = (tPos, tCoords);
+                }
+
+                m_vertices = vertices;
+                m_indices = t.Elements.Select(e => (ushort)e).ToArray();
+            }
+        }
+
+        public IReadOnlyList<(Vector2 Position, Vector2 TexCoord)> GetVertices()
+        {
+            Tesselate();
+            return m_vertices!;
+        }
+
+        public IReadOnlyList<ushort> GetIndices()
+        {
+            Tesselate();
+            return m_indices!;
         }
 
         public void SetTextureCoordsToPathLocal()
@@ -375,124 +419,135 @@ namespace theori.Graphics
             QuadradicBezierToPoints(toData, new Vector2(x012, y012), new Vector2(x12, y12), v2, level + 1, type);
         }
 
+        private readonly Dictionary<(float, float), Path2DGroup> m_flattenedPaths = new Dictionary<(float, float), Path2DGroup>();
+
         [MoonSharpHidden]
         public Path2DGroup Flatten(float scalex = 1.0f, float scaley = 1.0f)
         {
-            var result = new List<Path2D>();
-
-            var scale = new Vector2(scalex, scaley);
-
-            var data = new List<ScreenSpacePointData>();
-            AngularDirection winding = AngularDirection.Clockwise;
-            bool isClosed = false;
-
-            Vector2 minComponent = new Vector2(float.MaxValue);
-            Vector2 maxComponent = new Vector2(float.MinValue);
-
-            void SetMinMax(Vector2 point)
+            if (!m_flattenedPaths.TryGetValue((scalex, scaley), out var resultGroup))
             {
-                minComponent.X = MathL.Min(minComponent.X, point.X);
-                minComponent.Y = MathL.Min(minComponent.Y, point.Y);
-                maxComponent.X = MathL.Max(maxComponent.X, point.X);
-                maxComponent.Y = MathL.Max(maxComponent.Y, point.Y);
-            }
+                var result = new List<Path2D>();
 
-            void FinishPath()
-            {
-                if (data.Count > 0)
+                var scale = new Vector2(scalex, scaley);
+
+                var data = new List<ScreenSpacePointData>();
+                AngularDirection winding = AngularDirection.Clockwise;
+                bool isClosed = false;
+
+                Vector2 minComponent = new Vector2(float.MaxValue);
+                Vector2 maxComponent = new Vector2(float.MinValue);
+
+                void SetMinMax(Vector2 point)
                 {
-                    result.Add(new Path2D(data.ToArray(), winding, isClosed));
-                    data.Clear();
-                }
-            }
-
-            foreach (var cmd in m_commands)
-            {
-                switch (cmd.Command)
-                {
-                    case Path2DCommandKind.MoveTo:
-                    {
-                        FinishPath();
-
-                        var point = cmd.Points[0];
-                        SetMinMax(cmd.Points[0]);
-
-                        data.Add(new ScreenSpacePointData(point, cmd.Points[0]));
-                    } break;
-
-                    case Path2DCommandKind.LineTo:
-                    {
-                        var point = cmd.Points[0];
-                        SetMinMax(cmd.Points[0]);
-
-                        data.Add(new ScreenSpacePointData(point, cmd.Points[0]));
-                    } break;
-
-                    case Path2DCommandKind.QuadraticBezierTo:
-                    {
-                        int dataIndex = data.Count;
-                        QuadradicBezierToPoints(data, data[^1].Position, cmd.Points[0], cmd.Points[1], 0, 0);
-
-                        for (int i = dataIndex; i < data.Count; i++)
-                            SetMinMax(data[i].Position);
-                    } break;
-
-                    case Path2DCommandKind.CubicBezierTo:
-                    {
-                        int dataIndex = data.Count;
-                        CubicBezierToPoints(data, data[^1].Position, cmd.Points[0], cmd.Points[1], cmd.Points[2], 0, 0);
-
-                        for (int i = dataIndex; i < data.Count; i++)
-                            SetMinMax(data[i].Position);
-                    } break;
-
-                    case Path2DCommandKind.Close: isClosed = true; break;
-                    case Path2DCommandKind.Winding: winding = cmd.WindingArgument; break;
-                }
-            }
-
-            FinishPath();
-
-            var paths = result.ToArray();
-            for (int i = 0; i < paths.Length; i++)
-            {
-                ref var path = ref paths[i];
-
-                if (path.Points[0].Position == path.Points[^1].Position)
-                {
-                    path.IsClosed = true;
-                    var points = path.Points;
-                    path.Points = new ScreenSpacePointData[points.Length - 1];
-                    Array.Copy(points, 0, path.Points, 0, points.Length - 1);
+                    minComponent.X = MathL.Min(minComponent.X, point.X);
+                    minComponent.Y = MathL.Min(minComponent.Y, point.Y);
+                    maxComponent.X = MathL.Max(maxComponent.X, point.X);
+                    maxComponent.Y = MathL.Max(maxComponent.Y, point.Y);
                 }
 
-                if (path.Points.Length > 2)
+                void FinishPath()
                 {
-                    bool isClockwise = path.IsClockwise();
-                    if ((isClockwise && path.Winding != AngularDirection.Clockwise) ||
-                        (!isClockwise && path.Winding != AngularDirection.CounterClockwise))
+                    if (data.Count > 0)
                     {
-                        Array.Reverse(path.Points);
+                        result.Add(new Path2D(data.ToArray(), winding, isClosed));
+                        data.Clear();
                     }
                 }
 
-                for (int j = 0; j < path.Points.Length; j++)
+                foreach (var cmd in m_commands)
                 {
-                    ref var d = ref path.Points[j];
-                    
-                    d.RelativeTextureCoord = (d.RelativeTextureCoord - minComponent) / (maxComponent - minComponent);
+                    switch (cmd.Command)
+                    {
+                        case Path2DCommandKind.MoveTo:
+                        {
+                            FinishPath();
 
-                    int k = (j + 1) % path.Points.Length;
-                    var dir = path.Points[k].Position - d.Position;
+                            var point = cmd.Points[0];
+                            SetMinMax(cmd.Points[0]);
 
-                    d.Direction = Vector2.Normalize(dir);
-                    d.Length = dir.Length();
+                            data.Add(new ScreenSpacePointData(point, cmd.Points[0]));
+                        }
+                        break;
 
-                    d.Position *= scale;
+                        case Path2DCommandKind.LineTo:
+                        {
+                            var point = cmd.Points[0];
+                            SetMinMax(cmd.Points[0]);
+
+                            data.Add(new ScreenSpacePointData(point, cmd.Points[0]));
+                        }
+                        break;
+
+                        case Path2DCommandKind.QuadraticBezierTo:
+                        {
+                            int dataIndex = data.Count;
+                            QuadradicBezierToPoints(data, data[^1].Position, cmd.Points[0], cmd.Points[1], 0, 0);
+
+                            for (int i = dataIndex; i < data.Count; i++)
+                                SetMinMax(data[i].Position);
+                        }
+                        break;
+
+                        case Path2DCommandKind.CubicBezierTo:
+                        {
+                            int dataIndex = data.Count;
+                            CubicBezierToPoints(data, data[^1].Position, cmd.Points[0], cmd.Points[1], cmd.Points[2], 0, 0);
+
+                            for (int i = dataIndex; i < data.Count; i++)
+                                SetMinMax(data[i].Position);
+                        }
+                        break;
+
+                        case Path2DCommandKind.Close: isClosed = true; break;
+                        case Path2DCommandKind.Winding: winding = cmd.WindingArgument; break;
+                    }
                 }
+
+                FinishPath();
+
+                var paths = result.ToArray();
+                for (int i = 0; i < paths.Length; i++)
+                {
+                    ref var path = ref paths[i];
+
+                    if (path.Points[0].Position == path.Points[^1].Position)
+                    {
+                        path.IsClosed = true;
+                        var points = path.Points;
+                        path.Points = new ScreenSpacePointData[points.Length - 1];
+                        Array.Copy(points, 0, path.Points, 0, points.Length - 1);
+                    }
+
+                    if (path.Points.Length > 2)
+                    {
+                        bool isClockwise = path.IsClockwise();
+                        if ((isClockwise && path.Winding != AngularDirection.Clockwise) ||
+                            (!isClockwise && path.Winding != AngularDirection.CounterClockwise))
+                        {
+                            Array.Reverse(path.Points);
+                        }
+                    }
+
+                    for (int j = 0; j < path.Points.Length; j++)
+                    {
+                        ref var d = ref path.Points[j];
+
+                        d.RelativeTextureCoord = (d.RelativeTextureCoord - minComponent) / (maxComponent - minComponent);
+
+                        int k = (j + 1) % path.Points.Length;
+                        var dir = path.Points[k].Position - d.Position;
+
+                        d.Direction = Vector2.Normalize(dir);
+                        d.Length = dir.Length();
+
+                        d.Position *= scale;
+                    }
+                }
+
+                resultGroup = new Path2DGroup(paths);
             }
 
-            return new Path2DGroup(paths);
+            return resultGroup;
         }
 
         [MoonSharpHidden]

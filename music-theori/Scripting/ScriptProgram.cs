@@ -106,7 +106,7 @@ namespace theori.Scripting
             });
 
             // TODO(local): remove global resource manager!!!
-            Script.Globals["res"] = Resources;
+            //Script.Globals["res"] = Resources;
 
             this["Anchor"] = typeof(Anchor);
             this["ScoreRank"] = typeof(ScoreRank);

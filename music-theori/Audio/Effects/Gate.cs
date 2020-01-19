@@ -39,7 +39,8 @@ namespace theori.Audio.Effects
         {
             int numSamples = buffer.Length / 2;
 
-            for(int i = 0; i < numSamples; i++)
+			uint gateDuration = m_gateDuration;
+			for (int i = 0; i < numSamples; i++)
             {
                 float c = 1.0f;
 		        if(m_currentSample < m_halfway)
@@ -64,7 +65,7 @@ namespace theori.Audio.Effects
 		        buffer[i * 2 + 1] *= c;
 
 		        m_currentSample++;
-		        m_currentSample %= m_gateDuration;
+		        m_currentSample %= gateDuration;
             }
         }
     }
