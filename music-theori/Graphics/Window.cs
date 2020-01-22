@@ -204,8 +204,12 @@ namespace theori.Graphics
                     } break;
 
                     case SDL_EventType.SDL_MOUSEMOTION:
+                    {
+                        UserInputService.MouseX = evt.motion.x;
+                        UserInputService.MouseY = evt.motion.y;
+
                         UserInputService.Mouse_Move(evt.motion.xrel, evt.motion.yrel, evt.motion.xrel, evt.motion.yrel);
-                        break;
+                    } break;
                     case SDL_EventType.SDL_MOUSEWHEEL:
                     {
                         int y = evt.wheel.y;

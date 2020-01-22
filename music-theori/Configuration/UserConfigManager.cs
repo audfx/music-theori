@@ -223,9 +223,15 @@ namespace theori.Configuration
 
             void WriteValue(object value)
             {
-                var type = value.GetType();
-                if (type.IsEnum) writer.WriteValue(value.ToString());
-                else writer.WriteValue(value);
+                if (value is null)
+                    writer.WriteNull();
+                else
+                {
+                    var type = value.GetType();
+                    if (type.IsEnum)
+                        writer.WriteValue(value.ToString());
+                    else writer.WriteValue(value);
+                }
             }
 
             writer.Flush();

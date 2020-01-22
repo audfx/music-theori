@@ -173,6 +173,7 @@ namespace theori
             tblTheoriInputMouse["released"] = evtMouseReleased = m_script.NewEvent();
             tblTheoriInputMouse["moved"] = evtMouseMoved = m_script.NewEvent();
             tblTheoriInputMouse["scrolled"] = evtMouseScrolled = m_script.NewEvent();
+            tblTheoriInputMouse["getMousePosition"] = (Func<DynValue>)(() => NewTuple(NewNumber(UserInputService.MouseX), NewNumber(UserInputService.MouseY)));
 
             tblTheoriInputGamepad["connected"] = evtGamepadConnected = m_script.NewEvent();
             tblTheoriInputGamepad["disconnected"] = evtGamepadDisconnected = m_script.NewEvent();
@@ -564,8 +565,8 @@ namespace theori
         public virtual void KeyPressed(KeyInfo info) => evtKeyPressed.Fire(info.KeyCode);
         public virtual void KeyReleased(KeyInfo info) => evtKeyReleased.Fire(info.KeyCode);
 
-        public virtual void MouseButtonPressed(MouseButtonInfo info) => evtMousePressed.Fire(info.Button);
-        public virtual void MouseButtonReleased(MouseButtonInfo info) => evtMouseReleased.Fire(info.Button);
+        public virtual void MouseButtonPressed(MouseButtonInfo info) => evtMousePressed.Fire(info.Button, UserInputService.MouseX, UserInputService.MouseY);
+        public virtual void MouseButtonReleased(MouseButtonInfo info) => evtMouseReleased.Fire(info.Button, UserInputService.MouseX, UserInputService.MouseY);
         public virtual void MouseWheelScrolled(int dx, int dy) => evtMouseScrolled.Fire(dx, dy);
         public virtual void MouseMoved(int x, int y, int dx, int dy) => evtMouseMoved.Fire(x, y, dx, dy);
 
