@@ -9,6 +9,7 @@
 
   <PropertyGroup>
     <Nullable>enable</Nullable>
+    <AssemblyName>theori</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

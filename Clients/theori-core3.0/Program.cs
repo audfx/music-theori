@@ -2,7 +2,19 @@
 using System.Collections.Generic;
 using System.IO;
 
+using theori.Platform;
 using theori.Platform.Windows;
+
+using MoonSharp.Interpreter;
+
+using LuaState = MoonSharp.Interpreter.Script;
+using System.Reflection;
+using System.Threading;
+using MoonSharp.Interpreter.Interop;
+using System.Collections.Concurrent;
+using System.Linq;
+using theori.IO;
+using theori.Scripting;
 
 namespace theori.Core30
 {
@@ -63,6 +75,16 @@ namespace theori.Core30
             Logger.AddLogger(new ConsoleLoggerImpl());
             Logger.AddLogger(new FileLoggerImpl("theori-log.txt"));
 
+            Logger.Log(string.Join('\t', args));
+
+            if (args.Length > 0) Environment.CurrentDirectory = args[0];
+
+            if (!File.Exists("src/main.lua"))
+            {
+                Logger.Log("Cannot start :theori because there is no main lua file.");
+                return;
+            }
+
             if (RuntimeInfo.IsWindows)
             {
                 new WindowsPlatform().LoadLibrary("x64/SDL2.dll");
@@ -73,5 +95,9 @@ namespace theori.Core30
 
             host.Run(new TheoriClient());
         }
+    }
+
+    class TheoriClient : Client
+    {
     }
 }

@@ -39,11 +39,11 @@ namespace theori.Charting.Effects
         public FilterType FilterType;
 
         [TheoriProperty("q")]
-        public EffectParamF Q;
+        public EffectParamF Q = 0;
         [TheoriProperty("gain")]
-        public EffectParamF Gain;
+        public EffectParamF Gain = 1;
         [TheoriProperty("frequency")]
-        public EffectParamF Freq;
+        public EffectParamF Freq = 0;
 
         public BiQuadFilterDef() : base(1) { }
         public BiQuadFilterDef(FilterType type, EffectParamF mix,

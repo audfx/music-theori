@@ -10,18 +10,16 @@ using theori.Scripting;
 
 namespace theori.Charting
 {
-    public sealed class ChartHandle : BaseScriptInstance
+    public sealed class ChartHandle : LuaInstance
     {
         [MoonSharpHidden]
         public readonly Chart Chart;
         [MoonSharpHidden]
         public readonly ClientResourceManager Resources;
         [MoonSharpHidden]
-        public readonly ScriptProgram Script;
-        [MoonSharpHidden]
         public readonly ChartDatabaseWorker Worker;
 
-        public ChartSetInfoHandle SetInfo => new ChartSetInfoHandle(Resources, Script, Worker, Chart.SetInfo);
+        public ChartSetInfoHandle SetInfo => new ChartSetInfoHandle(ExecutionEnvironment, Resources, Worker, Chart.SetInfo);
         public ChartInfoHandle Info => SetInfo.Charts.Where(h => h.Object == Chart.Info).Single();
 
         public IEnumerable ControlPoints => Chart.ControlPoints;
@@ -30,10 +28,10 @@ namespace theori.Charting
         public time_t TimeStart => Chart.TimeStart;
         public time_t TimeEnd => Chart.TimeEnd;
 
-        public ChartHandle(ClientResourceManager resources, ScriptProgram script, ChartDatabaseWorker worker, Chart chart)
+        public ChartHandle(ExecutionEnvironment env, ClientResourceManager resources, ChartDatabaseWorker worker, Chart chart)
+            : base(env)
         {
             Resources = resources;
-            Script = script;
             Worker = worker;
             Chart = chart;
         }
@@ -47,9 +45,9 @@ namespace theori.Charting
         public Entity? GetEntityAtTick(HybridLabel laneLabel, tick_t tick, bool includeDuration) => Chart[laneLabel].Find(tick, includeDuration);
 
         public void ForEachEntityInRangeTicks(HybridLabel laneLabel, tick_t startTick, tick_t endTick, DynValue function) =>
-            Chart[laneLabel].ForEachInRange(startTick, endTick, true, entity => Script.Call(function, entity));
+            Chart[laneLabel].ForEachInRange(startTick, endTick, true, entity => ExecutionEnvironment.Call(function, entity));
         public void ForEachEntityInRangeTicks(HybridLabel laneLabel, tick_t startTick, tick_t endTick, bool includeDuration, DynValue function) => 
-            Chart[laneLabel].ForEachInRange(startTick, endTick, includeDuration, entity => Script.Call(function, entity));
+            Chart[laneLabel].ForEachInRange(startTick, endTick, includeDuration, entity => ExecutionEnvironment.Call(function, entity));
 
         public void AddEntity(HybridLabel lane, Entity entity) => Chart[lane].Add(entity);
         public Entity AddEntity(HybridLabel lane, string entityType, tick_t position, tick_t duration)

@@ -302,7 +302,7 @@ namespace theori.IO
         internal static void Keyboard_KeyPress(KeyInfo info)
         {
             Profiler.Instant("UserInputService::Keyboard_KeyPress", "p", ("key", info.KeyCode.ToString()));
-
+            
             bool pressed = heldKeys.Add(info.KeyCode);
             if (!pressed) return;
 

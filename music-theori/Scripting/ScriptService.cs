@@ -11,6 +11,7 @@ using theori.Resources;
 using theori.Scoring;
 
 using MoonSharp.Interpreter;
+using MoonSharp.Interpreter.Interop;
 
 namespace theori.Scripting
 {
@@ -55,14 +56,8 @@ namespace theori.Scripting
             RegisterType<BasicSpriteRenderer>();
             RegisterType<ClientResourceManager>();
 
-            RegisterType<ScriptWindowInterface>();
-
             RegisterType<ScriptEvent>();
             RegisterType<ScriptEvent.Connection>();
-
-            RegisterType<BaseScriptInstance>();
-            RegisterType<ScriptDataModel>();
-            RegisterType<ScriptResources>();
 
             RegisterType<Chart.ChartLane>();
             RegisterType<Chart.ControlPointList>();
@@ -72,11 +67,10 @@ namespace theori.Scripting
             RegisterType<ChartHandle>();
             RegisterType<AudioHandle>();
             RegisterType<ChartSetInfoHandle>();
-            RegisterType<ChartSetInfoSubsection>();
             RegisterType<ChartInfoHandle>();
         }
 
-        public static void RegisterType<T>() => UserData.RegisterType<T>();
+        public static IUserDataDescriptor RegisterType<T>() => UserData.RegisterType<T>();
         public static void RegisterType(Type type) => UserData.RegisterType(type);
 
         public static void RegisterAssembly(Assembly? assembly = null, bool includeExtensionTypes = false) =>

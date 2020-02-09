@@ -22,9 +22,9 @@ namespace theori.Charting
         /// Used if we support custom serialization for entities.
         /// Needs to be removed otherwise.
         /// </summary>
-        public readonly Type SerializerType;
+        public readonly Type? SerializerType;
 
-        public EntityTypeAttribute(string name, Type serializerType = null)
+        public EntityTypeAttribute(string name, Type? serializerType = null)
         {
             Name = name;
             SerializerType = serializerType;
@@ -34,9 +34,9 @@ namespace theori.Charting
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class TheoriPropertyAttribute : Attribute
     {
-        public readonly string OverrideName;
+        public readonly string? OverrideName;
 
-        public TheoriPropertyAttribute(string overrideName = null)
+        public TheoriPropertyAttribute(string? overrideName = null)
         {
             OverrideName = overrideName;
         }
@@ -62,15 +62,15 @@ namespace theori.Charting
         private static readonly Dictionary<string, Type> entityTypesById = new Dictionary<string, Type>();
         private static readonly Dictionary<Type, string> entityIdsByType = new Dictionary<Type, string>();
 
-        public static Type GetEntityTypeById(string id)
+        public static Type? GetEntityTypeById(string id)
         {
             if (entityTypesById.TryGetValue(id, out var type))
                 return type;
             return null;
         }
 
-        public static string GetEntityId<T>() where T : Entity => GetEntityIdByType(typeof(T));
-        public static string GetEntityIdByType(Type type)
+        public static string? GetEntityId<T>() where T : Entity => GetEntityIdByType(typeof(T));
+        public static string? GetEntityIdByType(Type type)
         {
             if (entityIdsByType.TryGetValue(type, out string id))
                 return id;
@@ -127,7 +127,7 @@ namespace theori.Charting
         internal HybridLabel m_lane;
 
         [MoonSharpVisible(true)]
-        public string TypeId => GetEntityIdByType(GetType());
+        public string TypeId => GetEntityIdByType(GetType()) ?? throw new InvalidOperationException("This entity type has not been registered.");
 
         /// <summary>
         /// The position, in measures, of this entity.
@@ -231,15 +231,15 @@ namespace theori.Charting
         public bool HasNext => Next != null;
 
         [MoonSharpVisible(true)]
-        public Entity Previous => ((ILinkable<Entity>)this).Previous;
-        Entity ILinkable<Entity>.Previous { get; set; }
+        public Entity? Previous => ((ILinkable<Entity>)this).Previous;
+        Entity? ILinkable<Entity>.Previous { get; set; } = null;
 
         [MoonSharpVisible(true)]
-        public Entity Next => ((ILinkable<Entity>)this).Next;
-        Entity ILinkable<Entity>.Next { get; set; }
+        public Entity? Next => ((ILinkable<Entity>)this).Next;
+        Entity? ILinkable<Entity>.Next { get; set; } = null;
 
         [MoonSharpVisible(true)]
-        public Entity PreviousConnected
+        public Entity? PreviousConnected
         {
             get
             {
@@ -249,7 +249,7 @@ namespace theori.Charting
         }
 
         [MoonSharpVisible(true)]
-        public Entity NextConnected
+        public Entity? NextConnected
         {
             get
             {
@@ -265,7 +265,7 @@ namespace theori.Charting
             var current = (T)this;
             while (current?.PreviousConnected is T prev)
                 current = prev;
-            return current;
+            return current!;
         }
 
         [MoonSharpHidden]
@@ -275,11 +275,11 @@ namespace theori.Charting
             var current = (T)this;
             while (current?.NextConnected is T next)
                 current = next;
-            return current;
+            return current!;
         }
 
         [MoonSharpVisible(true)]
-        public Chart Chart { get; internal set; }
+        public Chart? Chart { get; internal set; }
 
         [MoonSharpHidden]
         public Entity()

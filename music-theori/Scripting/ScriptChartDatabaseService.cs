@@ -1,43 +1,30 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
 
-using theori.Charting;
-using theori.Database;
-using theori.Resources;
-
-using MoonSharp;
 using MoonSharp.Interpreter;
 
-using static MoonSharp.Interpreter.DynValue;
-using System.Linq;
-using System;
-using theori.Graphics.OpenGL;
-using System.IO;
-using theori.Configuration;
-using System.Diagnostics;
-using System.Text;
 using theori.Audio;
+using theori.Charting;
+using theori.Database;
+using theori.Graphics.OpenGL;
+using theori.Resources;
+
+using static MoonSharp.Interpreter.DynValue;
 
 namespace theori.Scripting
 {
-    public sealed class ScriptChartDatabaseService : BaseScriptInstance
-    {
-        public static readonly ScriptChartDatabaseService Instance = new ScriptChartDatabaseService();
-
-        private ScriptChartDatabaseService()
-        {
-        }
-
-        public IEnumerable<ChartSetInfo> GetChartSets() => ChartDatabaseService.ChartSets;
-        public IEnumerable<ChartInfo> GetCharts() => ChartDatabaseService.Charts;
-    }
-
-    public abstract class LuaObjectHandle<T> : BaseScriptInstance
+    public abstract class LuaObjectHandle<T> : LuaInstance
     {
         public static implicit operator T(LuaObjectHandle<T> handle) => handle.Object;
 
         public readonly T Object;
 
-        protected LuaObjectHandle(T obj)
+        protected LuaObjectHandle(ExecutionEnvironment env, T obj)
+            : base(env)
         {
             Object = obj;
         }
@@ -45,10 +32,8 @@ namespace theori.Scripting
 
     public class AudioHandle : LuaObjectHandle<AudioTrack>
     {
-        public static implicit operator AudioHandle(AudioTrack audio) => new AudioHandle(audio);
-
-        public AudioHandle(AudioTrack audio)
-            : base(audio)
+        public AudioHandle(ExecutionEnvironment env, AudioTrack audio)
+            : base(env, audio)
         {
             audio.Channel = Mixer.MasterChannel;
             audio.RemoveFromChannelOnFinish = false;
@@ -84,16 +69,14 @@ namespace theori.Scripting
         //public static implicit operator NscChartSetInfoHandle(ChartSetInfo audio) => new NscChartSetInfoHandle(audio);
 
         internal readonly ClientResourceManager Resources;
-        internal readonly ScriptProgram Script;
         internal readonly ChartDatabaseWorker Worker;
 
         private List<ChartInfoHandle>? m_charts;
 
-        public ChartSetInfoHandle(ClientResourceManager resources, ScriptProgram script, ChartDatabaseWorker worker, ChartSetInfo info)
-            : base(info)
+        public ChartSetInfoHandle(ExecutionEnvironment env, ClientResourceManager resources, ChartDatabaseWorker worker, ChartSetInfo info)
+            : base(env, info)
         {
             Resources = resources;
-            Script = script;
             Worker = worker;
         }
 
@@ -124,57 +107,15 @@ namespace theori.Scripting
             .Select(info => new ChartInfoHandle(this, info)).ToList());
     }
 
-    public sealed class ChartSetInfoSubsection : BaseScriptInstance
-    {
-        public ChartSetInfoHandle Set { get; }
-
-        private readonly Dictionary<int, List<ChartInfoHandle>> m_charts = new Dictionary<int, List<ChartInfoHandle>>();
-
-        public List<ChartInfoHandle> this[int difficultyIndex]
-        {
-            get
-            {
-                if (!m_charts.TryGetValue(difficultyIndex, out var diffs))
-                    m_charts[difficultyIndex] = diffs = new List<ChartInfoHandle>();
-                return diffs;
-            }
-        }
-
-        public ChartSetInfoSubsection(ChartSetInfoHandle chartSet, IEnumerable<ChartInfoHandle> relevantCharts)
-        {
-            Set = chartSet;
-            foreach (var chart in relevantCharts)
-                this[chart.DifficultyIndex].Add(chart);
-        }
-
-        public ChartSetInfoSubsection(ChartSetInfoHandle chartSet, params ChartInfoHandle[] relevantCharts)
-        {
-            Set = chartSet;
-            foreach (var chart in relevantCharts)
-                this[chart.DifficultyIndex].Add(chart);
-        }
-
-        [MoonSharpHidden]
-        internal void Concat(ChartSetInfoSubsection other)
-        {
-            foreach (var (key, value) in other.m_charts)
-            {
-                foreach (var chart in value)
-                    this[key].Add(chart);
-            }
-        }
-    }
-
     public sealed class ChartInfoHandle : LuaObjectHandle<ChartInfo>
     {
         internal ClientResourceManager Resources => Set.Resources;
-        internal ScriptProgram Script => Set.Script;
         internal ChartDatabaseWorker Worker => Set.Worker;
 
         private Texture? m_jacketTexture;
 
         public ChartInfoHandle(ChartSetInfoHandle setInfo, ChartInfo info)
-            : base(info)
+            : base(setInfo.ExecutionEnvironment, info)
         {
             Set = setInfo;
         }
@@ -252,7 +193,7 @@ namespace theori.Scripting
             string configString = ChartDatabaseService.GetLocalConfigForChart(Object);
 
             string[] entries = configString.Split(';');
-            var config = Script.NewTable();
+            var config = ExecutionEnvironment.NewTable();
 
             foreach (string entry in entries)
             {

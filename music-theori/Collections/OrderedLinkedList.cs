@@ -3,8 +3,8 @@
     public interface ILinkable<T>
         where T : class
     {
-        T Previous { get; set; }
-        T Next { get; set; }
+        T? Previous { get; set; }
+        T? Next { get; set; }
     }
 
     public class OrderedLinkedList<T> : OrderedList<T>

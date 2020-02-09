@@ -152,9 +152,10 @@ namespace System
         }
 
         public static T[] FillDefault<T>(this T[] arr)
+            where T : struct
         {
             for (int i = 0, len = arr.Length; i < len; i++)
-                arr[i] = default(T);
+                arr[i] = default;
             return arr;
         }
 

@@ -2,21 +2,35 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using MoonSharp.Interpreter;
+
 using theori.IO;
 using theori.Platform;
+using theori.Scripting;
 
 namespace theori
 {
     public sealed class LayerStack
     {
+        static LayerStack()
+        {
+            ScriptService.RegisterType<LayerStack>();
+        }
+
+        [MoonSharpHidden]
         public long CurrentTargetFrameTimeMillis => m_layers.TryPeek(out var layer) ? layer.TargetFrameRate == 0 ? 0 : 1000 / layer.TargetFrameRate : 0;
 
         private readonly Client m_owner;
+
+        private InputService InputService => m_owner.ScriptExecutionEnvironment.InputService;
 
         private readonly Stack<Layer> m_layers = new Stack<Layer>();
 
         private readonly Queue<Action> m_scheduled = new Queue<Action>();
         private readonly List<(Task<bool> Task, Action Action)> m_loadOps = new List<(Task<bool> Task, Action Action)>();
+
+        public Layer? Top => m_layers.TryPeek(out var top) ? top : null;
+        public int Count => m_layers.Count;
 
         internal LayerStack(Client owner, Layer? initialLayer = null)
         {
@@ -24,6 +38,7 @@ namespace theori
             if (initialLayer != null) Push(null, initialLayer!);
         }
 
+        [MoonSharpHidden]
         public bool Push(Layer? source, Layer nextLayer)
         {
             if (source == null && m_layers.Count > 0)
@@ -35,6 +50,9 @@ namespace theori
             return true;
         }
 
+        public bool Push(Layer nextLayer) => Push(Top, nextLayer);
+
+        [MoonSharpHidden]
         public void Pop(Layer? source)
         {
             if (source == null || !m_layers.Contains(source))
@@ -45,6 +63,8 @@ namespace theori
 
             Schedule(() => PopFrom(source));
         }
+
+        public void PopTop() => Pop(Top);
 
         private void PopFrom(Layer? source)
         {
@@ -57,7 +77,7 @@ namespace theori
             m_layers.Pop(); // = toRemove
 
             toRemove.validForResume = false;
-            toRemove.Destroy(); // TODO(local): queue destroys?
+            toRemove.OnDestroy(); // TODO(local): queue destroys?
 
             ResumeFrom(source);
         }
@@ -136,12 +156,13 @@ namespace theori
             }
         }
 
+        [MoonSharpHidden]
         public void BeginInputStep()
         {
         }
 
-        internal void KeyPressed(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.KeyPressed(info); }
-        internal void KeyReleased(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.KeyReleased(info); }
+        internal void KeyPressed(KeyInfo info) { InputService.OnKeyPressed(info); if (m_layers.Count > 0) m_layers.Peek()!.KeyPressed(info); }
+        internal void KeyReleased(KeyInfo info) { InputService.OnKeyReleased(info); if (m_layers.Count > 0) m_layers.Peek()!.KeyReleased(info); }
 
         internal void MouseButtonPressed(MouseButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.MouseButtonPressed(info); }
         internal void MouseButtonReleased(MouseButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.MouseButtonReleased(info); }
@@ -162,52 +183,62 @@ namespace theori
         internal void ControllerAxisChanged(ControllerAxisInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.ControllerAxisChanged(info); }
         internal void ControllerAxisTicked(ControllerAxisTickInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.ControllerAxisTicked(info); }
 
+        [MoonSharpHidden]
         public void EndInputStep()
         {
         }
 
+        [MoonSharpHidden]
         public void BeginUpdateStep()
         {
         }
 
+        [MoonSharpHidden]
         public void FixedUpdate(float fixedDelta, float totalTime)
         {
             if (m_layers.TryPeek(out var topLayer))
                 topLayer.FixedUpdate(fixedDelta, totalTime);
         }
 
+        [MoonSharpHidden]
         public void Update(float varyingDelta, float totalTime)
         {
             if (m_layers.TryPeek(out var topLayer))
                 topLayer.Update(varyingDelta, totalTime);
         }
 
+        [MoonSharpHidden]
         public void LateUpdate()
         {
             if (m_layers.TryPeek(out var topLayer))
                 topLayer.LateUpdate();
         }
 
+        [MoonSharpHidden]
         public void EndUpdateStep()
         {
         }
 
+        [MoonSharpHidden]
         public void BeginRenderStep()
         {
         }
 
+        [MoonSharpHidden]
         public void Render()
         {
             if (m_layers.TryPeek(out var topLayer))
                 topLayer.Render();
         }
 
+        [MoonSharpHidden]
         public void LateRender()
         {
             if (m_layers.TryPeek(out var topLayer))
                 topLayer.LateRender();
         }
 
+        [MoonSharpHidden]
         public void EndRenderStep()
         {
         }

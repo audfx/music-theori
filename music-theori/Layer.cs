@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-
+using System.Reflection;
 using MoonSharp.Interpreter;
+using MoonSharp.Interpreter.Interop;
 using theori.Audio;
 using theori.Charting;
 using theori.Charting.Serialization;
@@ -20,8 +22,22 @@ using static MoonSharp.Interpreter.DynValue;
 
 namespace theori
 {
-    public class Layer : IAsyncLoadable
+    public class Layer : LuaInstance, IAsyncLoadable
     {
+        static Layer()
+        {
+            var desc = (StandardUserDataDescriptor)ScriptService.RegisterType<Layer>();
+
+            foreach (var field in typeof(Layer).GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
+            {
+                if (!(field.Name.StartsWith("Lua") && field.Name.EndsWith("Event")))
+                    continue;
+
+                var fieldDesc = new FieldMemberDescriptor(field, InteropAccessMode.Preoptimized);
+                desc!.AddMember(field.Name.Substring(3, field.Name.Length - 8), fieldDesc);
+            }
+        }
+
         #region Lifetime
 
         internal enum LifetimeState
@@ -44,6 +60,7 @@ namespace theori
         internal LifetimeState lifetimeState = LifetimeState.Uninitialized;
         internal LoadState loadState = LoadState.Unloaded;
 
+        [MoonSharpHidden]
         public bool IsSuspended { get; private set; } = false;
 
         internal bool validForResume = true;
@@ -53,12 +70,16 @@ namespace theori
         #region Platform
 
         private Client? m_client = null;
+        [MoonSharpHidden]
         public Client Client => m_client ?? throw new InvalidOperationException("Layer has not been initialized with a client yet.");
 
+        [MoonSharpHidden]
         public T ClientAs<T>() where T : Client => (T)Client;
 
+        [MoonSharpHidden]
         public ClientHost Host => Client.Host;
 
+        [MoonSharpHidden]
         public T HostAs<T>() where T : ClientHost => (T)Host;
 
         internal void SetClient(Client client)
@@ -71,82 +92,158 @@ namespace theori
 
         #region Layer Configuration
 
+        [MoonSharpHidden]
         public virtual int TargetFrameRate => 0;
 
+        [MoonSharpHidden]
         public virtual bool BlocksParentLayer => true;
 
         #endregion
 
         #region Resource Management
 
+        [MoonSharpHidden]
         public readonly ClientResourceLocator ResourceLocator;
+        [MoonSharpHidden]
         protected readonly ClientResourceManager m_resources;
 
         #endregion
 
         #region Scripting Interface
 
+        [MoonSharpHidden]
+        public readonly ExecutionEnvironment ScriptExecutionEnvironment;
+
+#if false
         private readonly BasicSpriteRenderer m_spriteRenderer;
         private readonly RenderBatch2D m_renderer2D;
         private RenderBatcher2D? m_batch = null;
 
         protected readonly ScriptProgram m_script;
+#endif
 
         private string? m_drivingScriptFileName = null;
         private DynValue[]? m_drivingScriptArgs = null;
 
+#if false
+        [MoonSharpHidden]
         public readonly Table tblTheori;
+        [MoonSharpHidden]
         public readonly Table tblTheoriAudio;
+        [MoonSharpHidden]
         public readonly Table tblTheoriCharts;
+        [MoonSharpHidden]
         public readonly Table tblTheoriConfig;
+        [MoonSharpHidden]
         public readonly Table tblTheoriGame;
+        [MoonSharpHidden]
         public readonly Table tblTheoriGraphics;
+        [MoonSharpHidden]
         public readonly Table tblTheoriInput;
+        [MoonSharpHidden]
         public readonly Table tblTheoriLayer;
+        [MoonSharpHidden]
         public readonly Table tblTheoriModes;
+        [MoonSharpHidden]
         public readonly Table tblTheoriInputKeyboard;
+        [MoonSharpHidden]
         public readonly Table tblTheoriInputMouse;
+        [MoonSharpHidden]
         public readonly Table tblTheoriInputGamepad;
+        [MoonSharpHidden]
         public readonly Table tblTheoriInputController;
+#endif
 
-        public readonly ScriptEvent evtKeyPressed;
-        public readonly ScriptEvent evtKeyReleased;
-
-        public readonly ScriptEvent evtMousePressed;
-        public readonly ScriptEvent evtMouseReleased;
-        public readonly ScriptEvent evtMouseMoved;
-        public readonly ScriptEvent evtMouseScrolled;
-
-        public readonly ScriptEvent evtGamepadConnected;
-        public readonly ScriptEvent evtGamepadDisconnected;
-        public readonly ScriptEvent evtGamepadPressed;
-        public readonly ScriptEvent evtGamepadReleased;
-        public readonly ScriptEvent evtGamepadAxisChanged;
-
-        public readonly ScriptEvent evtControllerAdded;
-        public readonly ScriptEvent evtControllerRemoved;
-        public readonly ScriptEvent evtControllerPressed;
-        public readonly ScriptEvent evtControllerReleased;
-        public readonly ScriptEvent evtControllerAxisChanged;
-        public readonly ScriptEvent evtControllerAxisTicked;
-
-        #endregion
+#endregion
 
         protected ClientResourceManager StaticResources => theori.Host.StaticResources;
 
-        public Layer(ClientResourceLocator? resourceLocator = null, string? layerPathLua = null, params DynValue[] args)
+        private readonly LuaBindableEvent LuaAsyncLoadEvent;
+        private readonly LuaBindableEvent LuaAsyncFinalizeEvent;
+
+        private readonly LuaBindableEvent LuaInitializeEvent;
+        private readonly LuaBindableEvent LuaDestroyEvent;
+        private readonly LuaBindableEvent LuaSuspendEvent;
+        private readonly LuaBindableEvent LuaResumeEvent;
+        private readonly LuaBindableEvent LuaExitingEvent;
+
+        private readonly LuaBindableEvent LuaKeyPressEvent;
+        private readonly LuaBindableEvent LuaKeyReleaseEvent;
+
+        private readonly LuaBindableEvent LuaMousePressEvent;
+        private readonly LuaBindableEvent LuaMouseReleaseEvent;
+        private readonly LuaBindableEvent LuaMouseMoveEvent;
+        private readonly LuaBindableEvent LuaMouseScrollEvent;
+
+        private readonly LuaBindableEvent LuaGamepadConnectEvent;
+        private readonly LuaBindableEvent LuaGamepadDisconnectEvent;
+        private readonly LuaBindableEvent LuaGamepadPressEvent;
+        private readonly LuaBindableEvent LuaGamepadReleaseEvent;
+        private readonly LuaBindableEvent LuaGamepadAxisChangeEvent;
+
+        private readonly LuaBindableEvent LuaControllerAddEvent;
+        private readonly LuaBindableEvent LuaControllerRemoveEvent;
+        private readonly LuaBindableEvent LuaControllerPressEvent;
+        private readonly LuaBindableEvent LuaControllerReleaseEvent;
+        private readonly LuaBindableEvent LuaControllerAxisChangeEvent;
+        private readonly LuaBindableEvent LuaControllerAxisTickEvent;
+
+        private readonly LuaBindableEvent LuaUpdateEvent;
+        private readonly LuaBindableEvent LuaRenderEvent;
+
+        public Layer(ExecutionEnvironment env, ClientResourceLocator? resourceLocator = null, string? layerPathLua = null, params DynValue[] args)
+            : base(env)
         {
+            ScriptExecutionEnvironment = env;
+
             ResourceLocator = resourceLocator ?? ClientResourceLocator.Default;
-            m_spriteRenderer = new BasicSpriteRenderer(ResourceLocator);
 
             m_resources = new ClientResourceManager(ResourceLocator);
+
+            LuaAsyncLoadEvent = new LuaBindableEvent(L);
+            LuaAsyncFinalizeEvent = new LuaBindableEvent(L);
+
+            LuaInitializeEvent = new LuaBindableEvent(L);
+            LuaDestroyEvent = new LuaBindableEvent(L);
+            LuaSuspendEvent = new LuaBindableEvent(L);
+            LuaResumeEvent = new LuaBindableEvent(L);
+            LuaExitingEvent = new LuaBindableEvent(L);
+            
+            LuaKeyPressEvent = new LuaBindableEvent(L);
+            LuaKeyReleaseEvent = new LuaBindableEvent(L);
+            
+            LuaMousePressEvent = new LuaBindableEvent(L);
+            LuaMouseReleaseEvent = new LuaBindableEvent(L);
+            LuaMouseMoveEvent = new LuaBindableEvent(L);
+            LuaMouseScrollEvent = new LuaBindableEvent(L);
+            
+            LuaGamepadConnectEvent = new LuaBindableEvent(L);
+            LuaGamepadDisconnectEvent = new LuaBindableEvent(L);
+            LuaGamepadPressEvent = new LuaBindableEvent(L);
+            LuaGamepadReleaseEvent = new LuaBindableEvent(L);
+            LuaGamepadAxisChangeEvent = new LuaBindableEvent(L);
+            
+            LuaControllerAddEvent = new LuaBindableEvent(L);
+            LuaControllerRemoveEvent = new LuaBindableEvent(L);
+            LuaControllerPressEvent = new LuaBindableEvent(L);
+            LuaControllerReleaseEvent = new LuaBindableEvent(L);
+            LuaControllerAxisChangeEvent = new LuaBindableEvent(L);
+            LuaControllerAxisTickEvent = new LuaBindableEvent(L);
+
+            LuaUpdateEvent = new LuaBindableEvent(L);
+            LuaRenderEvent = new LuaBindableEvent(L);
+
+#if false
             m_script = new ScriptProgram(ResourceLocator);
 
+            m_spriteRenderer = new BasicSpriteRenderer(ResourceLocator);
             m_renderer2D = new RenderBatch2D(m_resources);
+#endif
 
             m_drivingScriptFileName = layerPathLua;
             m_drivingScriptArgs = args;
 
+#if false
             m_script["KeyCode"] = typeof(KeyCode);
             m_script["MouseButton"] = typeof(MouseButton);
 
@@ -191,11 +288,11 @@ namespace theori
             tblTheori["doStaticLoadsAsync"] = (Func<bool>)(() => StaticResources.LoadAll());
             tblTheori["finalizeStaticLoads"] = (Func<bool>)(() => StaticResources.FinalizeLoad());
 
-            tblTheoriAudio["queueStaticAudioLoad"] = (Func<string, AudioHandle>)(audioName => StaticResources.QueueAudioLoad($"audio/{ audioName }"));
-            tblTheoriAudio["getStaticAudio"] = (Func<string, AudioHandle>)(audioName => StaticResources.GetAudio($"audio/{ audioName }"));
-            tblTheoriAudio["queueAudioLoad"] = (Func<string, AudioHandle>)(audioName => m_resources.QueueAudioLoad($"audio/{ audioName }"));
-            tblTheoriAudio["getAudio"] = (Func<string, AudioHandle>)(audioName => m_resources.GetAudio($"audio/{ audioName }"));
-            tblTheoriAudio["createFakeAudio"] = (Func<int, int, AudioHandle>)((sampleRate, channels) => new FakeAudioSource(sampleRate, channels));
+            tblTheoriAudio["queueStaticAudioLoad"] = (Func<string, AudioHandle>)(audioName => new AudioHandle(m_script, StaticResources.QueueAudioLoad($"audio/{ audioName }")));
+            tblTheoriAudio["getStaticAudio"] = (Func<string, AudioHandle>)(audioName => new AudioHandle(m_script, StaticResources.GetAudio($"audio/{ audioName }")));
+            tblTheoriAudio["queueAudioLoad"] = (Func<string, AudioHandle>)(audioName => new AudioHandle(m_script, m_resources.QueueAudioLoad($"audio/{ audioName }")));
+            tblTheoriAudio["getAudio"] = (Func<string, AudioHandle>)(audioName => new AudioHandle(m_script, m_resources.GetAudio($"audio/{ audioName }")));
+            tblTheoriAudio["createFakeAudio"] = (Func<int, int, AudioHandle>)((sampleRate, channels) => new AudioHandle(m_script, new FakeAudioSource(sampleRate, channels)));
             
             tblTheoriCharts["setDatabaseToIdle"] = (Action)(() => Client.DatabaseWorker.SetToIdle());
             tblTheoriCharts["getDatabaseState"] = (Func<string>)(() => Client.DatabaseWorker.State.ToString());
@@ -285,7 +382,6 @@ namespace theori
             //tblTheoriGraphics["getFont"] = (Func<string, VectorFont>)(fontName => m_resources.GetTexture($"fonts/{ fontName }"));
             tblTheoriGraphics["getViewportSize"] = (Func<DynValue>)(() => NewTuple(NewNumber(Window.Width), NewNumber(Window.Height)));
             tblTheoriGraphics["createPathCommands"] = (Func<Path2DCommands>)(() => new Path2DCommands());
-
             tblTheoriGraphics["flush"] = (Action)(() => m_batch?.Flush());
             tblTheoriGraphics["saveTransform"] = (Action)(() => m_batch?.SaveTransform());
             tblTheoriGraphics["restoreTransform"] = (Action)(() => m_batch?.RestoreTransform());
@@ -312,28 +408,6 @@ namespace theori
             // setImageColor -> setFillToTexture
             // draw -> fillRect
             // drawString -> fillString
-#if false
-            tblTheoriGraphics["flush"] = (Action)(() => m_spriteRenderer.Flush());
-            tblTheoriGraphics["saveTransform"] = (Action)(() => m_spriteRenderer.SaveTransform());
-            tblTheoriGraphics["restoreTransform"] = (Action)(() => m_spriteRenderer.RestoreTransform());
-            tblTheoriGraphics["resetTransform"] = (Action)(() => m_spriteRenderer.ResetTransform());
-            tblTheoriGraphics["translate"] = (Action<float, float>)((x, y) => m_spriteRenderer.Translate(x, y));
-            tblTheoriGraphics["rotate"] = (Action<float>)(d => m_spriteRenderer.Rotate(d));
-            tblTheoriGraphics["scale"] = (Action<float, float>)((x, y) => m_spriteRenderer.Scale(x, y));
-            tblTheoriGraphics["shear"] = (Action<float, float>)((x, y) => m_spriteRenderer.Shear(x, y));
-            tblTheoriGraphics["getViewportSize"] = (Func<DynValue>)(() => NewTuple(NewNumber(Window.Width), NewNumber(Window.Height)));
-            tblTheoriGraphics["setColor"] = (Action<float, float, float, float>)((r, g, b, a) => m_spriteRenderer.SetColor(r, g, b, a));
-            tblTheoriGraphics["setImageColor"] = (Action<float, float, float, float>)((r, g, b, a) => m_spriteRenderer.SetImageColor(r, g, b, a));
-            tblTheoriGraphics["fillRect"] = (Action<float, float, float, float>)((x, y, w, h) => m_spriteRenderer.FillRect(x, y, w, h));
-            tblTheoriGraphics["draw"] = (Action<Texture, float, float, float, float>)((texture, x, y, w, h) => m_spriteRenderer.Image(texture, x, y, w, h));
-            tblTheoriGraphics["setFontSize"] = (Action<int>)(size => m_spriteRenderer.SetFontSize(size));
-            tblTheoriGraphics["setTextAlign"] = (Action<Anchor>)(align => m_spriteRenderer.SetTextAlign(align));
-            tblTheoriGraphics["drawString"] = (Action<string, float, float>)((text, x, y) => { });
-            tblTheoriGraphics["saveScissor"] = (Action)(() => m_spriteRenderer.SaveScissor());
-            tblTheoriGraphics["restoreScissor"] = (Action)(() => m_spriteRenderer.RestoreScissor());
-            tblTheoriGraphics["resetScissor"] = (Action)(() => m_spriteRenderer.ResetScissor());
-            tblTheoriGraphics["scissor"] = (Action<float, float, float, float>)((x, y, w, h) => m_spriteRenderer.Scissor(x, y, w, h));
-#endif
 
             tblTheoriGraphics["openCurtain"] = (Action)OpenCurtain;
             tblTheoriGraphics["closeCurtain"] = (Action<float, DynValue?>)((duration, callback) =>
@@ -388,6 +462,7 @@ namespace theori
             tblTheoriLayer["onClientSizeChanged"] = (Action<int, int, int, int>)((x, y, w, h) => { });
             tblTheoriLayer["update"] = (Action<float, float>)((delta, total) => { });
             tblTheoriLayer["render"] = (Action)(() => { });
+#endif
         }
 
         class DynValueComparer : IComparer<DynValue>
@@ -420,20 +495,32 @@ namespace theori
             }
         }
 
-        protected virtual Layer CreateNewLuaLayer(string layerPath, DynValue[] args) => new Layer(ResourceLocator, layerPath, args);
+        protected virtual Layer CreateNewLuaLayer(string layerPath, DynValue[] args) => new Layer(ScriptExecutionEnvironment, ResourceLocator, layerPath, args);
+
+        [MoonSharpVisible(true)]
+        private void ConnectAll(Table table)
+        {
+            foreach (var pair in table.Pairs)
+            {
+                GetEventFromKey(pair.Key.CastToString())?.Connect(pair.Value);
+            }
+
+            LuaBindableEvent? GetEventFromKey(string key) =>
+                typeof(Layer).GetField("Lua" + key + "Event", BindingFlags.NonPublic | BindingFlags.Instance) is FieldInfo f ? (LuaBindableEvent)f.GetValue(this) : null;
+        }
 
 #region Internal Event Entry Points
 
         internal void InitializeInternal()
         {
-            Initialize();
+            OnInitialize();
             lifetimeState = LifetimeState.Alive;
         }
 
         internal void DestroyInternal()
         {
             lifetimeState = LifetimeState.Destroyed;
-            Destroy();
+            OnDestroy();
         }
 
         internal void SuspendInternal(Layer nextLayer)
@@ -441,7 +528,7 @@ namespace theori
             if (IsSuspended) return;
             IsSuspended = true;
 
-            Suspended(nextLayer);
+            OnSuspend(nextLayer);
         }
 
         internal void ResumeInternal(Layer previousLayer)
@@ -449,23 +536,7 @@ namespace theori
             if (!IsSuspended) return;
             IsSuspended = false;
 
-            Resumed(previousLayer);
-        }
-
-#endregion
-
-#region Script API
-
-        protected Table Script_AddToTheoriNamespace(params string[] subNames)
-        {
-            if (subNames.Length == 0)
-                throw new InvalidOperationException("Sub-namespaces expected, none given.");
-
-            Table result = tblTheori;
-            foreach (string subName in subNames)
-                result = (Table)(result[subName] = m_script.NewTable());
-
-            return result;
+            OnResume(previousLayer);
         }
 
 #endregion
@@ -474,10 +545,10 @@ namespace theori
         protected void CloseCurtain(Action? onClosed = null) => Client.CloseCurtain(onClosed);
         protected void OpenCurtain() => Client.OpenCurtain();
 
-        protected void Push(Layer nextLayer) => Client.LayerStack.Push(this, nextLayer);
-        protected void Pop() => Client.LayerStack.Pop(this);
+        public void Push(Layer nextLayer) => Client.LayerStack.Push(this, nextLayer);
+        public void Pop() => Client.LayerStack.Pop(this);
 
-        protected void SetInvalidForResume() => validForResume = false;
+        public void SetInvalidForResume() => validForResume = false;
 
 #region Overloadable Event Callbacks
 
@@ -485,56 +556,40 @@ namespace theori
         /// Called whenever the client window size is changed, even if this layer is suspended.
         /// If being suspended is important, check <see cref="IsSuspended"/>.
         /// </summary>
+        [MoonSharpHidden]
         public virtual void ClientSizeChanged(int width, int height)
         {
-            m_script.Call(tblTheoriLayer["onClientSizeChanged"], width, height);
+            //m_script.Call(tblTheoriLayer["onClientSizeChanged"], width, height);
         }
 
         /// <summary>
         /// If a driving script was specified for this Layer, it is loaded and constructed.
         /// </summary>
+        [MoonSharpHidden]
         public virtual bool AsyncLoad()
         {
-            if (m_drivingScriptFileName is string scriptFile)
-            {
-                m_script.LoadScriptResourceFile(scriptFile);
-                m_script.Call(tblTheoriLayer["construct"], m_drivingScriptArgs!);
-
-                var result = m_script.Call(tblTheoriLayer["doAsyncLoad"]);
-
-                if (result == null) return true; // guard against function missing
-                if (!result.CastToBool()) return false;
-
-                if (!m_resources.LoadAll()) return false;
-            }
-
-            return true;
+            return LuaAsyncLoadEvent.Fire(this).Aggregate(true, (a, b) => a && b.CastToBool());
         }
 
+        [MoonSharpHidden]
         public virtual bool AsyncFinalize()
         {
-            if (m_drivingScriptFileName is string _)
-            {
-                var result = m_script.Call(tblTheoriLayer["doAsyncFinalize"]);
-
-                if (result == null) return true; // guard against function missing
-                if (!result.CastToBool()) return false;
-
-                if (!m_resources.FinalizeLoad()) return false;
-            }
-
-            return true;
+            return LuaAsyncFinalizeEvent.Fire(this).Aggregate(true, (a, b) => a && b.CastToBool());
         }
 
-        public virtual void Initialize()
+        [MoonSharpHidden]
+        public virtual void OnInitialize()
         {
-            m_script.Call(tblTheoriLayer["init"]);
+            //m_script.Call(tblTheoriLayer["init"]);
+            LuaInitializeEvent.Fire(this);
         }
 
-        public virtual void Destroy()
+        [MoonSharpHidden]
+        public virtual void OnDestroy()
         {
-            m_script.Call(tblTheoriLayer["destroy"]);
-            m_script.Dispose();
+            //m_script.Call(tblTheoriLayer["destroy"]);
+            //m_script.Dispose();
+            LuaDestroyEvent.Fire(this);
         }
 
         /// <summary>
@@ -543,67 +598,110 @@ namespace theori
         /// This will be called at the beginning of a frame, before inputs and updates, allowing the layer to
         ///  properly pause or destroy state after completing a frame.
         /// </summary>
-        public virtual void Suspended(Layer nextLayer)
+        [MoonSharpHidden]
+        public virtual void OnSuspend(Layer nextLayer)
         {
-            m_script.Call(tblTheoriLayer["suspended"]);
+            //m_script.Call(tblTheoriLayer["suspended"]);
+            LuaSuspendEvent.Fire(this);
         }
 
         /// <summary>
         /// Called when another layer which hides lower layers is removed from anywhere above this layer.
         /// This will not be invoked if this layer is already in an active state.
         /// </summary>
-        public virtual void Resumed(Layer previousLayer)
+        [MoonSharpHidden]
+        public virtual void OnResume(Layer previousLayer)
         {
-            m_script.Call(tblTheoriLayer["resumed"]);
+            //m_script.Call(tblTheoriLayer["resumed"]);
+            LuaResumeEvent.Fire(this);
         }
 
         /// <summary>
         /// Returns true to cancel the exit, false to continue.
         /// </summary>
-        public virtual bool OnExiting(Layer? source) => m_script.Call(tblTheoriLayer["onExiting"])?.CastToBool() ?? false;
+        [MoonSharpHidden]
+        public virtual bool OnExiting(Layer? source)
+        {
+            //return m_script.Call(tblTheoriLayer["onExiting"])?.CastToBool() ?? false;
 
-        public virtual void KeyPressed(KeyInfo info) => evtKeyPressed.Fire(info.KeyCode);
-        public virtual void KeyReleased(KeyInfo info) => evtKeyReleased.Fire(info.KeyCode);
+            // TODO(local): figure out how to do the return here
+            LuaExitingEvent.Fire(this);
 
-        public virtual void MouseButtonPressed(MouseButtonInfo info) => evtMousePressed.Fire(info.Button, UserInputService.MouseX, UserInputService.MouseY);
-        public virtual void MouseButtonReleased(MouseButtonInfo info) => evtMouseReleased.Fire(info.Button, UserInputService.MouseX, UserInputService.MouseY);
-        public virtual void MouseWheelScrolled(int dx, int dy) => evtMouseScrolled.Fire(dx, dy);
-        public virtual void MouseMoved(int x, int y, int dx, int dy) => evtMouseMoved.Fire(x, y, dx, dy);
+            return false;
+        }
 
-        public virtual void GamepadConnected(Gamepad gamepad) => evtGamepadConnected.Fire(gamepad);
-        public virtual void GamepadDisconnected(Gamepad gamepad) => evtGamepadDisconnected.Fire(gamepad);
-        public virtual void GamepadButtonPressed(GamepadButtonInfo info) => evtGamepadPressed.Fire(info.Gamepad, info.Button);
-        public virtual void GamepadButtonReleased(GamepadButtonInfo info) => evtGamepadReleased.Fire(info.Gamepad, info.Button);
-        public virtual void GamepadAxisChanged(GamepadAxisInfo info) => evtGamepadAxisChanged.Fire(info.Gamepad, info.Axis, info.Value);
-        public virtual void GamepadBallChanged(GamepadBallInfo info) => evtGamepadAxisChanged.Fire(info.Gamepad, info.Ball, info.XRelative, info.YRelative);
+        [MoonSharpHidden]
+        public virtual void KeyPressed(KeyInfo info) => LuaKeyPressEvent.Fire(this, info.KeyCode);
+        [MoonSharpHidden]
+        public virtual void KeyReleased(KeyInfo info) => LuaKeyReleaseEvent.Fire(this, info.KeyCode);
 
-        public virtual void ControllerAdded(Controller controller) => evtControllerAdded.Fire(controller);
-        public virtual void ControllerRemoved(Controller controller) => evtControllerRemoved.Fire(controller);
-        public virtual void ControllerButtonPressed(ControllerButtonInfo info) => evtControllerPressed.Fire(info.Controller, info.Button.ToObject());
-        public virtual void ControllerButtonReleased(ControllerButtonInfo info) => evtControllerReleased.Fire(info.Controller, info.Button.ToObject());
-        public virtual void ControllerAxisChanged(ControllerAxisInfo info) => evtControllerAxisChanged.Fire(info.Controller, info.Axis.ToObject(), info.Value, info.Delta);
-        public virtual void ControllerAxisTicked(ControllerAxisTickInfo info) => evtControllerAxisTicked.Fire(info.Controller, info.Axis.ToObject(), info.Direction);
+        [MoonSharpHidden]
+        public virtual void MouseButtonPressed(MouseButtonInfo info) => LuaMousePressEvent.Fire(this, info.Button);
+        [MoonSharpHidden]
+        public virtual void MouseButtonReleased(MouseButtonInfo info) => LuaMouseReleaseEvent.Fire(this, info.Button);
+        [MoonSharpHidden]
+        public virtual void MouseWheelScrolled(int dx, int dy) => LuaMouseScrollEvent.Fire(this, dx, dy);
+        [MoonSharpHidden]
+        public virtual void MouseMoved(int x, int y, int dx, int dy) => LuaMouseMoveEvent.Fire(this, x, y, dx, dy);
 
+        [MoonSharpHidden]
+        public virtual void GamepadConnected(Gamepad gamepad) => LuaGamepadConnectEvent.Fire(this, gamepad);
+        [MoonSharpHidden]
+        public virtual void GamepadDisconnected(Gamepad gamepad) => LuaGamepadDisconnectEvent.Fire(this, gamepad);
+        [MoonSharpHidden]
+        public virtual void GamepadButtonPressed(GamepadButtonInfo info) => LuaGamepadPressEvent.Fire(this, info.Button);
+        [MoonSharpHidden]
+        public virtual void GamepadButtonReleased(GamepadButtonInfo info) => LuaGamepadReleaseEvent.Fire(this, info.Button);
+        [MoonSharpHidden]
+        public virtual void GamepadAxisChanged(GamepadAxisInfo info) => LuaGamepadAxisChangeEvent.Fire(this, info.Axis, info.Value);
+        [MoonSharpHidden]
+        public virtual void GamepadBallChanged(GamepadBallInfo info) { }
+
+        [MoonSharpHidden]
+        public virtual void ControllerAdded(Controller controller) => LuaControllerAddEvent.Fire(this, controller);
+        [MoonSharpHidden]
+        public virtual void ControllerRemoved(Controller controller) => LuaControllerRemoveEvent.Fire(this, controller);
+        [MoonSharpHidden]
+        public virtual void ControllerButtonPressed(ControllerButtonInfo info) => LuaControllerPressEvent.Fire(this, info.Controller, info.Button);
+        [MoonSharpHidden]
+        public virtual void ControllerButtonReleased(ControllerButtonInfo info) => LuaControllerReleaseEvent.Fire(this, info.Controller, info.Button);
+        [MoonSharpHidden]
+        public virtual void ControllerAxisChanged(ControllerAxisInfo info) => LuaControllerAxisChangeEvent.Fire(this, info.Controller, info.Axis, info.Value);
+        [MoonSharpHidden]
+        public virtual void ControllerAxisTicked(ControllerAxisTickInfo info) => LuaControllerAxisTickEvent.Fire(this, info.Controller, info.Axis, info.Direction);
+
+        [MoonSharpHidden]
         public virtual void Update(float delta, float total)
         {
             m_resources.Update();
-            m_script.Call(tblTheoriLayer["update"], delta, total);
+
+            LuaUpdateEvent.Fire(this, delta, total);
+
+            //m_script.Call(tblTheoriLayer["update"], delta, total);
             //m_script.CallIfExists("update", delta, total);
         }
+        [MoonSharpHidden]
         public virtual void FixedUpdate(float delta, float total) { }
+        [MoonSharpHidden]
         public virtual void LateUpdate() { }
 
+        [MoonSharpHidden]
         public virtual void Render()
         {
             //m_spriteRenderer.BeginFrame();
+            
+            LuaRenderEvent.Fire(this);
 
+#if false
             using var batch = m_renderer2D.Use();
             m_batch = batch;
 
             m_script.Call(tblTheoriLayer["render"]);
+#endif
 
             //m_spriteRenderer.EndFrame();
         }
+        [MoonSharpHidden]
         public virtual void LateRender() { }
 
 #endregion

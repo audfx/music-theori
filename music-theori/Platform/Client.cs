@@ -1,8 +1,11 @@
 ﻿using System;
-
+using System.IO;
+using System.Threading;
+using MoonSharp.Interpreter;
 using theori.Database;
 using theori.Graphics;
 using theori.IO;
+using theori.Scripting;
 
 namespace theori.Platform
 {
@@ -28,21 +31,42 @@ namespace theori.Platform
             }
         }
 
-        [Pure] protected Client()
+        public ExecutionEnvironment ScriptExecutionEnvironment { get; }
+        public Script L => ScriptExecutionEnvironment.L;
+
+        protected Client()
         {
             DatabaseWorker = new ChartDatabaseWorker();
             Curtain = CreateTransitionCurtain();
+            LayerStack = new LayerStack(this);
 
-            LayerStack = new LayerStack(this, CreateInitialLayer());
+            ScriptExecutionEnvironment = new ExecutionEnvironment(this);
+
+            InitTheoriCoreLibrary();
+            ExecuteScriptFileNewThread("main.lua");
+
             UserInputService.Initialize(LayerStack);
+        }
+
+        private void InitTheoriCoreLibrary()
+        {
+            L.Globals["theori"] = ScriptExecutionEnvironment;
+
+            L.Globals["KeyCode"] = typeof(KeyCode);
+            L.Globals["MouseButton"] = typeof(MouseButton);
+            L.Globals["Axis"] = typeof(Axis);
+
+            L.Globals["Instance"] = new LuaInstanceNamespace(ScriptExecutionEnvironment);
+
+            L.Globals["include"] = (Func<string, DynValue>)(fileName => ExecuteScriptFileCurrentThread(fileName.Replace('.', Path.DirectorySeparatorChar) + ".lua"));
         }
 
         /// <summary>
         /// Used to construct an initial layer, if any.
         /// If this is not used then a starting layer must be added manually.
         /// </summary>
-        [Const] protected virtual Layer? CreateInitialLayer() => null;
-        [Const] protected virtual TransitionCurtain CreateTransitionCurtain() => new TransitionCurtain();
+        protected virtual Layer? CreateInitialLayer() => null;
+        protected virtual TransitionCurtain CreateTransitionCurtain() => new TransitionCurtain();
 
         public virtual void SetHost(ClientHost host)
         {
@@ -53,6 +77,22 @@ namespace theori.Platform
         protected internal virtual UnhandledExceptionAction OnUnhandledException()
         {
             return UnhandledExceptionAction.SafeExit;
+        }
+
+        public virtual DynValue ExecuteScriptFileCurrentThread(string fileNameInSrcDir)
+        {
+            var chunk = L.LoadFile(Path.Combine("src", fileNameInSrcDir), friendlyFilename: fileNameInSrcDir).Function;
+            return L.Call(chunk);
+        }
+
+        public virtual void ExecuteScriptFileNewThread(string fileNameInSrcDir)
+        {
+            var thread = new Thread(() =>
+            {
+                var chunk = L.LoadFile(Path.Combine("src", fileNameInSrcDir), friendlyFilename: fileNameInSrcDir).Function;
+                L.Call(chunk);
+            });
+            thread.Start();
         }
 
         public bool CloseCurtain(float holdTime, Action? onClosed = null) => Curtain!.Close(holdTime, onClosed);
@@ -104,6 +144,7 @@ namespace theori.Platform
         /// </summary>
         protected internal virtual void Update(float varyingDelta, float totalTime)
         {
+            ScriptExecutionEnvironment.RunService.OnUpdate(varyingDelta, totalTime);
             LayerStack.Update(varyingDelta, totalTime);
         }
 

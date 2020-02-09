@@ -57,8 +57,9 @@ namespace theori.Charting
                 foreach (var lane in Lanes)
                 {
                     if (lane.Count == 0) continue;
+                    if (!(lane.Last is Entity last)) continue;
 
-                    time_t t = lane.Last.AbsolutePosition;
+                    time_t t = last.AbsolutePosition;
                     if (t > lastTime)
                         lastTime = t;
                 }
@@ -326,11 +327,7 @@ namespace theori.Charting
 
                 if (!isAllowed)
                 {
-                    string message;
-                    if (Label != null)
-                        message = $"{ nameof(ChartLane) } (\"{ Label }\") does not allow entities of type { requestedType } ({ Entity.GetEntityIdByType(requestedType) }).";
-                    else message = $"{ nameof(ChartLane) } does not allow entities of type { requestedType } ({ Entity.GetEntityIdByType(requestedType) }).";
-
+                    string message = $"{ nameof(ChartLane) } (\"{ Label }\") does not allow entities of type { requestedType } ({ Entity.GetEntityIdByType(requestedType) }).";
                     throw new ChartFormatException(message);
                 }
             }
@@ -372,7 +369,8 @@ namespace theori.Charting
 
             private Entity Add(string entityId, tick_t position, tick_t duration = default)
             {
-                var type = Entity.GetEntityTypeById(entityId);
+                if (!(Entity.GetEntityTypeById(entityId) is Type type))
+                    throw new InvalidOperationException($"The entity type {entityId} has not been registered.");
                 ValidateTypeRequirement(type);
                 var entity = (Entity)Activator.CreateInstance(type);
                 entity.Position = position;
@@ -434,7 +432,7 @@ namespace theori.Charting
             /// If `includeDuration` is true, the first object which contains
             ///  the given position is returned.
             /// </summary>
-            public Entity Find(tick_t position, bool includeDuration)
+            public Entity? Find(tick_t position, bool includeDuration)
             {
                 // TODO(local): make this a binary search?
                 for (int i = 0, count = m_entities.Count; i < count; i++)
@@ -452,7 +450,7 @@ namespace theori.Charting
                 return null;
             }
 
-            public T Find<T>(tick_t position, bool includeDuration)
+            public T? Find<T>(tick_t position, bool includeDuration)
                 where T : Entity
             {
                 // TODO(local): make this a binary search?
@@ -471,7 +469,7 @@ namespace theori.Charting
                 return null;
             }
 
-            public Entity MostRecent(tick_t position)
+            public Entity? MostRecent(tick_t position)
             {
                 for (int i = m_entities.Count - 1; i >= 0; i--)
                 {
@@ -482,7 +480,7 @@ namespace theori.Charting
                 return null;
             }
 
-            public T MostRecent<T>(tick_t position)
+            public T? MostRecent<T>(tick_t position)
                 where T : Entity
             {
                 for (int i = m_entities.Count - 1; i >= 0; i--)
@@ -494,7 +492,7 @@ namespace theori.Charting
                 return null;
             }
 
-            public Entity MostRecent(time_t position)
+            public Entity? MostRecent(time_t position)
             {
                 for (int i = m_entities.Count - 1; i >= 0; i--)
                 {
@@ -505,7 +503,7 @@ namespace theori.Charting
                 return null;
             }
 
-            public T MostRecent<T>(time_t position)
+            public T? MostRecent<T>(time_t position)
                 where T : Entity
             {
                 for (int i = m_entities.Count - 1; i >= 0; i--)
@@ -576,16 +574,15 @@ namespace theori.Charting
 			    }
             }
 
-            public bool TryGetAt(tick_t position, out Entity overlap)
+            public Entity? TryGetAt(tick_t position)
             {
-                overlap = null;
-                for (int i = 0; i < m_entities.Count && overlap == null; i++)
+                for (int i = 0; i < m_entities.Count; i++)
                 {
                     var obj = m_entities[i];
                     if (obj.Position == position)
-                        overlap = obj;
+                        return obj;
                 }
-                return overlap != null;
+                return null;
             }
         }
 
@@ -617,7 +614,7 @@ namespace theori.Charting
                             durations[bpm] = 0.0;
 
                         if (point.HasNext)
-                            durations[bpm] += point.Next.AbsolutePosition - point.AbsolutePosition;
+                            durations[bpm] += point.Next!.AbsolutePosition - point.AbsolutePosition;
                         else durations[bpm] += chartEnd - point.AbsolutePosition;
 
                         if (durations[bpm] > longestTime)
@@ -674,7 +671,7 @@ namespace theori.Charting
 
             public ControlPoint GetOrCreate(tick_t position, bool clonePrevious = true)
             {
-                ControlPoint mostRecent = null;
+                ControlPoint? mostRecent = null;
                 foreach (var cp in m_controlPoints)
                 {
                     if (cp.Position == position)
@@ -763,7 +760,7 @@ namespace theori.Charting
 			    }
             }
 
-            public ControlPoint FindAt(tick_t pos)
+            public ControlPoint? FindAt(tick_t pos)
             {
 			    for (int i = 0; i < m_controlPoints.Count; i++)
 			    {

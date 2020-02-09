@@ -62,19 +62,12 @@ namespace theori.Scripting
                                  | CoreModules.IO
                                  | CoreModules.TableIterators);
 
-            InitBuiltInLibrary();
+            //InitBuiltInLibrary();
         }
 
         protected override void DisposeManaged()
         {
             Resources.Dispose();
-            // TODO(local): remove global resource manager!!!
-            this["res"] = null;
-
-            // TODO(local): remove global renderer!!!
-            m_renderer?.Dispose();
-            m_renderer = null;
-            this["g2d"] = null;
         }
 
         #region Script API
@@ -90,7 +83,7 @@ namespace theori.Scripting
 
         public void InitBuiltInLibrary()
         {
-            this["theori"] = ScriptDataModel.Instance;
+            //this["theori"] = ScriptDataModel.Instance;
 
             this["include"] = (Func<string, DynValue>)LoadScriptResourceFile;
 
@@ -223,11 +216,11 @@ namespace theori.Scripting
             return Script.Call(val, args);
         }
 
-        #region New
+#region New
 
         public Table NewTable() => new Table(Script);
         public ScriptEvent NewEvent() => new ScriptEvent(this);
 
-        #endregion
+#endregion
     }
 }

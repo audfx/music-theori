@@ -118,7 +118,9 @@ namespace theori.Charting
         {
             get
             {
-                if (HasNext) return Next.AbsolutePosition - AbsolutePosition;
+                if (Chart == null) throw new InvalidOperationException("No chart assigned to this control point.");
+
+                if (HasNext) return Next!.AbsolutePosition - AbsolutePosition;
                 else return Chart.TimeEnd - AbsolutePosition;
             }
         }
@@ -141,16 +143,16 @@ namespace theori.Charting
         public bool HasNext => Next != null;
 
         [MoonSharpVisible(true)]
-        public ControlPoint Previous => ((ILinkable<ControlPoint>)this).Previous;
-        ControlPoint ILinkable<ControlPoint>.Previous { get; set; }
+        public ControlPoint? Previous => ((ILinkable<ControlPoint>)this).Previous;
+        ControlPoint? ILinkable<ControlPoint>.Previous { get; set; } = null;
 
         [MoonSharpVisible(true)]
-        public ControlPoint Next => ((ILinkable<ControlPoint>)this).Next;
-        ControlPoint ILinkable<ControlPoint>.Next { get; set; }
+        public ControlPoint? Next => ((ILinkable<ControlPoint>)this).Next;
+        ControlPoint? ILinkable<ControlPoint>.Next { get; set; } = null;
 
         [TheoriIgnore]
         [MoonSharpVisible(true)]
-        public Chart Chart { get; internal set; }
+        public Chart? Chart { get; internal set; } = null;
 
         public ControlPoint()
         {

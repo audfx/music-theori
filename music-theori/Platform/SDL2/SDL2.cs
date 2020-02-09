@@ -662,25 +662,15 @@ namespace theori.Platform.SDL
 			out IntPtr userdata
 		);
 		public static void SDL_LogGetOutputFunction(
-			out SDL_LogOutputFunction callback,
+			out SDL_LogOutputFunction? callback,
 			out IntPtr userdata
 		) {
-			IntPtr result = IntPtr.Zero;
-			SDL_LogGetOutputFunction(
-				out result,
-				out userdata
-			);
+			SDL_LogGetOutputFunction(out IntPtr result, out userdata);
 			if (result != IntPtr.Zero)
 			{
-				callback = (SDL_LogOutputFunction) Marshal.GetDelegateForFunctionPointer(
-					result,
-					typeof(SDL_LogOutputFunction)
-				);
+				callback = (SDL_LogOutputFunction)Marshal.GetDelegateForFunctionPointer(result, typeof(SDL_LogOutputFunction));
 			}
-			else
-			{
-				callback = null;
-			}
+			else callback = null;
 		}
 
 		/* userdata refers to a void* */
@@ -744,8 +734,8 @@ namespace theori.Platform.SDL
 		[StructLayout(LayoutKind.Sequential)]
 		public struct SDL_MessageBoxColorScheme
 		{
-			[MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.Struct, SizeConst = (int)SDL_MessageBoxColorType.SDL_MESSAGEBOX_COLOR_MAX)]
-				public SDL_MessageBoxColor[] colors;
+			[MarshalAs(UnmanagedType.ByValArray, SizeConst = (int)SDL_MessageBoxColorType.SDL_MESSAGEBOX_COLOR_MAX)]
+			public SDL_MessageBoxColor[] colors;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
@@ -1616,8 +1606,8 @@ namespace theori.Platform.SDL
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SDL_UpdateWindowSurfaceRects(
 			IntPtr window,
-			[In()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct, SizeParamIndex = 2)]
-				SDL_Rect[] rects,
+			[In()] [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)]
+			SDL_Rect[] rects,
 			int numrects
 		);
 
@@ -2134,7 +2124,7 @@ namespace theori.Platform.SDL
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SDL_RenderDrawLines(
 			IntPtr renderer,
-			[In()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct, SizeParamIndex = 2)]
+			[In()] [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)]
 				SDL_Point[] points,
 			int count
 		);
@@ -2151,7 +2141,7 @@ namespace theori.Platform.SDL
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SDL_RenderDrawPoints(
 			IntPtr renderer,
-			[In()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct, SizeParamIndex = 2)]
+			[In()] [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)]
 				SDL_Point[] points,
 			int count
 		);
@@ -2176,7 +2166,7 @@ namespace theori.Platform.SDL
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SDL_RenderDrawRects(
 			IntPtr renderer,
-			[In()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct, SizeParamIndex = 2)]
+			[In()] [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)]
 				SDL_Rect[] rects,
 			int count
 		);
@@ -2201,7 +2191,7 @@ namespace theori.Platform.SDL
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SDL_RenderFillRects(
 			IntPtr renderer,
-			[In()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct, SizeParamIndex = 2)]
+			[In()] [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)]
 				SDL_Rect[] rects,
 			int count
 		);
@@ -2908,7 +2898,7 @@ namespace theori.Platform.SDL
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SDL_SetPaletteColors(
 			IntPtr palette,
-			[In()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct)]
+			[In()] [MarshalAs(UnmanagedType.LPArray)]
 				SDL_Color[] colors,
 			int firstcolor,
 			int ncolors
@@ -2954,7 +2944,7 @@ namespace theori.Platform.SDL
 
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern SDL_bool SDL_EnclosePoints(
-			[In()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct, SizeParamIndex = 1)]
+			[In()] [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)]
 				SDL_Point[] points,
 			int count,
 			ref SDL_Rect clip,
@@ -3246,7 +3236,7 @@ namespace theori.Platform.SDL
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SDL_FillRects(
 			IntPtr dst,
-			[In()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct, SizeParamIndex = 2)]
+			[In()] [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)]
 				SDL_Rect[] rects,
 			int count,
 			uint color
@@ -3967,7 +3957,7 @@ namespace theori.Platform.SDL
 
 		[DllImport(nativeLibName, CallingConvention = CallingConvention.Cdecl)]
 		public static extern int SDL_PeepEvents(
-			[Out()] [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.Struct, SizeParamIndex = 1)]
+			[Out()] [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)]
 				SDL_Event[] events,
 			int numevents,
 			SDL_eventaction action,
@@ -4025,23 +4015,12 @@ namespace theori.Platform.SDL
 			out IntPtr filter,
 			out IntPtr userdata
 		);
-		public static SDL_bool SDL_GetEventFilter(
-			out SDL_EventFilter filter,
-			out IntPtr userdata
-		) {
-			IntPtr result = IntPtr.Zero;
-			SDL_bool retval = SDL_GetEventFilter(out result, out userdata);
+		public static SDL_bool SDL_GetEventFilter(out SDL_EventFilter? filter, out IntPtr userdata)
+		{
+			SDL_bool retval = SDL_GetEventFilter(out IntPtr result, out userdata);
 			if (result != IntPtr.Zero)
-			{
-				filter = (SDL_EventFilter) Marshal.GetDelegateForFunctionPointer(
-					result,
-					typeof(SDL_EventFilter)
-				);
-			}
-			else
-			{
-				filter = null;
-			}
+				filter = (SDL_EventFilter)Marshal.GetDelegateForFunctionPointer(result, typeof(SDL_EventFilter));
+			else filter = null;
 			return retval;
 		}
 
