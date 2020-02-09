@@ -20,13 +20,13 @@ namespace theori.Graphics
         public float LineHeight;
     }
 
-    public class VectorFont
+    public class VectorFont : Disposable
     {
         public static readonly VectorFont Default;
 
         static VectorFont()
         {
-            Default = new VectorFont(ClientResourceLocator.Default.OpenFileStream("fonts/osaka.unicode.ttf"));
+            Default = new VectorFont(ClientResourceLocator.Default.OpenFileStream("fonts/osaka.unicode.ttf")!);
         }
 
         private readonly FontCollection m_collection = new FontCollection();
@@ -55,6 +55,12 @@ namespace theori.Graphics
             m_font = m_family.CreateFont(64, FontStyle.Regular);
 
             AddCharacters("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,<.>/?;:'\"\\|]}[{`~_-=+!@#$%^&^*()");
+        }
+
+        protected override void DisposeManaged()
+        {
+            m_infos.Clear();
+            m_paths.Clear();
         }
 
         [MoonSharpHidden]

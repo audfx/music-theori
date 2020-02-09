@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace theori.Resources
@@ -33,6 +34,22 @@ namespace theori.Resources
         {
             Assembly = assembly;
             Namespace = rootNamespace;
+        }
+
+        public string[] GetResourcesInDirectory(string resourceDirectory)
+        {
+            var result = new HashSet<string>();
+
+            string subSearch = ResourcePathToManifestLocation(resourceDirectory, Namespace) + ".";
+            string[] names = Assembly.GetManifestResourceNames();
+
+            foreach (string name in names)
+            {
+                if (name.StartsWith(subSearch))
+                    result.Add(name.Substring(subSearch.Length));
+            }
+
+            return result.ToArray();
         }
 
         public bool ContainsResource(string resourcePath)

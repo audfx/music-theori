@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 
@@ -22,6 +23,8 @@ namespace theori
 {
     public class Layer : IAsyncLoadable
     {
+        private static readonly Dictionary<string, VectorFont> staticFonts = new Dictionary<string, VectorFont>();
+
         #region Lifetime
 
         internal enum LifetimeState
@@ -281,7 +284,9 @@ namespace theori
             tblTheoriGraphics["getStaticTexture"] = (Func<string, Texture>)(textureName => StaticResources.GetTexture($"textures/{ textureName }"));
             tblTheoriGraphics["queueTextureLoad"] = (Func<string, Texture>)(textureName => m_resources.QueueTextureLoad($"textures/{ textureName }"));
             tblTheoriGraphics["getTexture"] = (Func<string, Texture>)(textureName => m_resources.GetTexture($"textures/{ textureName }"));
-            tblTheoriGraphics["createFont"] = (Func<string, VectorFont>)(fontName => new VectorFont(ResourceLocator.OpenFileStreamWithExtension($"fonts/{ fontName }", new[] { ".ttf", ".otf" }, out string _)));
+            tblTheoriGraphics["createStaticFont"] = (Func<string, VectorFont?>)(fontName => ResourceLocator.OpenFileStreamWithExtension($"fonts/{ fontName }", new[] { ".ttf", ".otf" }, out string _) is Stream fs ? staticFonts[fontName] = new VectorFont(fs) : null);
+            tblTheoriGraphics["createFont"] = (Func<string, VectorFont?>)(fontName => ResourceLocator.OpenFileStreamWithExtension($"fonts/{ fontName }", new[] { ".ttf", ".otf" }, out string _) is Stream fs ? new VectorFont(fs) : null);
+            tblTheoriGraphics["getStaticFont"] = (Func<string, VectorFont?>)(fontName => staticFonts.TryGetValue(fontName, out var font) ? font : null);
             //tblTheoriGraphics["getFont"] = (Func<string, VectorFont>)(fontName => m_resources.GetTexture($"fonts/{ fontName }"));
             tblTheoriGraphics["getViewportSize"] = (Func<DynValue>)(() => NewTuple(NewNumber(Window.Width), NewNumber(Window.Height)));
             tblTheoriGraphics["createPathCommands"] = (Func<Path2DCommands>)(() => new Path2DCommands());
@@ -303,6 +308,7 @@ namespace theori
             tblTheoriGraphics["setFontSize"] = (Action<int>)(size => m_batch?.SetFontSize(size));
             tblTheoriGraphics["setTextAlign"] = (Action<Anchor>)(align => m_batch?.SetTextAlign(align));
             tblTheoriGraphics["fillString"] = (Action<string, float, float>)((text, x, y) => m_batch?.FillString(text, x, y));
+            tblTheoriGraphics["measureString"] = (Func<string, DynValue>)(text => { var bounds = m_batch?.MeasureString(text)!.Value; return NewTuple(NewNumber(bounds.X), NewNumber(bounds.Y)); });
             tblTheoriGraphics["fillPathAt"] = (Action<Path2DCommands, float, float, float, float>)((path, x, y, sx, sy) => m_batch?.FillPathAt(path, x, y, sx, sy));
             tblTheoriGraphics["saveScissor"] = (Action)(() => m_batch?.SaveScissor());
             tblTheoriGraphics["restoreScissor"] = (Action)(() => m_batch?.RestoreScissor());

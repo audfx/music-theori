@@ -234,9 +234,9 @@ namespace theori.Charting.Playback
             if (nextPos == m_position) return;
 
             bool isForward = nextPos > m_position;
+            if (!isForward) return;
+            
             m_position = nextPos;
-
-            System.Diagnostics.Debug.Assert(isForward);
 
             time_t lookAhead = CurrentViewTime;
             time_t lookBehind = lookAhead; // for the time being

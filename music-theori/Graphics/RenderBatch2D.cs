@@ -268,17 +268,24 @@ namespace theori.Graphics
         public void RestoreScissor()
         {
             if (m_savedScissors.Count == 0) return;
+            
+            Flush();
+
             m_scissor = m_savedScissors.Pop();
         }
 
         public void ResetScissor()
         {
+            Flush();
+
             m_savedScissors.Clear();
             m_scissor = null;
         }
 
         public void Scissor(float x, float y, float w, float h)
         {
+            Flush();
+
             if (m_scissor is null)
                 m_scissor = new Rect(x, y, w, h);
             else
@@ -289,6 +296,8 @@ namespace theori.Graphics
 
         public void Flush()
         {
+            using var _ = Profiler.Scope(nameof(Flush));
+
             var indices = new ushort[m_indexCount];
             var vertices = new VertexRB2D[m_vertexCount];
 
@@ -297,6 +306,8 @@ namespace theori.Graphics
 
             m_mesh.SetIndices(indices);
             m_mesh.SetVertices(vertices);
+
+            Profiler.Instant("Finished allocating memory for vertex data");
 
             m_params["Texture"] = 0;
             if (m_texture is Texture tex)
@@ -316,14 +327,30 @@ namespace theori.Graphics
                 Viewport = (0, 0, Window.Width, Window.Height),
                 AspectRatio = Window.Aspect,
             }, m_params);
+            Profiler.Instant("Bound material");
 
-            GL.Enable(GL.GL_BLEND);
-            GL.Enable(GL.GL_DEPTH_TEST);
-            GL.DepthFunc(DepthFunction.LessThanOrEqual);
-            GL.BlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE);
-            m_mesh.Draw();
-            GL.Disable(GL.GL_BLEND);
-            GL.Disable(GL.GL_DEPTH_TEST);
+            {
+                using var _2 = Profiler.Scope("Drawing batch");
+
+                GL.Enable(GL.GL_BLEND);
+                GL.Enable(GL.GL_DEPTH_TEST);
+                GL.DepthFunc(DepthFunction.LessThanOrEqual);
+                GL.BlendFuncSeparate(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE);
+
+                if (m_scissor is Rect s && s.Width >= 0)
+                {
+                    GL.Enable(GL.GL_SCISSOR_TEST);
+
+                    float scissorY = Window.Height - s.Bottom;
+                    GL.Scissor((int)s.Left, (int)scissorY,
+                               (int)s.Width, (int)s.Height);
+                }
+                else GL.Disable(GL.GL_SCISSOR_TEST);
+
+                m_mesh.Draw();
+                GL.Disable(GL.GL_BLEND);
+                GL.Disable(GL.GL_DEPTH_TEST);
+            }
 
             m_indexCount = 0;
             m_vertexCount = 0;
@@ -357,15 +384,23 @@ namespace theori.Graphics
 
         private void Fill(Path2DGroup pathGroup, Vector2 offset = default)
         {
-            var pathVerts = pathGroup.GetVertices().Select(v => new VertexRB2D(m_fillKind, Vector2.Transform(v.Position + offset, m_transform.Matrix), v.TexCoord, m_vertexColor));
+            using var _ = Profiler.Scope(nameof(Fill));
 
+            var __getPathVerts = Profiler.Scope("Get path group vertices");
+            var pathVerts = pathGroup.GetVertices().Select(v => new VertexRB2D(m_fillKind, Vector2.Transform(v.Position + offset, m_transform.Matrix), v.TexCoord, m_vertexColor));
+            __getPathVerts?.Dispose();
+
+            var __copyVerticesToArray = Profiler.Scope("Copy processed vertices to output buffer");
             int vidx = m_vertexCount;
             foreach (var vert in pathVerts)
                 m_vertices[vidx++] = vert;
+            __copyVerticesToArray?.Dispose();
 
+            var __copyIndicesToArray = Profiler.Scope("Copy indices to output buffer");
             int iidx = m_indexCount;
             foreach (ushort index in pathGroup.GetIndices())
                 m_indices[iidx++] = (ushort)(m_vertexCount + index);
+            __copyIndicesToArray?.Dispose();
 
             m_vertexCount = vidx;
             m_indexCount = iidx;
@@ -473,33 +508,28 @@ namespace theori.Graphics
 
         public void FillString(string text, float x, float y)
         {
+            using var _ = Profiler.Scope(nameof(FillString));
+
             float scale = m_fontSize / m_font.EmSize;
+            var bounds = MeasureString(text);
 
-            float xBounds = 0, yBounds = 0;
-            for (int i = 0; i < text.Length; i++)
-            {
-                if (!m_font.TryGetGlyphData(text[i], out var info, out var cmds))
-                    continue;
-
-                xBounds += scale * info.AdvanceWidth;
-                yBounds = MathL.Max(yBounds, info.LineHeight * scale);
-            }
-
+            Profiler.Instant("Calculate offsets from alignment");
             float xOffset = 0, yOffset = 0;
             switch ((Anchor)((int)m_textAlign & 0x0F))
             {
-                case Anchor.Top: yOffset = yBounds; break;
-                case Anchor.Middle: yOffset = (int)(yBounds / 2); break;
+                case Anchor.Top: yOffset = bounds.Y; break;
+                case Anchor.Middle: yOffset = (int)(bounds.Y / 2); break;
                 case Anchor.Bottom: break;
             }
 
             switch ((Anchor)((int)m_textAlign & 0xF0))
             {
                 case Anchor.Left: break;
-                case Anchor.Center: xOffset = (int)(-xBounds / 2); break;
-                case Anchor.Right: xOffset = -xBounds; break;
+                case Anchor.Center: xOffset = (int)(-bounds.X / 2); break;
+                case Anchor.Right: xOffset = -bounds.X; break;
             }
 
+            Profiler.Instant("Begin posting glyphs for render");
             float xPosition = 0;
             for (int i = 0; i < text.Length; i++)
             {
@@ -516,6 +546,26 @@ namespace theori.Graphics
 
                 xPosition += scale * info.AdvanceWidth;
             }
+        }
+
+        public Vector2 MeasureString(string text)
+        {
+            using var _ = Profiler.Scope(nameof(MeasureString));
+
+            float scale = m_fontSize / m_font.EmSize;
+
+            Profiler.Instant("Get initial glyph data for bounds");
+            float xBounds = 0, yBounds = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (!m_font.TryGetGlyphData(text[i], out var info, out var cmds))
+                    continue;
+
+                xBounds += scale * info.AdvanceWidth;
+                yBounds = MathL.Max(yBounds, info.LineHeight * scale);
+            }
+
+            return new Vector2(xBounds, yBounds);
         }
     }
 }
