@@ -25,7 +25,7 @@ namespace theori.Configuration
         public object Value
         {
             get => Property.GetMethod.Invoke(null, null);
-            set => Property.SetMethod.Invoke(null, new[] { value });
+            set => Property.SetMethod.Invoke(null, new[] { Convert.ChangeType(value, Property.PropertyType) });
         }
 
         public NewConfigEntry(Type groupType, ConfigGroupAttribute groupAttrib, PropertyInfo property, ConfigAttribute configAttrib)

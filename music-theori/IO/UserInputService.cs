@@ -66,17 +66,17 @@ namespace theori.IO
 
         public static event Action<KeyInfo> KeyPressed = info => layerStack?.KeyPressed(info);
         public static event Action<KeyInfo> KeyReleased = info => layerStack?.KeyReleased(info);
-        public static event Action<KeyInfo>? RawKeyPressed;
-        public static event Action<KeyInfo>? RawKeyReleased;
+        public static event Action<KeyInfo>? RawKeyPressed = info => layerStack?.RawKeyPressed(info);
+        public static event Action<KeyInfo>? RawKeyReleased = info => layerStack?.RawKeyReleased(info);
 
         public static event Action<MouseButtonInfo> MouseButtonPressed = info => layerStack?.MouseButtonPressed(info);
         public static event Action<MouseButtonInfo> MouseButtonReleased = info => layerStack?.MouseButtonReleased(info);
         public static event Action<int, int, int, int> MouseMoved = (x, y, dx, dy) => layerStack?.MouseMoved(x, y, dx, dy);
         public static event Action<int, int> MouseWheelScrolled = (dx, dy) => layerStack?.MouseWheelScrolled(dx, dy);
-        public static event Action<MouseButtonInfo>? RawMouseButtonPressed;
-        public static event Action<MouseButtonInfo>? RawMouseButtonReleased;
-        public static event Action<int, int, int, int>? RawMouseMoved;
-        public static event Action<int, int>? RawMouseScrolled;
+        public static event Action<MouseButtonInfo> RawMouseButtonPressed = info => layerStack?.RawMouseButtonPressed(info);
+        public static event Action<MouseButtonInfo> RawMouseButtonReleased = info => layerStack?.RawMouseButtonReleased(info);
+        public static event Action<int, int, int, int> RawMouseMoved = (x, y, dx, dy) => layerStack?.RawMouseMoved(x, y, dx, dy);
+        public static event Action<int, int> RawMouseScrolled = (dx, dy) => layerStack?.RawMouseWheelScrolled(dx, dy);
 
         public static event Action<Gamepad> GamepadConnected = gamepad => layerStack?.GamepadConnected(gamepad);
         public static event Action<Gamepad> GamepadDisconnected = gamepad => layerStack?.GamepadDisconnected(gamepad);
@@ -84,10 +84,10 @@ namespace theori.IO
         public static event Action<GamepadButtonInfo> GamepadButtonReleased = info => layerStack?.GamepadButtonReleased(info);
         public static event Action<GamepadAxisInfo> GamepadAxisChanged = info => layerStack?.GamepadAxisChanged(info);
         public static event Action<GamepadBallInfo> GamepadBallChanged = info => layerStack?.GamepadBallChanged(info);
-        public static event Action<GamepadButtonInfo>? RawGamepadButtonPressed;
-        public static event Action<GamepadButtonInfo>? RawGamepadButtonReleased;
-        public static event Action<GamepadAxisInfo>? RawGamepadAxisChanged;
-        public static event Action<GamepadBallInfo>? RawGamepadBallChanged;
+        public static event Action<GamepadButtonInfo> RawGamepadButtonPressed = info => layerStack?.RawGamepadButtonPressed(info);
+        public static event Action<GamepadButtonInfo> RawGamepadButtonReleased = info => layerStack?.RawGamepadButtonReleased(info);
+        public static event Action<GamepadAxisInfo> RawGamepadAxisChanged = info => layerStack?.RawGamepadAxisChanged(info);
+        public static event Action<GamepadBallInfo> RawGamepadBallChanged = info => layerStack?.RawGamepadBallChanged(info);
         // TODO(local): gamepad hats, or are those "buttons" to us eventually?
 
         public static event Action<Controller> ControllerAdded = gamepad => layerStack?.ControllerAdded(gamepad);

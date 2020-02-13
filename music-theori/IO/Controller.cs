@@ -70,6 +70,17 @@ namespace theori.IO
             binding.Released += BindingReleased;
         }
 
+        public void RemoveAllBindings()
+        {
+            foreach (var (key, binding) in Bindings)
+            {
+                binding.Pressed -= BindingPressed;
+                binding.Released -= BindingReleased;
+            }
+
+            Bindings.Clear();
+        }
+
         private void BindingPressed(IControllerButtonBinding binding, HybridLabel obj)
         {
             m_pressed.Add(binding);
@@ -114,6 +125,17 @@ namespace theori.IO
 
             binding.Changed += BindingChanged;
             binding.Ticked += BindingTicked;
+        }
+
+        public void RemoveAllBindings()
+        {
+            foreach (var (key, binding) in Bindings)
+            {
+                binding.Changed -= BindingChanged;
+                binding.Ticked -= BindingTicked;
+            }
+
+            Bindings.Clear();
         }
 
         private void BindingChanged(IControllerAxisBinding binding, HybridLabel obj, float value, float delta)
@@ -271,8 +293,10 @@ namespace theori.IO
         }
 
         [MoonSharpHidden]
-        public void SaveToFile(string filePath)
+        public void SaveToFile(string? filePath = null)
         {
+            filePath ??= $"controllers/{Name}.json";
+
             Directory.CreateDirectory(Directory.GetParent(filePath).FullName);
             using var writer = new JsonTextWriter(new StreamWriter(File.OpenWrite(filePath)));
 
@@ -437,6 +461,192 @@ namespace theori.IO
             {
                 foreach (var (key, binding) in axis.Bindings)
                     binding.Update(delta);
+            }
+        }
+
+        public void RemoveAllButtonBindings(HybridLabel bindingLabel)
+        {
+            if (m_buttons.TryGetValue(bindingLabel, out var button))
+                button.RemoveAllBindings();
+        }
+
+        public void RemoveAllAxisBindings(HybridLabel bindingLabel)
+        {
+            if (m_axes.TryGetValue(bindingLabel, out var axis))
+                axis.RemoveAllBindings();
+        }
+
+        [MoonSharpVisible(true)]
+        private List<Dictionary<string, object>> GetButtonBindings(HybridLabel buttonLabel)
+        {
+            if (!m_buttons.TryGetValue(buttonLabel, out var button))
+                return new List<Dictionary<string, object>>();
+
+            var result = new List<Dictionary<string, object>>();
+            foreach (var binding in button.Bindings)
+            {
+                object device, input;
+                if (binding.Value is KeyboardControllerButton kb)
+                {
+                    device = "keyboard";
+                    input = kb.Key;
+                }
+                else if (binding.Value is MouseControllerButton mb)
+                {
+                    device = "mouse";
+                    input = mb.Button;
+                }
+                else if (binding.Value is GamepadControllerButton gb)
+                {
+                    device = gb.Gamepad;
+                    input = gb.Button;
+                }
+                else continue;
+
+                result.Add(new Dictionary<string, object>()
+                {
+                    { "device", device },
+                    { "input", input },
+                });
+            }
+
+            return result;
+        }
+
+        [MoonSharpVisible(true)]
+        private List<Dictionary<string, object>> GetAxisBindings(HybridLabel axisLabel)
+        {
+            if (!m_axes.TryGetValue(axisLabel, out var axis))
+                return new List<Dictionary<string, object>>();
+
+            var result = new List<Dictionary<string, object>>();
+            foreach (var binding in axis.Bindings)
+            {
+                var b = new Dictionary<string, object>();
+                if (binding.Value is KeyboardControllerAxis kb)
+                {
+                    b["device"] = "keyboard";
+                    b["input"] = kb.Positive;
+                    b["input2"] = kb.Negative;
+                }
+                else if (binding.Value is MouseButtonControllerAxis mb)
+                {
+                    b["device"] = "mouse";
+                    b["input"] = mb.Positive;
+                    b["input2"] = mb.Negative;
+                }
+                else if (binding.Value is MouseMotionControllerAxis mm)
+                {
+                    b["device"] = "mouse";
+                    b["input"] = "motion";
+                    b["axis"] = mm.Axis;
+                }
+                else if (binding.Value is GamepadAxisControllerAxis ga)
+                {
+                    b["device"] = ga.Gamepad;
+                    b["input"] = ga.Axis;
+                    b["axis"] = ga.Axis;
+                }
+                else continue;
+
+                result.Add(b);
+            }
+
+            return result;
+        }
+
+        [MoonSharpVisible(true)]
+        private void SetButtonBindings(HybridLabel buttonLabel, List<Dictionary<string, object>> bindings)
+        {
+            foreach (var binding in bindings)
+            {
+                object? device = binding.TryGetValue("device", out var d) ? d : null;
+                object? input = binding.TryGetValue("input", out var i) ? i : null;
+                object? axis = binding.TryGetValue("axis", out var a) ? a : null;
+
+                if (device is string deviceName)
+                {
+                    if (deviceName == "keyboard" && input is KeyCode keyCode)
+                        SetButtonToKey(buttonLabel, keyCode);
+                    else if (deviceName == "mouse" && input is MouseButton mouseButton)
+                        SetButtonToMouseButton(buttonLabel, mouseButton);
+                }
+                else if (device is Gamepad gamepad)
+                {
+                    try
+                    {
+                        uint button = (uint)Convert.ChangeType(input, typeof(uint));
+                        SetButtonToGamepadButton(buttonLabel, gamepad, button);
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        [MoonSharpVisible(true)]
+        private void SetAxisBindings(HybridLabel axisLabel, List<Dictionary<string, object>> bindings)
+        {
+            foreach (var binding in bindings)
+            {
+                object? device = binding.TryGetValue("device", out var d) ? d : null;
+                object? input = binding.TryGetValue("input", out var i) ? i : null;
+                object? input2 = binding.TryGetValue("input2", out i) ? i : null;
+                object? axis = binding.TryGetValue("axis", out var a) ? a : null;
+
+                var axisStyle = binding.TryGetValue("axisStyle", out var s) && s is ControllerAxisStyle style ? style : ControllerAxisStyle.Linear;
+                float sens = (float)(binding.TryGetValue("sensitivity", out var x) && x is double xs ? xs : 1.0);
+
+                if (device is string deviceName)
+                {
+                    if (deviceName == "keyboard" && input is KeyCode keyCode)
+                    {
+                        if (input2 is KeyCode keyCode2)
+                        {
+                            if (axisStyle == ControllerAxisStyle.Linear)
+                                SetAxisToKeysLinear(axisLabel, keyCode, keyCode2);
+                            else SetAxisToKeysRadial(axisLabel, keyCode, keyCode2);
+                        }
+                        else
+                        {
+                            if (axisStyle == ControllerAxisStyle.Linear)
+                                SetAxisToKeyLinear(axisLabel, keyCode);
+                            else SetAxisToKeyRadial(axisLabel, keyCode);
+                        }
+                    }
+                    else if (deviceName == "mouse")
+                    {
+                        if (input is string inputName)
+                        {
+                            if (inputName == "motion" && axis is Axis axisAxis)
+                                SetAxisToMouseAxis(axisLabel, axisAxis, sens);
+                            //else if (inputName == "wheel")
+                        }
+                        else if (input is MouseButton mouseButton)
+                        {
+                            if (input2 is MouseButton mouseButton2)
+                            {
+                                if (axisStyle == ControllerAxisStyle.Linear)
+                                    SetAxisToMouseButtonsLinear(axisLabel, mouseButton, mouseButton2);
+                                else SetAxisToMouseButtonsRadial(axisLabel, mouseButton, mouseButton2);
+                            }
+                            else
+                            {
+                                if (axisStyle == ControllerAxisStyle.Linear)
+                                    SetAxisToMouseButtonLinear(axisLabel, mouseButton);
+                                else SetAxisToMouseButtonRadial(axisLabel, mouseButton);
+                            }
+                        }
+                    }
+                }
+                else if (device is Gamepad gamepad)
+                {
+                    try
+                    {
+                        uint axisValue = (uint)Convert.ChangeType(input, typeof(uint));
+                        SetAxisToGamepadAxis(axisLabel, gamepad, axisValue, axisStyle, sens);
+                    }
+                    catch { }
+                }
             }
         }
 

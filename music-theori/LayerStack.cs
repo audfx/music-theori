@@ -142,11 +142,17 @@ namespace theori
 
         internal void KeyPressed(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.KeyPressed(info); }
         internal void KeyReleased(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.KeyReleased(info); }
+        internal void RawKeyPressed(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawKeyPressed(info); }
+        internal void RawKeyReleased(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawKeyReleased(info); }
 
         internal void MouseButtonPressed(MouseButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.MouseButtonPressed(info); }
         internal void MouseButtonReleased(MouseButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.MouseButtonReleased(info); }
         internal void MouseWheelScrolled(int x, int y) { if (m_layers.Count > 0) m_layers.Peek()!.MouseWheelScrolled(x, y); }
         internal void MouseMoved(int x, int y, int dx, int dy) { if (m_layers.Count > 0) m_layers.Peek()!.MouseMoved(x, y, dx, dy); }
+        internal void RawMouseButtonPressed(MouseButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawMouseButtonPressed(info); }
+        internal void RawMouseButtonReleased(MouseButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawMouseButtonReleased(info); }
+        internal void RawMouseWheelScrolled(int x, int y) { if (m_layers.Count > 0) m_layers.Peek()!.RawMouseWheelScrolled(x, y); }
+        internal void RawMouseMoved(int x, int y, int dx, int dy) { if (m_layers.Count > 0) m_layers.Peek()!.RawMouseMoved(x, y, dx, dy); }
 
         internal void GamepadConnected(Gamepad gamepad) { if (m_layers.Count > 0) m_layers.Peek()!.GamepadConnected(gamepad); }
         internal void GamepadDisconnected(Gamepad gamepad) { if (m_layers.Count > 0) m_layers.Peek()!.GamepadDisconnected(gamepad); }
@@ -154,6 +160,10 @@ namespace theori
         internal void GamepadButtonReleased(GamepadButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.GamepadButtonReleased(info); }
         internal void GamepadAxisChanged(GamepadAxisInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.GamepadAxisChanged(info); }
         internal void GamepadBallChanged(GamepadBallInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.GamepadBallChanged(info); }
+        internal void RawGamepadButtonPressed(GamepadButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawGamepadButtonPressed(info); }
+        internal void RawGamepadButtonReleased(GamepadButtonInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawGamepadButtonReleased(info); }
+        internal void RawGamepadAxisChanged(GamepadAxisInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawGamepadAxisChanged(info); }
+        internal void RawGamepadBallChanged(GamepadBallInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawGamepadBallChanged(info); }
 
         internal void ControllerAdded(Controller controller) { if (m_layers.Count > 0) m_layers.Peek()!.ControllerAdded(controller); }
         internal void ControllerRemoved(Controller controller) { if (m_layers.Count > 0) m_layers.Peek()!.ControllerRemoved(controller); }

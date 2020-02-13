@@ -382,12 +382,13 @@ namespace theori.Graphics
             throw new NotImplementedException();
         }
 
-        private void Fill(Path2DGroup pathGroup, Vector2 offset = default)
+        private void Fill(Path2DGroup pathGroup, Vector2 offset = default, Vector2? scale = null)
         {
+            var s = scale ?? Vector2.One;
             using var _ = Profiler.Scope(nameof(Fill));
 
             var __getPathVerts = Profiler.Scope("Get path group vertices");
-            var pathVerts = pathGroup.GetVertices().Select(v => new VertexRB2D(m_fillKind, Vector2.Transform(v.Position + offset, m_transform.Matrix), v.TexCoord, m_vertexColor));
+            var pathVerts = pathGroup.GetVertices().Select(v => new VertexRB2D(m_fillKind, Vector2.Transform(v.Position * s + offset, m_transform.Matrix), v.TexCoord, m_vertexColor));
             __getPathVerts?.Dispose();
 
             var __copyVerticesToArray = Profiler.Scope("Copy processed vertices to output buffer");
@@ -538,10 +539,12 @@ namespace theori.Graphics
 
                 if (text[i] != ' ')
                 {
-                    var paths = cmds.Flatten(scale, scale);
-                    var offs = new Vector2(x + xPosition + xOffset, y + yOffset);
-
-                    Fill(paths, offs);
+                    var paths = cmds.Flatten();
+                    if (paths.Paths.Length > 0)
+                    {
+                        var offs = new Vector2(x + xPosition + xOffset, y + yOffset);
+                        Fill(paths, offs, new Vector2(scale));
+                    }
                 }
 
                 xPosition += scale * info.AdvanceWidth;

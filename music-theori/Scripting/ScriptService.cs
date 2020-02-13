@@ -48,6 +48,7 @@ namespace theori.Scripting
 
             RegisterType<KeyCode>();
             RegisterType<MouseButton>();
+            RegisterType<ControllerAxisStyle>();
             RegisterType<Axis>();
             RegisterType<Gamepad>();
             RegisterType<Controller>();

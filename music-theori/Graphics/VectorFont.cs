@@ -74,6 +74,15 @@ namespace theori.Graphics
             return true;
         }
 
+        public void PreFlattenToScales(string chars, float x, float y)
+        {
+            foreach (char c in chars)
+            {
+                AddCharacter(c);
+                m_paths[c].Flatten(x, y);
+            }
+        }
+
         public void AddCharacters(string chars)
         {
             foreach (char c in chars)

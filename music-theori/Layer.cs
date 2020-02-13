@@ -112,26 +112,26 @@ namespace theori
         public readonly Table tblTheoriInputGamepad;
         public readonly Table tblTheoriInputController;
 
-        public readonly ScriptEvent evtKeyPressed;
-        public readonly ScriptEvent evtKeyReleased;
+        public readonly ScriptEvent evtKeyPressed, evtRawKeyPressed;
+        public readonly ScriptEvent evtKeyReleased, evtRawKeyReleased;
 
-        public readonly ScriptEvent evtMousePressed;
-        public readonly ScriptEvent evtMouseReleased;
-        public readonly ScriptEvent evtMouseMoved;
-        public readonly ScriptEvent evtMouseScrolled;
+        public readonly ScriptEvent evtMousePressed, evtRawMousePressed;
+        public readonly ScriptEvent evtMouseReleased, evtRawMouseReleased;
+        public readonly ScriptEvent evtMouseMoved, evtRawMouseMoved;
+        public readonly ScriptEvent evtMouseScrolled, evtRawMouseScrolled;
 
         public readonly ScriptEvent evtGamepadConnected;
         public readonly ScriptEvent evtGamepadDisconnected;
-        public readonly ScriptEvent evtGamepadPressed;
-        public readonly ScriptEvent evtGamepadReleased;
-        public readonly ScriptEvent evtGamepadAxisChanged;
+        public readonly ScriptEvent evtGamepadPressed, evtRawGamepadPressed;
+        public readonly ScriptEvent evtGamepadReleased, evtRawGamepadReleased;
+        public readonly ScriptEvent evtGamepadAxisChanged, evtRawGamepadAxisChanged;
 
         public readonly ScriptEvent evtControllerAdded;
         public readonly ScriptEvent evtControllerRemoved;
-        public readonly ScriptEvent evtControllerPressed;
-        public readonly ScriptEvent evtControllerReleased;
-        public readonly ScriptEvent evtControllerAxisChanged;
-        public readonly ScriptEvent evtControllerAxisTicked;
+        public readonly ScriptEvent evtControllerPressed, evtRawControllerPressed;
+        public readonly ScriptEvent evtControllerReleased, evtRawControllerReleased;
+        public readonly ScriptEvent evtControllerAxisChanged, evtRawControllerAxisChanged;
+        public readonly ScriptEvent evtControllerAxisTicked, evtRawControllerAxisTicked;
 
         #endregion
 
@@ -152,6 +152,7 @@ namespace theori
 
             m_script["KeyCode"] = typeof(KeyCode);
             m_script["MouseButton"] = typeof(MouseButton);
+            m_script["ControllerAxisStyle"] = typeof(ControllerAxisStyle);
 
             m_script["theori"] = tblTheori = m_script.NewTable();
 
@@ -171,11 +172,17 @@ namespace theori
 
             tblTheoriInputKeyboard["pressed"] = evtKeyPressed = m_script.NewEvent();
             tblTheoriInputKeyboard["released"] = evtKeyReleased = m_script.NewEvent();
+            tblTheoriInputKeyboard["pressedRaw"] = evtRawKeyPressed = m_script.NewEvent();
+            tblTheoriInputKeyboard["releasedRaw"] = evtRawKeyReleased = m_script.NewEvent();
 
             tblTheoriInputMouse["pressed"] = evtMousePressed = m_script.NewEvent();
             tblTheoriInputMouse["released"] = evtMouseReleased = m_script.NewEvent();
             tblTheoriInputMouse["moved"] = evtMouseMoved = m_script.NewEvent();
             tblTheoriInputMouse["scrolled"] = evtMouseScrolled = m_script.NewEvent();
+            tblTheoriInputMouse["pressedRaw"] = evtRawMousePressed = m_script.NewEvent();
+            tblTheoriInputMouse["releasedRaw"] = evtRawMouseReleased = m_script.NewEvent();
+            tblTheoriInputMouse["movedRaw"] = evtRawMouseMoved = m_script.NewEvent();
+            tblTheoriInputMouse["scrolledRaw"] = evtRawMouseScrolled = m_script.NewEvent();
             tblTheoriInputMouse["getMousePosition"] = (Func<DynValue>)(() => NewTuple(NewNumber(UserInputService.MouseX), NewNumber(UserInputService.MouseY)));
 
             tblTheoriInputGamepad["connected"] = evtGamepadConnected = m_script.NewEvent();
@@ -183,6 +190,9 @@ namespace theori
             tblTheoriInputGamepad["pressed"] = evtGamepadPressed = m_script.NewEvent();
             tblTheoriInputGamepad["released"] = evtGamepadReleased = m_script.NewEvent();
             tblTheoriInputGamepad["axisChanged"] = evtGamepadAxisChanged = m_script.NewEvent();
+            tblTheoriInputGamepad["pressedRaw"] = evtRawGamepadPressed = m_script.NewEvent();
+            tblTheoriInputGamepad["releasedRaw"] = evtRawGamepadReleased = m_script.NewEvent();
+            tblTheoriInputGamepad["axisChangedRaw"] = evtRawGamepadAxisChanged = m_script.NewEvent();
 
             tblTheoriInputController["added"] = evtControllerAdded = m_script.NewEvent();
             tblTheoriInputController["removed"] = evtControllerRemoved = m_script.NewEvent();
@@ -277,7 +287,7 @@ namespace theori
 
             tblTheoriConfig["get"] = (Func<string, DynValue>)(key => FromObject(m_script.Script, UserConfigManager.GetFromKey(key)));
             tblTheoriConfig["set"] = (Action<string, DynValue>)((key, value) => UserConfigManager.SetFromKey(key, value.ToObject()));
-
+            
             tblTheoriGame["exit"] = (Action)(() => Host.Exit());
 
             tblTheoriGraphics["queueStaticTextureLoad"] = (Func<string, Texture>)(textureName => StaticResources.QueueTextureLoad($"textures/{ textureName }"));
@@ -314,32 +324,6 @@ namespace theori
             tblTheoriGraphics["restoreScissor"] = (Action)(() => m_batch?.RestoreScissor());
             tblTheoriGraphics["resetScissor"] = (Action)(() => m_batch?.ResetScissor());
             tblTheoriGraphics["scissor"] = (Action<float, float, float, float>)((x, y, w, h) => m_batch?.Scissor(x, y, w, h));
-            // setColor -> setFillToColor
-            // setImageColor -> setFillToTexture
-            // draw -> fillRect
-            // drawString -> fillString
-#if false
-            tblTheoriGraphics["flush"] = (Action)(() => m_spriteRenderer.Flush());
-            tblTheoriGraphics["saveTransform"] = (Action)(() => m_spriteRenderer.SaveTransform());
-            tblTheoriGraphics["restoreTransform"] = (Action)(() => m_spriteRenderer.RestoreTransform());
-            tblTheoriGraphics["resetTransform"] = (Action)(() => m_spriteRenderer.ResetTransform());
-            tblTheoriGraphics["translate"] = (Action<float, float>)((x, y) => m_spriteRenderer.Translate(x, y));
-            tblTheoriGraphics["rotate"] = (Action<float>)(d => m_spriteRenderer.Rotate(d));
-            tblTheoriGraphics["scale"] = (Action<float, float>)((x, y) => m_spriteRenderer.Scale(x, y));
-            tblTheoriGraphics["shear"] = (Action<float, float>)((x, y) => m_spriteRenderer.Shear(x, y));
-            tblTheoriGraphics["getViewportSize"] = (Func<DynValue>)(() => NewTuple(NewNumber(Window.Width), NewNumber(Window.Height)));
-            tblTheoriGraphics["setColor"] = (Action<float, float, float, float>)((r, g, b, a) => m_spriteRenderer.SetColor(r, g, b, a));
-            tblTheoriGraphics["setImageColor"] = (Action<float, float, float, float>)((r, g, b, a) => m_spriteRenderer.SetImageColor(r, g, b, a));
-            tblTheoriGraphics["fillRect"] = (Action<float, float, float, float>)((x, y, w, h) => m_spriteRenderer.FillRect(x, y, w, h));
-            tblTheoriGraphics["draw"] = (Action<Texture, float, float, float, float>)((texture, x, y, w, h) => m_spriteRenderer.Image(texture, x, y, w, h));
-            tblTheoriGraphics["setFontSize"] = (Action<int>)(size => m_spriteRenderer.SetFontSize(size));
-            tblTheoriGraphics["setTextAlign"] = (Action<Anchor>)(align => m_spriteRenderer.SetTextAlign(align));
-            tblTheoriGraphics["drawString"] = (Action<string, float, float>)((text, x, y) => { });
-            tblTheoriGraphics["saveScissor"] = (Action)(() => m_spriteRenderer.SaveScissor());
-            tblTheoriGraphics["restoreScissor"] = (Action)(() => m_spriteRenderer.RestoreScissor());
-            tblTheoriGraphics["resetScissor"] = (Action)(() => m_spriteRenderer.ResetScissor());
-            tblTheoriGraphics["scissor"] = (Action<float, float, float, float>)((x, y, w, h) => m_spriteRenderer.Scissor(x, y, w, h));
-#endif
 
             tblTheoriGraphics["openCurtain"] = (Action)OpenCurtain;
             tblTheoriGraphics["closeCurtain"] = (Action<float, DynValue?>)((duration, callback) =>
@@ -370,6 +354,10 @@ namespace theori
                 return Nil;
             });
             tblTheoriInput["isInputModeEnabled"] = (Func<string, bool>)(modeName => UserInputService.InputModes.HasFlag(GetModeFromString(modeName)));
+
+            tblTheoriInput["getControllerFiles"] = (Func<string[]>)(() => Directory.GetFiles("controller", "*.json"));
+            tblTheoriInput["loadController"] = (Func<string, Controller?>)(fileName => Controller.TryCreateFromFile(Path.Combine("controllers", fileName)));
+            tblTheoriInput["saveController"] = (Action<Controller>)(con => con.SaveToFile());
 
             tblTheoriLayer["construct"] = (Action)(() => { });
             tblTheoriLayer["push"] = DynValue.NewCallback((context, args) =>
@@ -570,11 +558,17 @@ namespace theori
 
         public virtual void KeyPressed(KeyInfo info) => evtKeyPressed.Fire(info.KeyCode);
         public virtual void KeyReleased(KeyInfo info) => evtKeyReleased.Fire(info.KeyCode);
+        public virtual void RawKeyPressed(KeyInfo info) => evtRawKeyPressed.Fire(info.KeyCode);
+        public virtual void RawKeyReleased(KeyInfo info) => evtRawKeyReleased.Fire(info.KeyCode);
 
         public virtual void MouseButtonPressed(MouseButtonInfo info) => evtMousePressed.Fire(info.Button, UserInputService.MouseX, UserInputService.MouseY);
         public virtual void MouseButtonReleased(MouseButtonInfo info) => evtMouseReleased.Fire(info.Button, UserInputService.MouseX, UserInputService.MouseY);
         public virtual void MouseWheelScrolled(int dx, int dy) => evtMouseScrolled.Fire(dx, dy);
         public virtual void MouseMoved(int x, int y, int dx, int dy) => evtMouseMoved.Fire(x, y, dx, dy);
+        public virtual void RawMouseButtonPressed(MouseButtonInfo info) => evtRawMousePressed.Fire(info.Button, UserInputService.MouseX, UserInputService.MouseY);
+        public virtual void RawMouseButtonReleased(MouseButtonInfo info) => evtRawMouseReleased.Fire(info.Button, UserInputService.MouseX, UserInputService.MouseY);
+        public virtual void RawMouseWheelScrolled(int dx, int dy) => evtRawMouseScrolled.Fire(dx, dy);
+        public virtual void RawMouseMoved(int x, int y, int dx, int dy) => evtRawMouseMoved.Fire(x, y, dx, dy);
 
         public virtual void GamepadConnected(Gamepad gamepad) => evtGamepadConnected.Fire(gamepad);
         public virtual void GamepadDisconnected(Gamepad gamepad) => evtGamepadDisconnected.Fire(gamepad);
@@ -582,6 +576,10 @@ namespace theori
         public virtual void GamepadButtonReleased(GamepadButtonInfo info) => evtGamepadReleased.Fire(info.Gamepad, info.Button);
         public virtual void GamepadAxisChanged(GamepadAxisInfo info) => evtGamepadAxisChanged.Fire(info.Gamepad, info.Axis, info.Value);
         public virtual void GamepadBallChanged(GamepadBallInfo info) => evtGamepadAxisChanged.Fire(info.Gamepad, info.Ball, info.XRelative, info.YRelative);
+        public virtual void RawGamepadButtonPressed(GamepadButtonInfo info) => evtRawGamepadPressed.Fire(info.Gamepad, info.Button);
+        public virtual void RawGamepadButtonReleased(GamepadButtonInfo info) => evtRawGamepadReleased.Fire(info.Gamepad, info.Button);
+        public virtual void RawGamepadAxisChanged(GamepadAxisInfo info) => evtRawGamepadAxisChanged.Fire(info.Gamepad, info.Axis, info.Value);
+        public virtual void RawGamepadBallChanged(GamepadBallInfo info) => evtRawGamepadAxisChanged.Fire(info.Gamepad, info.Ball, info.XRelative, info.YRelative);
 
         public virtual void ControllerAdded(Controller controller) => evtControllerAdded.Fire(controller);
         public virtual void ControllerRemoved(Controller controller) => evtControllerRemoved.Fire(controller);
