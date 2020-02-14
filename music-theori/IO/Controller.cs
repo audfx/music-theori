@@ -298,7 +298,7 @@ namespace theori.IO
             filePath ??= $"controllers/{Name}.json";
 
             Directory.CreateDirectory(Directory.GetParent(filePath).FullName);
-            using var writer = new JsonTextWriter(new StreamWriter(File.OpenWrite(filePath)));
+            using var writer = new JsonTextWriter(new StreamWriter(File.Open(filePath, FileMode.Create)));
 
             writer.WriteStartObject();
             {
@@ -390,6 +390,9 @@ namespace theori.IO
             }
         }
 
+        [MoonSharpVisible(true)]
+        private void Save() => SaveToFile();
+
         [MoonSharpHidden]
         public event Action<Controller, HybridLabel>? Pressed;
         [MoonSharpHidden]
@@ -468,12 +471,14 @@ namespace theori.IO
         {
             if (m_buttons.TryGetValue(bindingLabel, out var button))
                 button.RemoveAllBindings();
+            m_buttons.Remove(bindingLabel);
         }
 
         public void RemoveAllAxisBindings(HybridLabel bindingLabel)
         {
             if (m_axes.TryGetValue(bindingLabel, out var axis))
                 axis.RemoveAllBindings();
+            m_axes.Remove(bindingLabel);
         }
 
         [MoonSharpVisible(true)]
@@ -558,6 +563,7 @@ namespace theori.IO
         [MoonSharpVisible(true)]
         private void SetButtonBindings(HybridLabel buttonLabel, List<Dictionary<string, object>> bindings)
         {
+            RemoveAllButtonBindings(buttonLabel);
             foreach (var binding in bindings)
             {
                 object? device = binding.TryGetValue("device", out var d) ? d : null;
@@ -586,6 +592,7 @@ namespace theori.IO
         [MoonSharpVisible(true)]
         private void SetAxisBindings(HybridLabel axisLabel, List<Dictionary<string, object>> bindings)
         {
+            RemoveAllAxisBindings(axisLabel);
             foreach (var binding in bindings)
             {
                 object? device = binding.TryGetValue("device", out var d) ? d : null;

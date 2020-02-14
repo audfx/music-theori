@@ -388,8 +388,14 @@ namespace theori.Graphics
             using var _ = Profiler.Scope(nameof(Fill));
 
             var __getPathVerts = Profiler.Scope("Get path group vertices");
-            var pathVerts = pathGroup.GetVertices().Select(v => new VertexRB2D(m_fillKind, Vector2.Transform(v.Position * s + offset, m_transform.Matrix), v.TexCoord, m_vertexColor));
+            var pathVerts = pathGroup.GetVertices().Select(v => new VertexRB2D(m_fillKind, Vector2.Transform(v.Position * s + offset, m_transform.Matrix), v.TexCoord, m_vertexColor)).ToArray();
             __getPathVerts?.Dispose();
+
+            if (m_vertexCount + pathVerts.Length >= m_vertices.Length
+            ||  m_indexCount + pathGroup.GetIndices().Count >= m_indices.Length)
+            {
+                Flush();
+            }
 
             var __copyVerticesToArray = Profiler.Scope("Copy processed vertices to output buffer");
             int vidx = m_vertexCount;

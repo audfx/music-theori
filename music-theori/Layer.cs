@@ -170,6 +170,7 @@ namespace theori
             tblTheoriInput["gamepad"] = tblTheoriInputGamepad = m_script.NewTable();
             tblTheoriInput["controller"] = tblTheoriInputController = m_script.NewTable();
 
+            tblTheoriInputKeyboard["isDown"] = (Func<KeyCode, bool>)(key => UserInputService.IsKeyDown(key));
             tblTheoriInputKeyboard["pressed"] = evtKeyPressed = m_script.NewEvent();
             tblTheoriInputKeyboard["released"] = evtKeyReleased = m_script.NewEvent();
             tblTheoriInputKeyboard["pressedRaw"] = evtRawKeyPressed = m_script.NewEvent();
@@ -287,7 +288,8 @@ namespace theori
 
             tblTheoriConfig["get"] = (Func<string, DynValue>)(key => FromObject(m_script.Script, UserConfigManager.GetFromKey(key)));
             tblTheoriConfig["set"] = (Action<string, DynValue>)((key, value) => UserConfigManager.SetFromKey(key, value.ToObject()));
-            
+            tblTheoriConfig["save"] = (Action)(() => UserConfigManager.SaveToFile());
+
             tblTheoriGame["exit"] = (Action)(() => Host.Exit());
 
             tblTheoriGraphics["queueStaticTextureLoad"] = (Func<string, Texture>)(textureName => StaticResources.QueueTextureLoad($"textures/{ textureName }"));

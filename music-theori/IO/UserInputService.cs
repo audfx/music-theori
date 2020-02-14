@@ -66,8 +66,8 @@ namespace theori.IO
 
         public static event Action<KeyInfo> KeyPressed = info => layerStack?.KeyPressed(info);
         public static event Action<KeyInfo> KeyReleased = info => layerStack?.KeyReleased(info);
-        public static event Action<KeyInfo>? RawKeyPressed = info => layerStack?.RawKeyPressed(info);
-        public static event Action<KeyInfo>? RawKeyReleased = info => layerStack?.RawKeyReleased(info);
+        public static event Action<KeyInfo> RawKeyPressed = info => layerStack?.RawKeyPressed(info);
+        public static event Action<KeyInfo> RawKeyReleased = info => layerStack?.RawKeyReleased(info);
 
         public static event Action<MouseButtonInfo> MouseButtonPressed = info => layerStack?.MouseButtonPressed(info);
         public static event Action<MouseButtonInfo> MouseButtonReleased = info => layerStack?.MouseButtonReleased(info);

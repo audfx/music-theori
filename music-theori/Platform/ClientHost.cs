@@ -129,6 +129,8 @@ namespace theori.Platform
                     long targetFrameTimeMillis = client.TargetFrameTimeMillis;
                     Time.FixedDelta = targetFrameTimeMillis / 1_000.0f;
 
+                    Mixer.MasterChannel.Volume = TheoriConfig.MasterVolume;
+
                     client.BeginFrame();
 
                     // == Input Step (gather, trigger events)
