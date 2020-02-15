@@ -163,7 +163,7 @@ namespace theori.Configuration
                 }
             }
         }
-
+        
         public static void SaveToFile(string? configFileName = null)
         {
             string fileName = configFileName ?? "default-config.json";

@@ -193,6 +193,9 @@ namespace theori.IO
             InputModes = modes;
         }
 
+        public static void BeginTextEditing() => SDL_StartTextInput();
+        public static void EndTextEditing() => SDL_StopTextInput();
+
         private static void SetDesiredMouseGrabbedStatus()
         {
             static bool GetDesiredMouseGrabbedStatus()

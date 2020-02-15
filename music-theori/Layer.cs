@@ -355,6 +355,8 @@ namespace theori
                 UserInputService.SetInputMode(modes);
                 return Nil;
             });
+            tblTheoriInput["beginTextInput"] = (Action)(() => UserInputService.BeginTextEditing());
+            tblTheoriInput["endTextInput"] = (Action)(() => UserInputService.EndTextEditing());
             tblTheoriInput["isInputModeEnabled"] = (Func<string, bool>)(modeName => UserInputService.InputModes.HasFlag(GetModeFromString(modeName)));
 
             tblTheoriInput["getControllerFiles"] = (Func<string[]>)(() => Directory.GetFiles("controller", "*.json"));
