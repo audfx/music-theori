@@ -112,6 +112,8 @@ namespace theori
         public readonly Table tblTheoriInputGamepad;
         public readonly Table tblTheoriInputController;
 
+        public readonly ScriptEvent evtTextInput;
+
         public readonly ScriptEvent evtKeyPressed, evtRawKeyPressed;
         public readonly ScriptEvent evtKeyReleased, evtRawKeyReleased;
 
@@ -154,6 +156,8 @@ namespace theori
             m_script["MouseButton"] = typeof(MouseButton);
             m_script["ControllerAxisStyle"] = typeof(ControllerAxisStyle);
 
+            m_script["like"] = (Func<string, string, bool>)((a, b) => a.Like(b));
+
             m_script["theori"] = tblTheori = m_script.NewTable();
 
             tblTheori["audio"] = tblTheoriAudio = m_script.NewTable();
@@ -164,6 +168,8 @@ namespace theori
             tblTheori["input"] = tblTheoriInput = m_script.NewTable();
             tblTheori["layer"] = tblTheoriLayer = m_script.NewTable();
             tblTheori["modes"] = tblTheoriModes = m_script.NewTable();
+
+            tblTheoriInput["textInput"] = evtTextInput = m_script.NewEvent();
 
             tblTheoriInput["keyboard"] = tblTheoriInputKeyboard = m_script.NewTable();
             tblTheoriInput["mouse"] = tblTheoriInputMouse = m_script.NewTable();
@@ -355,8 +361,12 @@ namespace theori
                 UserInputService.SetInputMode(modes);
                 return Nil;
             });
-            tblTheoriInput["beginTextInput"] = (Action)(() => UserInputService.BeginTextEditing());
-            tblTheoriInput["endTextInput"] = (Action)(() => UserInputService.EndTextEditing());
+            tblTheoriInput["getClipboardText"] = (Action)(() => UserInputService.GetClipboardText());
+            tblTheoriInput["setClipboardText"] = (Action<string>)(text => UserInputService.SetClipboardText(text));
+            tblTheoriInput["startTextEditing"] = (Action)(() => UserInputService.StartTextEditing());
+            tblTheoriInput["stopTextEditing"] = (Action)(() => UserInputService.StopTextEditing());
+            tblTheoriInput["isTextInputActive"] = (Func<bool>)(() => UserInputService.IsTextInputActive());
+            tblTheoriInput["setTextInputRect"] = (Action<int, int, int, int>)((x, y, w, h) => UserInputService.SetTextInputRect(x, y, w, h));
             tblTheoriInput["isInputModeEnabled"] = (Func<string, bool>)(modeName => UserInputService.InputModes.HasFlag(GetModeFromString(modeName)));
 
             tblTheoriInput["getControllerFiles"] = (Func<string[]>)(() => Directory.GetFiles("controller", "*.json"));
@@ -559,6 +569,8 @@ namespace theori
         /// Returns true to cancel the exit, false to continue.
         /// </summary>
         public virtual bool OnExiting(Layer? source) => m_script.Call(tblTheoriLayer["onExiting"])?.CastToBool() ?? false;
+
+        public virtual void TextInput(string composition) => evtTextInput.Fire(composition);
 
         public virtual void KeyPressed(KeyInfo info) => evtKeyPressed.Fire(info.KeyCode);
         public virtual void KeyReleased(KeyInfo info) => evtKeyReleased.Fire(info.KeyCode);

@@ -134,6 +134,8 @@ namespace theori.Graphics
                 SwapBuffer();
             }
 
+            SDL_StopTextInput();
+
             Update();
         }
 
@@ -231,6 +233,8 @@ namespace theori.Graphics
                         string composition = Encoding.UTF8.GetString(bytes, 0, Array.IndexOf<byte>(bytes, 0));
                         int cursor = evt.edit.start;
                         int selectionLength = evt.edit.length;
+
+                        UserInputService.SetEditingText(composition, cursor, selectionLength);
                     } break;
                     case SDL_EventType.SDL_TEXTINPUT:
                     {
@@ -238,6 +242,8 @@ namespace theori.Graphics
                         Marshal.Copy(new IntPtr(evt.edit.text), bytes, 0, 32);
 
                         string composition = Encoding.UTF8.GetString(bytes, 0, Array.IndexOf<byte>(bytes, 0));
+
+                        UserInputService.SetInputText(composition);
                     } break;
 
                     case SDL_EventType.SDL_JOYDEVICEADDED:

@@ -170,7 +170,7 @@ namespace theori.Database
 
             void SearchDirectory(string directory, string? currentSubDirectory)
             {
-                Logger.Log($"Searching directory `{directory}` for charts...");
+                //Logger.Log($"Searching directory `{directory}` for charts...");
                 foreach (string entry in Directory.EnumerateDirectories(directory))
                 {
                     if (ct.IsCancellationRequested)
@@ -186,7 +186,7 @@ namespace theori.Database
                     {
                         // TODO(local): see if this can be updated rather than just skipped
                         if (ChartDatabaseService.ContainsSetAtLocation(Path.Combine(entrySubDirectory, setFile.Name))) continue;
-                        Logger.Log($"Adding set file `{setFile}`");
+                        //Logger.Log($"Adding set file `{setFile}`");
                         EnqueuePopulateEntry(setSerializer.LoadFromFile(entrySubDirectory, setFile.Name));
                     }
                     

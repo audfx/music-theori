@@ -140,6 +140,8 @@ namespace theori
         {
         }
 
+        internal void TextInput(string composition) { if (m_layers.Count > 0) m_layers.Peek()!.TextInput(composition); }
+
         internal void KeyPressed(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.KeyPressed(info); }
         internal void KeyReleased(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.KeyReleased(info); }
         internal void RawKeyPressed(KeyInfo info) { if (m_layers.Count > 0) m_layers.Peek()!.RawKeyPressed(info); }

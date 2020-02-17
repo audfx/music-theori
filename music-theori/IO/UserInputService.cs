@@ -64,6 +64,8 @@ namespace theori.IO
             }
         }
 
+        public static event Action<string> TextInput = composition => layerStack?.TextInput(composition);
+
         public static event Action<KeyInfo> KeyPressed = info => layerStack?.KeyPressed(info);
         public static event Action<KeyInfo> KeyReleased = info => layerStack?.KeyReleased(info);
         public static event Action<KeyInfo> RawKeyPressed = info => layerStack?.RawKeyPressed(info);
@@ -193,8 +195,28 @@ namespace theori.IO
             InputModes = modes;
         }
 
-        public static void BeginTextEditing() => SDL_StartTextInput();
-        public static void EndTextEditing() => SDL_StopTextInput();
+        public static string GetClipboardText() => SDL_GetClipboardText();
+        public static void SetClipboardText(string text) => SDL_SetClipboardText(text);
+
+        public static void StartTextEditing() => SDL_StartTextInput();
+        public static void StopTextEditing() => SDL_StopTextInput();
+        public static bool IsTextInputActive() => SDL_IsTextInputActive() == SDL_bool.SDL_TRUE;
+        public static void SetTextInputRect(int x, int y, int w, int h)
+        {
+            var rect = new SDL_Rect() { x = x, y = y, w = w, h = h };
+            SDL_SetTextInputRect(ref rect);
+        }
+
+        internal static void SetEditingText(string composition, int cursor, int selectionLength)
+        {
+            Logger.Log($"{nameof(SetEditingText)} :: {composition}, {cursor}, {selectionLength}");
+        }
+
+        internal static void SetInputText(string composition)
+        {
+            //Logger.Log($"{nameof(SetInputText)} :: {composition}");
+            TextInput(composition);
+        }
 
         private static void SetDesiredMouseGrabbedStatus()
         {
