@@ -256,6 +256,7 @@ namespace theori
             tblTheoriCharts["addChartToCollection"] = (Action<string, ChartInfoHandle>)((collectionName, chart) => Client.DatabaseWorker.AddChartToCollection(collectionName, chart));
             tblTheoriCharts["removeChartFromCollection"] = (Action<string, ChartInfoHandle>)((collectionName, chart) => Client.DatabaseWorker.RemoveChartFromCollection(collectionName, chart));
             tblTheoriCharts["getCollectionNames"] = (Func<string[]>)(() => Client.DatabaseWorker.CollectionNames);
+            tblTheoriCharts["getFolderNames"] = (Func<string[]>)(() => Directory.GetDirectories(TheoriConfig.ChartsDirectory).Select(d => Path.GetFileName(d)).ToArray());
 
             tblTheoriCharts["getChartSets"] = (Func<List<ChartSetInfoHandle>>)(() => Client.DatabaseWorker.ChartSets.Select(info => new ChartSetInfoHandle(m_resources, m_script, Client.DatabaseWorker, info)).ToList());
             tblTheoriCharts["getChartSetsFiltered"] = (Func<string?, DynValue, DynValue, DynValue, List<List<ChartInfoHandle>>>)((col, a, b, c) =>
