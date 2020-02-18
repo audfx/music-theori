@@ -9,6 +9,7 @@ using theori.Audio;
 using theori.Charting;
 using theori.Charting.Serialization;
 using theori.Configuration;
+using theori.Database;
 using theori.GameModes;
 using theori.Graphics;
 using theori.Graphics.OpenGL;
@@ -96,7 +97,7 @@ namespace theori
         protected readonly ScriptProgram m_script;
 
         private string? m_drivingScriptFileName = null;
-        private DynValue[]? m_drivingScriptArgs = null;
+        private object[]? m_drivingScriptArgs = null;
 
         public readonly Table tblTheori;
         public readonly Table tblTheoriAudio;
@@ -139,7 +140,7 @@ namespace theori
 
         protected ClientResourceManager StaticResources => theori.Host.StaticResources;
 
-        public Layer(ClientResourceLocator? resourceLocator = null, string? layerPathLua = null, params DynValue[] args)
+        public Layer(ClientResourceLocator? resourceLocator = null, string? layerPathLua = null, params object[] args)
         {
             ResourceLocator = resourceLocator ?? ClientResourceLocator.Default;
             m_spriteRenderer = new BasicSpriteRenderer(ResourceLocator);
@@ -259,6 +260,7 @@ namespace theori
             tblTheoriCharts["getFolderNames"] = (Func<string[]>)(() => Directory.GetDirectories(TheoriConfig.ChartsDirectory).Select(d => Path.GetFileName(d)).ToArray());
 
             tblTheoriCharts["getChartSets"] = (Func<List<ChartSetInfoHandle>>)(() => Client.DatabaseWorker.ChartSets.Select(info => new ChartSetInfoHandle(m_resources, m_script, Client.DatabaseWorker, info)).ToList());
+            tblTheoriCharts["getScores"] = (Func<ChartInfoHandle, ScoreData[]>)(chart => ChartDatabaseService.GetScoresForChart(chart.Object));
             tblTheoriCharts["getChartSetsFiltered"] = (Func<string?, DynValue, DynValue, DynValue, List<List<ChartInfoHandle>>>)((col, a, b, c) =>
             {
                 Logger.Log("Attempting to filter charts...");
@@ -507,7 +509,14 @@ namespace theori
             if (m_drivingScriptFileName is string scriptFile)
             {
                 m_script.LoadScriptResourceFile(scriptFile);
-                m_script.Call(tblTheoriLayer["construct"], m_drivingScriptArgs!);
+                m_script.Call(tblTheoriLayer["construct"], m_drivingScriptArgs!.Select(a =>
+                {
+                    if (a is ChartInfo ci)
+                        return new ChartInfoHandle(new ChartSetInfoHandle(m_resources, m_script, Client.DatabaseWorker, ci.Set), ci);
+                    else if (a is ChartSetInfo si)
+                        return new ChartSetInfoHandle(m_resources, m_script, Client.DatabaseWorker, si);
+                    return a;
+                }).ToArray());
 
                 var result = m_script.Call(tblTheoriLayer["doAsyncLoad"]);
 

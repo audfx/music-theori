@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 using theori.Charting;
 using theori.Charting.Serialization;
 using theori.Configuration;
+using theori.Scoring;
 
 namespace theori.Database
 {
@@ -45,6 +47,9 @@ namespace theori.Database
 
         public static string GetLocalConfigForChart(ChartInfo chartInfo) => m_database!.GetLocalConfigForChart(chartInfo);
         public static void SaveLocalConfigForChart(ChartInfo chartInfo, string config) => m_database!.SaveLocalConfigForChart(chartInfo, config);
+
+        public static void AddScore(ChartInfo info, DateTime time, long score, ScoreRank rank, long? ival1 = null, double? fval1 = null) => m_database!.AddScore(info, time, score, rank, ival1, fval1);
+        public static ScoreData[] GetScoresForChart(ChartInfo chart) => m_database!.GetScoresForChart(chart);
 
         public static Chart? TryLoadChart(ChartInfo chartInfo)
         {

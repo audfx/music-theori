@@ -11,6 +11,7 @@ using theori.Resources;
 using theori.Scoring;
 
 using MoonSharp.Interpreter;
+using theori.Database;
 
 namespace theori.Scripting
 {
@@ -35,6 +36,7 @@ namespace theori.Scripting
             RegisterType<LinearDirection>();
             RegisterType<AngularDirection>();
             RegisterType<ScoreRank>();
+            RegisterType<ScoreData>();
 
             RegisterType<Vector2>();
             RegisterType<Vector3>();
