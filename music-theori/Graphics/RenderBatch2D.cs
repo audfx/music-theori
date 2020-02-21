@@ -290,7 +290,12 @@ namespace theori.Graphics
                 m_scissor = new Rect(x, y, w, h);
             else
             {
-                //m_scissor = new Rect();
+                var s = (Rect)m_scissor;
+
+                float nx = MathL.Max(x, s.Left), ny = MathL.Max(y, s.Top);
+                float nx2 = MathL.Min(x + w, s.Right), ny2 = MathL.Min(y + h, s.Bottom);
+
+                m_scissor = new Rect(nx, ny, nx2 - nx, ny2 - ny);
             }
         }
 

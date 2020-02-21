@@ -23,8 +23,6 @@ namespace theori.Platform
 
     public abstract class ClientHost : Disposable
     {
-        private const string GAME_CONFIG_FILE = "theori-config.ini";
-
         public event Action? Activated;
         public event Action? Deactivated;
         public event Action? Exited;
@@ -37,14 +35,14 @@ namespace theori.Platform
         {
         }
 
-        public virtual void Initialize()
+        public virtual void Initialize(string title = ":theori")
         {
             using var _ = Profiler.Scope("ClientHost::Initialize");
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 
             LoadConfig();
 
-            Window.Create(this);
+            Window.Create(this, title);
             Window.VSync = TheoriConfig.VerticalSync;
             Window.ClientSizeChanged += Window_ClientSizeChanged;
 

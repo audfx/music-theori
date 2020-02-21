@@ -256,6 +256,8 @@ namespace theori.IO
                                 }
                                 else if (result is (Gamepad gamepad, uint gamepadIndex))
                                 {
+                                    Logger.Log((float)binding.sens);
+
                                     var style = ((JObject)binding).ContainsKey("style") ? (ControllerAxisStyle)binding.style : ControllerAxisStyle.Linear;
                                     con.SetAxisToGamepadAxis(id, gamepad, gamepadIndex, style, (float)binding.sens, (int)binding.smoothing);
                                 }
@@ -1363,7 +1365,7 @@ namespace theori.IO
 
             if (Style == ControllerAxisStyle.Radial)
             {
-                float delta = c - p;
+                float delta = (c - p) * Sensitivity;
                 if (p > 0.9f && c < -0.9f)
                     delta = m_axisAverageDelta;
                 else if (p < -0.9f && c > 0.9f)
@@ -1384,7 +1386,7 @@ namespace theori.IO
             }
             else
             {
-                OnChanged(value, value - m_axisPrevious);
+                OnChanged(value, (value - m_axisPrevious) * Sensitivity);
                 m_axisPrevious = value;
             }
         }

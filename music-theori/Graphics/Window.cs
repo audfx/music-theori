@@ -26,6 +26,12 @@ namespace theori.Graphics
         public static int Height { get; private set; }
         public static float Aspect => (float)Width / Height;
 
+        public static string Title
+        {
+            get => SDL_GetWindowTitle(window);
+            set => SDL_SetWindowTitle(window, value);
+        }
+
         public static event Action<int, int>? ClientSizeChanged;
 
         private static VSyncMode vsync;
@@ -42,7 +48,7 @@ namespace theori.Graphics
 
         private static ClientHost? host;
 
-        public static void Create(ClientHost host)
+        public static void Create(ClientHost host, string title)
         {
             using var _ = Profiler.Scope("Window::Create");
 
@@ -89,7 +95,7 @@ namespace theori.Graphics
                 int width = Configuration.TheoriConfig.WindowWidth;
                 int height = Configuration.TheoriConfig.WindowHeight;
                 // we're pretty sure this takes as long as it does because of the OpenGL flag
-                window = SDL_CreateWindow("theori", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
+                window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
             }
 
             SDL_DisableScreenSaver();
