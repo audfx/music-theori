@@ -261,6 +261,10 @@ namespace theori.IO
                                     var style = ((JObject)binding).ContainsKey("style") ? (ControllerAxisStyle)binding.style : ControllerAxisStyle.Linear;
                                     con.SetAxisToGamepadAxis(id, gamepad, gamepadIndex, style, (float)binding.sens, (int)binding.smoothing);
                                 }
+                                else if (result is Axis mouseAxis)
+                                {
+                                    con.SetAxisToMouseAxis(id, mouseAxis, (float)binding.sens);
+                                }
                             }
                         }
                     }
