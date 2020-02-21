@@ -316,8 +316,6 @@ namespace theori.Graphics
                             } break;
 
                             case SDL_WindowEventID.SDL_WINDOWEVENT_SIZE_CHANGED:
-                                Width = evt.window.data1;
-                                Height = evt.window.data2;
                                 break;
                             case SDL_WindowEventID.SDL_WINDOWEVENT_RESIZED:
                                 Width = evt.window.data1;

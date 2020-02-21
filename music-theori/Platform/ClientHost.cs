@@ -31,6 +31,8 @@ namespace theori.Platform
 
         private readonly ManualResetEventSlim m_stoppedEvent = new ManualResetEventSlim(false);
 
+        public bool IsFirstLaunch { get; set; } = false;
+
         protected ClientHost()
         {
         }
@@ -40,7 +42,7 @@ namespace theori.Platform
             using var _ = Profiler.Scope("ClientHost::Initialize");
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 
-            LoadConfig();
+            IsFirstLaunch = LoadConfig();
 
             Window.Create(this, title);
             Window.VSync = TheoriConfig.VerticalSync;
@@ -231,6 +233,8 @@ namespace theori.Platform
 
         private void Window_ClientSizeChanged(int width, int height)
         {
+            TheoriConfig.WindowWidth = width;
+            TheoriConfig.WindowHeight = height;
         }
 
         internal void WindowMoved(int x, int y)
@@ -253,10 +257,10 @@ namespace theori.Platform
 
         #region Config
 
-        public void LoadConfig()
+        public bool LoadConfig()
         {
             using var _ = Profiler.Scope("ClientHost::LoadConfig");
-            UserConfigManager.LoadFromFile();
+            return UserConfigManager.LoadFromFile();
         }
 
         public void SaveConfig()

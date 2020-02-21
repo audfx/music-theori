@@ -157,9 +157,9 @@ namespace theori
             m_script["MouseButton"] = typeof(MouseButton);
             m_script["ControllerAxisStyle"] = typeof(ControllerAxisStyle);
 
-            m_script["like"] = (Func<string, string, bool>)((a, b) => a.Like(b));
-
             m_script["theori"] = tblTheori = m_script.NewTable();
+
+            tblTheori["isFirstLaunch"] = (Func<bool>)(() => Host.IsFirstLaunch);
 
             tblTheori["audio"] = tblTheoriAudio = m_script.NewTable();
             tblTheori["charts"] = tblTheoriCharts = m_script.NewTable();

@@ -126,13 +126,16 @@ namespace theori.Configuration
             throw new ArgumentException();
         }
 
-        public static void LoadFromFile(string? configFileName = null)
+        /// <summary>
+        /// Returns false if a save file was not found, true otherwise.
+        /// </summary>
+        public static bool LoadFromFile(string? configFileName = null)
         {
             string fileName = configFileName ?? "default-config.json";
             if (!File.Exists(fileName))
             {
                 SaveToFile(fileName);
-                return;
+                return false;
             }
 
             using var reader = new JsonTextReader(new StreamReader(File.OpenRead(fileName)));
@@ -162,6 +165,8 @@ namespace theori.Configuration
                     }
                 }
             }
+
+            return true;
         }
         
         public static void SaveToFile(string? configFileName = null)
