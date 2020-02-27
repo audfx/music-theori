@@ -145,8 +145,12 @@ namespace theori.Graphics
 
         private void Tesselate()
         {
+            using var _ = Profiler.Scope(nameof(Tesselate));
+
             if (m_vertices is null || m_indices is null)
             {
+                using var _2 = Profiler.Scope("Actually tesselate the shape and cache it for later");
+
                 var t = new Tess();
                 foreach (var path in Paths)
                 {
@@ -173,6 +177,8 @@ namespace theori.Graphics
 
         public IReadOnlyList<(Vector2 Position, Vector2 TexCoord)> GetVertices()
         {
+            using var _ = Profiler.Scope(nameof(GetVertices));
+
             Tesselate();
             return m_vertices!;
         }
@@ -202,6 +208,7 @@ namespace theori.Graphics
                 Paths[i].SetTextureCoordsToBounds(min, max);
         }
 
+#if false
         public Path2DGroup Expand(float amt)
         {
             var resultPaths = new List<Path2D>();
@@ -301,6 +308,7 @@ namespace theori.Graphics
 
             return new Path2DGroup(resultPaths.ToArray());
         }
+#endif
     }
 
     public sealed class Path2DCommands : IEnumerable<Path2DCommand>
@@ -424,6 +432,8 @@ namespace theori.Graphics
         [MoonSharpHidden]
         public Path2DGroup Flatten(float scalex = 1.0f, float scaley = 1.0f)
         {
+            using var _ = Profiler.Scope(nameof(Flatten));
+
             if (!m_flattenedPaths.TryGetValue((scalex, scaley), out var resultGroup))
             {
                 var result = new List<Path2D>();
@@ -545,6 +555,7 @@ namespace theori.Graphics
                 }
 
                 resultGroup = new Path2DGroup(paths);
+                m_flattenedPaths[(scalex, scaley)] = resultGroup;
             }
 
             return resultGroup;

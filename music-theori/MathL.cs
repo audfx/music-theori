@@ -232,6 +232,7 @@ namespace System
         public static double Pow(double x, double n) => Math.Pow(x, n);
         public static float Pow(float x, double n) => (float)Math.Pow(x, n);
 
+        public static int RandomInt(int min, int max) => random.Next(min, max);
         public static double Random(double min, double max) => random.NextDouble() * (max - min) + min;
         public static float Random(float min, float max) => (float)Random((double)min, (double)max);
 

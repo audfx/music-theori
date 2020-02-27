@@ -12,7 +12,7 @@ namespace theori.Graphics
 {
     public class Mesh : Disposable
     {
-        public static Mesh CreatePlane(Vector3 axis0, Vector3 axis1, float size0 = 1, float size1 = 1, Anchor anchor = Anchor.Center)
+        public static Mesh CreatePlane(Vector3 axis0, Vector3 axis1, float size0 = 1, float size1 = 1, Anchor anchor = Anchor.Center, Rect? coords = null)
         {
             axis0 *= size0;
             axis1 *= size1;
@@ -31,14 +31,16 @@ namespace theori.Graphics
             Vector3 max0 = min0 + axis0;
             Vector3 min1 = -offset1 * axis1;
             Vector3 max1 = min1 + axis1;
-            
+
+            Rect texCoords = coords ?? new Rect(0, 0, 1, 1);
+
             var plane = new Mesh();
             plane.SetVertices(new VertexP3T2[]
             {
-                new VertexP3T2(min0 + min1, Vector2.Zero),
-                new VertexP3T2(max0 + min1, Vector2.UnitX),
-                new VertexP3T2(min0 + max1, Vector2.UnitY),
-                new VertexP3T2(max0 + max1, Vector2.One),
+                new VertexP3T2(min0 + min1, new Vector2(texCoords.Left, texCoords.Top)),
+                new VertexP3T2(max0 + min1, new Vector2(texCoords.Right, texCoords.Top)),
+                new VertexP3T2(min0 + max1, new Vector2(texCoords.Left, texCoords.Bottom)),
+                new VertexP3T2(max0 + max1, new Vector2(texCoords.Right, texCoords.Bottom)),
             });
             plane.SetIndices(new ushort[] { 0, 1, 2, 2, 1, 3 });
 

@@ -40,7 +40,6 @@ namespace theori.Platform
         public virtual void Initialize()
         {
             using var _ = Profiler.Scope("ClientHost::Initialize");
-
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 
             LoadConfig();
@@ -54,6 +53,16 @@ namespace theori.Platform
             ScriptService.RegisterTheoriClrTypes();
 
             Logger.Log($"Window VSync: { Window.VSync }");
+
+            UserInputService.RawKeyPressed += (keyInfo) =>
+            {
+                if (keyInfo.KeyCode == KeyCode.F12)
+                    m_updateQueue.Enqueue(() =>
+                    {
+                        Profiler.IsEnabled = true;
+                        Profiler.BeginSession("Single Frame Session");
+                    });
+            };
         }
 
         protected override void DisposeManaged()
@@ -203,6 +212,12 @@ namespace theori.Platform
                     }
 
                     lastFrameStart = currentTimeMillis;
+
+                    if (Profiler.IsEnabled)
+                    {
+                        Profiler.EndSession();
+                        Profiler.IsEnabled = false;
+                    }
 
                     if (elapsedTimeMillis < targetFrameTimeMillis)
                         Thread.Sleep(0);

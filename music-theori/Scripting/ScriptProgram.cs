@@ -30,8 +30,6 @@ namespace theori.Scripting
         public readonly ClientResourceLocator ResourceLocator;
         public readonly ClientResourceManager Resources;
 
-        private BasicSpriteRenderer? m_renderer;
-
         public object? this[string globalKey]
         {
             get => Script.Globals[globalKey];
@@ -62,7 +60,7 @@ namespace theori.Scripting
                                  | CoreModules.IO
                                  | CoreModules.TableIterators);
 
-            //InitBuiltInLibrary();
+            InitBuiltInLibrary();
         }
 
         protected override void DisposeManaged()
@@ -83,8 +81,6 @@ namespace theori.Scripting
 
         public void InitBuiltInLibrary()
         {
-            //this["theori"] = ScriptDataModel.Instance;
-
             this["include"] = (Func<string, DynValue>)LoadScriptResourceFile;
 
             Script.Globals.Get("math").Table["sign"] = (Func<double, int>)Math.Sign;
@@ -121,15 +117,9 @@ namespace theori.Scripting
             m_luaConverters[typeof(Vector4)] = (DynValue)converters.Tuple.GetValue(2);
         }
 
-        public void InitSpriteRenderer(Vector2? viewportSize = null)
-        {
-            m_renderer = new BasicSpriteRenderer(ResourceLocator, viewportSize);
-            this["g2d"] = m_renderer;
-        }
-
         public bool LuaAsyncLoad()
         {
-            var result = CallIfExists("AsyncLoad");
+            var result = CallIfExists("asyncLoad");
             if (result == null)
                 return true;
 
@@ -144,7 +134,7 @@ namespace theori.Scripting
 
         public bool LuaAsyncFinalize()
         {
-            var result = CallIfExists("AsyncFinalize");
+            var result = CallIfExists("asyncFinalize");
             if (result == null)
                 return true;
 
@@ -159,18 +149,12 @@ namespace theori.Scripting
 
         public void Update(float delta, float total)
         {
-            CallIfExists("Update", delta, total);
+            CallIfExists("update", delta, total);
         }
 
-        public void Draw()
+        public void Render()
         {
-            if (m_renderer != null)
-            {
-                m_renderer.BeginFrame();
-                CallIfExists("Draw");
-                m_renderer.Flush();
-                m_renderer.EndFrame();
-            }
+            CallIfExists("render");
         }
 
         public DynValue DoString(string code, string? codeFriendlyName = null) => Script.DoString(code, codeFriendlyName: codeFriendlyName);
@@ -216,11 +200,11 @@ namespace theori.Scripting
             return Script.Call(val, args);
         }
 
-#region New
+        #region New
 
         public Table NewTable() => new Table(Script);
         public ScriptEvent NewEvent() => new ScriptEvent(this);
 
-#endregion
+        #endregion
     }
 }

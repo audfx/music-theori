@@ -62,12 +62,7 @@ namespace theori
 
     public static class Profiler
     {
-        public static bool IsEnabled { get; set; } =
-#if DEBUG
-            true;
-#else
-            false;
-#endif
+        public static bool IsEnabled { get; set; } = false;
 
         class ProfilerScope : IDisposable
         {

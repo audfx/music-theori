@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace theori.Resources
 {
@@ -16,16 +17,16 @@ namespace theori.Resources
 
         private readonly List<ManifestResourceLoader> m_resourceLoaders = new List<ManifestResourceLoader>();
 
-        public readonly string FileSearchDirectory;
+        public readonly string? FileSearchDirectory;
         public readonly string FallbackMaterialName;
 
-        public ClientResourceLocator(string fileSearchDirectory, string fallbackMaterialName)
+        public ClientResourceLocator(string? fileSearchDirectory, string fallbackMaterialName)
         {
             FileSearchDirectory = fileSearchDirectory;
             FallbackMaterialName = fallbackMaterialName;
         }
 
-        public ClientResourceLocator Clone(string newFileSearchDirectory = null)
+        public ClientResourceLocator Clone(string? newFileSearchDirectory = null)
         {
             var result = new ClientResourceLocator(newFileSearchDirectory ?? FileSearchDirectory, FallbackMaterialName);
             foreach (var loader in m_resourceLoaders)
@@ -39,7 +40,33 @@ namespace theori.Resources
             m_resourceLoaders.Add(loader);
         }
 
-        public Stream OpenFileStreamWithExtension(string resourcePath, string[] exts, out string fileExtension)
+        public string[] GetResourcesInDirectory(string resourceDirectory)
+        {
+            var result = new HashSet<string>();
+
+            if (FileSearchDirectory != null)
+            {
+                string dirResourcePath = Path.Combine(FileSearchDirectory, resourceDirectory);
+                if (Directory.Exists(dirResourcePath))
+                {
+                    foreach (string filePath in Directory.EnumerateFiles(dirResourcePath))
+                    {
+                        string fileName = Path.GetFileNameWithoutExtension(filePath);
+                        result.Add(Path.Combine(resourceDirectory, fileName));
+                    }
+                }
+            }
+
+            foreach (var l in m_resourceLoaders)
+            {
+                foreach (string s in l.GetResourcesInDirectory(resourceDirectory))
+                    result.Add(s);
+            }
+
+            return result.ToArray();
+        }
+
+        public Stream? OpenFileStreamWithExtension(string resourcePath, string[] exts, out string? fileExtension)
         {
             if (FileSearchDirectory != null)
             {
@@ -72,7 +99,7 @@ namespace theori.Resources
             return null;
         }
 
-        public Stream OpenFileStream(string resourcePath)
+        public Stream? OpenFileStream(string resourcePath)
         {
             if (FileSearchDirectory != null)
             {
@@ -91,19 +118,19 @@ namespace theori.Resources
             return null;
         }
 
-        public Stream OpenAudioStream(string resourcePath, out string fileExtension)
+        public Stream? OpenAudioStream(string resourcePath, out string? fileExtension)
         {
             string[] exts = { ".ogg", ".wav" };
             return OpenFileStreamWithExtension(resourcePath, exts, out fileExtension);
         }
 
-        public Stream OpenTextureStream(string resourcePath, out string fileExtension)
+        public Stream? OpenTextureStream(string resourcePath, out string? fileExtension)
         {
             string[] exts = { ".png" };
             return OpenFileStreamWithExtension(resourcePath, exts, out fileExtension);
         }
 
-        public Stream OpenShaderStream(string resourcePath, string fileExtension, out bool usedFallback)
+        public Stream? OpenShaderStream(string resourcePath, string fileExtension, out bool usedFallback)
         {
             usedFallback = false;
 
