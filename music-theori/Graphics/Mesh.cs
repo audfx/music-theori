@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 using theori.Graphics.OpenGL;
@@ -11,7 +12,7 @@ namespace theori.Graphics
 {
     public class Mesh : Disposable
     {
-        public static Mesh CreatePlane(Vector3 axis0, Vector3 axis1, float size0 = 1, float size1 = 1, Anchor anchor = Anchor.Center)
+        public static Mesh CreatePlane(Vector3 axis0, Vector3 axis1, float size0 = 1, float size1 = 1, Anchor anchor = Anchor.Center, Rect? coords = null)
         {
             axis0 *= size0;
             axis1 *= size1;
@@ -30,14 +31,16 @@ namespace theori.Graphics
             Vector3 max0 = min0 + axis0;
             Vector3 min1 = -offset1 * axis1;
             Vector3 max1 = min1 + axis1;
-            
+
+            Rect texCoords = coords ?? new Rect(0, 0, 1, 1);
+
             var plane = new Mesh();
             plane.SetVertices(new VertexP3T2[]
             {
-                new VertexP3T2(min0 + min1, Vector2.Zero),
-                new VertexP3T2(max0 + min1, Vector2.UnitX),
-                new VertexP3T2(min0 + max1, Vector2.UnitY),
-                new VertexP3T2(max0 + max1, Vector2.One),
+                new VertexP3T2(min0 + min1, new Vector2(texCoords.Left, texCoords.Top)),
+                new VertexP3T2(max0 + min1, new Vector2(texCoords.Right, texCoords.Top)),
+                new VertexP3T2(min0 + max1, new Vector2(texCoords.Left, texCoords.Bottom)),
+                new VertexP3T2(max0 + max1, new Vector2(texCoords.Right, texCoords.Bottom)),
             });
             plane.SetIndices(new ushort[] { 0, 1, 2, 2, 1, 3 });
 
@@ -69,10 +72,10 @@ namespace theori.Graphics
         public virtual unsafe void SetVertices<T>(T[] vertices)
             where T : struct
         {
-            object[] attribs = typeof(T).GetCustomAttributes(typeof(VertexTypeAttribute), false);
-            if (attribs.Length == 0)
+            var attrib = typeof(T).GetCustomAttribute<VertexTypeAttribute>(false);
+            if (attrib is null)
                 throw new ArgumentException($"{ typeof(T).Name } is not a valid vertex type.");
-            var desc = (attribs[0] as VertexTypeAttribute).Descriptors;
+            var desc = attrib.Descriptors;
 
             int structSize = Marshal.SizeOf<T>();
             int bufSize = vertices.Length * structSize;
@@ -93,36 +96,36 @@ namespace theori.Graphics
             for (int count = desc.Count, i = 0; i < count; i++)
                 vertexSize += desc[i].ComponentCount * desc[i].ComponentSize;
 
-			uint index = 0;
-			uint offset = 0;
+            uint index = 0;
+            uint offset = 0;
             for (int count = desc.Count, i = 0; i < count; i++)
-			{
+            {
                 var e = desc[i];
 
-				uint type = uint.MaxValue;
-				if (!e.IsFloat)
-				{
-					if (e.ComponentSize == 4)
-						type = e.IsSigned ? GL_INT : GL_UNSIGNED_INT;
-					else if (e.ComponentSize == 2)
-						type = e.IsSigned ? GL_SHORT : GL_UNSIGNED_SHORT;
-					else if (e.ComponentSize == 1)
-						type = e.IsSigned ? GL_BYTE : GL_UNSIGNED_BYTE;
-				}
-				else
-				{
-					if (e.ComponentSize == 4)
-						type = GL_FLOAT;
-					else if (e.ComponentSize == 8)
-						type = GL_DOUBLE;
-				}
-				Debug.Assert(type != uint.MaxValue);
+                uint type = uint.MaxValue;
+                if (!e.IsFloat)
+                {
+                    if (e.ComponentSize == 4)
+                        type = e.IsSigned ? GL_INT : GL_UNSIGNED_INT;
+                    else if (e.ComponentSize == 2)
+                        type = e.IsSigned ? GL_SHORT : GL_UNSIGNED_SHORT;
+                    else if (e.ComponentSize == 1)
+                        type = e.IsSigned ? GL_BYTE : GL_UNSIGNED_BYTE;
+                }
+                else
+                {
+                    if (e.ComponentSize == 4)
+                        type = GL_FLOAT;
+                    else if (e.ComponentSize == 8)
+                        type = GL_DOUBLE;
+                }
+                Debug.Assert(type != uint.MaxValue);
 
                 vao.SetVertexAttrib(index, vertexBuffer, (int)e.ComponentCount, (DataType)type, true, (int)vertexSize, offset);
 
-				offset += e.ComponentSize * e.ComponentCount;
-				index++;
-			}
+                offset += e.ComponentSize * e.ComponentCount;
+                index++;
+            }
         }
 
         public virtual void SetIndices(params ushort[] indices)

@@ -26,6 +26,12 @@ namespace theori.Graphics
         public static int Height { get; private set; }
         public static float Aspect => (float)Width / Height;
 
+        public static string Title
+        {
+            get => SDL_GetWindowTitle(window);
+            set => SDL_SetWindowTitle(window, value);
+        }
+
         public static event Action<int, int>? ClientSizeChanged;
 
         private static VSyncMode vsync;
@@ -42,7 +48,7 @@ namespace theori.Graphics
 
         private static ClientHost? host;
 
-        public static void Create(ClientHost host)
+        public static void Create(ClientHost host, string title)
         {
             using var _ = Profiler.Scope("Window::Create");
 
@@ -80,16 +86,16 @@ namespace theori.Graphics
             SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_STENCIL_SIZE, 2);
 
             var windowFlags = SDL_WindowFlags.SDL_WINDOW_OPENGL | SDL_WindowFlags.SDL_WINDOW_RESIZABLE | SDL_WindowFlags.SDL_WINDOW_SHOWN;
-            if (host.Config.GetBool(Configuration.TheoriConfigKey.Maximized))
+            if (Configuration.TheoriConfig.Maximized)
                 windowFlags |= SDL_WindowFlags.SDL_WINDOW_MAXIMIZED;
 
             {
                 using var __ = Profiler.Scope("Window::Create - Create SDL2 Window");
 
-                int width = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenWidth);
-                int height = host.Config.GetInt(Configuration.TheoriConfigKey.ScreenHeight);
+                int width = Configuration.TheoriConfig.WindowWidth;
+                int height = Configuration.TheoriConfig.WindowHeight;
                 // we're pretty sure this takes as long as it does because of the OpenGL flag
-                window = SDL_CreateWindow("theori", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
+                window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width = width, Height = height, windowFlags);
             }
 
             SDL_DisableScreenSaver();
@@ -133,6 +139,8 @@ namespace theori.Graphics
 
                 SwapBuffer();
             }
+
+            SDL_StopTextInput();
 
             Update();
         }
@@ -204,8 +212,12 @@ namespace theori.Graphics
                     } break;
 
                     case SDL_EventType.SDL_MOUSEMOTION:
+                    {
+                        UserInputService.MouseX = evt.motion.x;
+                        UserInputService.MouseY = evt.motion.y;
+
                         UserInputService.Mouse_Move(evt.motion.xrel, evt.motion.yrel, evt.motion.xrel, evt.motion.yrel);
-                        break;
+                    } break;
                     case SDL_EventType.SDL_MOUSEWHEEL:
                     {
                         int y = evt.wheel.y;
@@ -227,6 +239,8 @@ namespace theori.Graphics
                         string composition = Encoding.UTF8.GetString(bytes, 0, Array.IndexOf<byte>(bytes, 0));
                         int cursor = evt.edit.start;
                         int selectionLength = evt.edit.length;
+
+                        UserInputService.SetEditingText(composition, cursor, selectionLength);
                     } break;
                     case SDL_EventType.SDL_TEXTINPUT:
                     {
@@ -234,6 +248,8 @@ namespace theori.Graphics
                         Marshal.Copy(new IntPtr(evt.edit.text), bytes, 0, 32);
 
                         string composition = Encoding.UTF8.GetString(bytes, 0, Array.IndexOf<byte>(bytes, 0));
+
+                        UserInputService.SetInputText(composition);
                     } break;
 
                     case SDL_EventType.SDL_JOYDEVICEADDED:
@@ -300,8 +316,6 @@ namespace theori.Graphics
                             } break;
 
                             case SDL_WindowEventID.SDL_WINDOWEVENT_SIZE_CHANGED:
-                                Width = evt.window.data1;
-                                Height = evt.window.data2;
                                 break;
                             case SDL_WindowEventID.SDL_WINDOWEVENT_RESIZED:
                                 Width = evt.window.data1;

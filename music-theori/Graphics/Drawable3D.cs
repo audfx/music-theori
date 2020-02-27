@@ -4,10 +4,10 @@ namespace theori.Graphics
 {
     public class Drawable3D
     {
-        public Mesh Mesh;
-        public Texture Texture;
+        public Mesh Mesh = new Mesh();
+        public Texture Texture = Texture.Empty;
 
-        public Material Material;
+        public Material Material = Material.CreateUninitialized();
         public MaterialParams Params = new MaterialParams();
 
         public void DrawToQueue(RenderQueue queue, Transform transform)

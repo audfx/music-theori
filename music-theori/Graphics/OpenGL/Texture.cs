@@ -9,7 +9,8 @@ namespace theori.Graphics.OpenGL
 {
     public sealed class Texture : UIntHandle
     {
-        public static readonly Texture Empty;
+        private static Texture? empty;
+        public static Texture Empty => empty ?? (empty = CreateEmpty());
 
         public static Texture FromFile2D(string fileName)
         {
@@ -27,11 +28,23 @@ namespace theori.Graphics.OpenGL
 
         public static Texture CreateUninitialized2D() => new Texture(0, TextureTarget.Texture2D);
 
-        static Texture()
+        static Texture CreateEmpty()
         {
-            Empty = new Texture();
-            Empty.SetEmpty2D(1, 1);
-            Empty.Lock();
+            var empty = new Texture();
+            empty.SetEmpty2D(1, 1);
+            empty.Lock();
+            return empty;
+        }
+
+        public static void Unbind(TextureTarget target, uint unit)
+        {
+            if (false && GL.IsExtensionFunctionSupported("glBindTextureUnit"))
+                GL.BindTextureUnit(unit, 0);
+            else
+            {
+                GL.ActiveTexture(GL.GL_TEXTURE0 + unit);
+                GL.BindTexture((uint)target, 0);
+            }
         }
 
         public TextureTarget Target = TextureTarget.Texture2D;

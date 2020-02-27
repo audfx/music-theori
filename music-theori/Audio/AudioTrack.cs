@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 
+using MoonSharp.Interpreter;
+
 using NAudio.Wave;
 
 using theori.Audio.NVorbis;
@@ -13,7 +15,7 @@ namespace theori.Audio
         Playing,
     }
 
-    public sealed class AudioTrack : AudioSource
+    public class AudioTrack : AudioSource
     {
         internal static AudioTrack CreateUninitialized() => new AudioTrack();
 
@@ -66,7 +68,10 @@ namespace theori.Audio
 
         public override time_t Length => Source?.Length ?? throw new InvalidOperationException();
 
+        [MoonSharpHidden]
         public PlaybackState PlaybackState { get; private set; } = PlaybackState.Stopped;
+
+        public bool IsPlaying => PlaybackState == PlaybackState.Playing;
 
         private float m_playbackSpeed = 1, m_invPlaybackSpeed = 1;
         public float PlaybackSpeed
@@ -138,19 +143,20 @@ namespace theori.Audio
 
         private long TimeToSamples(time_t time) => (long)(time.Seconds * Source!.Format.SampleRate * Source!.Format.ChannelCount);
 
-        public void SetLoopAreaSamples(long start, long end)
+        public virtual void SetLoopAreaSamples(long start, long end)
         {
             if (!CanSeek) throw new InvalidOperationException("can't set loop area: cannot seek");
             m_loopArea = (start, end);
         }
 
-        public void RemoveLoopArea() => m_loopArea = null;
+        public virtual void RemoveLoopArea() => m_loopArea = null;
 
-        public void SetLoopArea(time_t start, time_t end)
+        public virtual void SetLoopArea(time_t start, time_t end)
         {
             SetLoopAreaSamples(TimeToSamples(start), TimeToSamples(end));
         }
 
+        [MoonSharpHidden]
         public override int Read(Span<float> buffer)
         {
             if (Source == null) return 0;
@@ -216,6 +222,7 @@ namespace theori.Audio
             }
         }
 
+        [MoonSharpHidden]
         public override void Seek(time_t position)
         {
             if (!CanSeek) throw new InvalidOperationException("cannot seek");

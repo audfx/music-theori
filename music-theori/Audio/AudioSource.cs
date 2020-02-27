@@ -1,9 +1,12 @@
 ﻿using System;
 
+using MoonSharp.Interpreter;
+
 namespace theori.Audio
 {
     public abstract class AudioSource : Disposable
     {
+        [MoonSharpHidden]
         public event Action? Finish;
 
         public abstract bool CanSeek { get; }
@@ -25,7 +28,9 @@ namespace theori.Audio
 
         public virtual bool RemoveFromChannelOnFinish { get; set; } = true;
 
+        [MoonSharpHidden]
         public abstract int Read(Span<float> buffer);
+        [MoonSharpHidden]
         public abstract void Seek(time_t position);
 
         private MixerChannel? m_channel;

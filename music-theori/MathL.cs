@@ -198,9 +198,9 @@ namespace System
         public static short Max(short val1, short val2) => Math.Max(val1, val2);
         public static sbyte Max(sbyte val1, sbyte val2) => Math.Max(val1, val2);
 
-        public static Vector2 Max(Vector2 val1, Vector2 val2) => Vector2.Min(val1, val2);
-        public static Vector3 Max(Vector3 val1, Vector3 val2) => Vector3.Min(val1, val2);
-        public static Vector4 Max(Vector4 val1, Vector4 val2) => Vector4.Min(val1, val2);
+        public static Vector2 Max(Vector2 val1, Vector2 val2) => Vector2.Max(val1, val2);
+        public static Vector3 Max(Vector3 val1, Vector3 val2) => Vector3.Max(val1, val2);
+        public static Vector4 Max(Vector4 val1, Vector4 val2) => Vector4.Max(val1, val2);
 
         public static Vector2 MaxLength(Vector2 value, float maxLength) => value.Length() > maxLength ? Vector2.Normalize(value) * maxLength : value;
         public static Vector3 MaxLength(Vector3 value, float maxLength) => value.Length() > maxLength ? Vector3.Normalize(value) * maxLength : value;
@@ -232,6 +232,7 @@ namespace System
         public static double Pow(double x, double n) => Math.Pow(x, n);
         public static float Pow(float x, double n) => (float)Math.Pow(x, n);
 
+        public static int RandomInt(int min, int max) => random.Next(min, max);
         public static double Random(double min, double max) => random.NextDouble() * (max - min) + min;
         public static float Random(float min, float max) => (float)Random((double)min, (double)max);
 

@@ -3,13 +3,22 @@ using System.Globalization;
 using System.IO;
 using System.Numerics;
 
-namespace theori.Charting
+using theori.GameModes;
+
+namespace theori.Charting.Serialization
 {
     public sealed class ChartSetSerializer
     {
-        public ChartSetInfo LoadFromFile(string parentDirectory, string directory, string fileName)
+        public string ParentDirectory { get; }
+
+        public ChartSetSerializer(string chartsDir)
         {
-            string filePath = Path.Combine(parentDirectory, directory, fileName);
+            ParentDirectory = chartsDir;
+        }
+
+        public ChartSetInfo LoadFromFile(string directory, string fileName)
+        {
+            string filePath = Path.Combine(ParentDirectory, directory, fileName);
             var fsi = new FileInfo(filePath);
             fsi.Refresh(); // TODO(local): is this needed?
 
@@ -29,7 +38,7 @@ namespace theori.Charting
 
         private void DeserializeChartSetInfo(StreamReader reader, ChartSetInfo setInfo)
         {
-            ChartInfo chartInfo = null;
+            ChartInfo? chartInfo = null;
             string line;
 
             while ((line = reader.ReadLine()) != null)
@@ -41,8 +50,12 @@ namespace theori.Charting
                 }
                 else if (line.TrySplit('=', out string key, out string value))
                 {
+                    if (chartInfo == null) continue;
                     switch (key)
                     {
+                        case "game-mode": chartInfo.GameMode = GameMode.GetInstance(value); break;
+                        //case "file-type": chartInfo.ChartFileType = value; break;
+
                         case "chart-file": chartInfo.FileName = value; break;
                         case "song-title": chartInfo.SongTitle = value; break;
                         case "song-artist": chartInfo.SongArtist = value; break;
@@ -68,10 +81,10 @@ namespace theori.Charting
             }
         }
 
-        public void SaveToFile(string parentDirectory, ChartSetInfo setInfo)
+        public void SaveToFile(ChartSetInfo setInfo)
         {
-            string filePath = Path.Combine(parentDirectory, setInfo.FilePath, setInfo.FileName);
-            Directory.CreateDirectory(Path.Combine(parentDirectory, setInfo.FilePath));
+            string filePath = Path.Combine(ParentDirectory, setInfo.FilePath, setInfo.FileName);
+            Directory.CreateDirectory(Path.Combine(ParentDirectory, setInfo.FilePath));
 
             using (var writer = new StreamWriter(File.Open(filePath, FileMode.Create)))
                 SerializeSetInfo(writer, setInfo);
@@ -86,8 +99,15 @@ namespace theori.Charting
         {
             foreach (var chartInfo in setInfo.Charts)
             {
+                if (chartInfo.GameMode == null)
+                {
+                    Logger.Log($"Cannot serialize a chart without a gamemode. Skipping for {Path.Combine(chartInfo.Set.FilePath, chartInfo.FileName)}");
+                    continue;
+                }
+
                 writer.WriteLine($"[chart-info]");
                 writer.WriteLine($"chart-file={ chartInfo.FileName }");
+                writer.WriteLine($"game-mode={ chartInfo.GameMode!.Name }");
                 writer.WriteLine($"song-title={ chartInfo.SongTitle }");
                 writer.WriteLine($"song-artist={ chartInfo.SongArtist }");
                 writer.WriteLine($"song-file={ chartInfo.SongFileName }");
@@ -96,6 +116,7 @@ namespace theori.Charting
                 writer.WriteLine($"charter={ chartInfo.Charter }");
                 writer.WriteLine($"chart-duration={ chartInfo.ChartDuration.Seconds }");
 
+                WriteOptS("file-type", chartInfo.ChartFileType);
                 WriteOptS("jacket-file", chartInfo.JacketFileName);
                 WriteOptS("jacket-artist", chartInfo.JacketArtist);
                 WriteOptS("background-file", chartInfo.BackgroundFileName);
@@ -119,7 +140,7 @@ namespace theori.Charting
                 writer.WriteLine($"{ key }={ value.Value }");
             }
 
-            void WriteOptS(string key, string value)
+            void WriteOptS(string key, string? value)
             {
                 if (string.IsNullOrWhiteSpace(value)) return;
                 writer.WriteLine($"{ key }={ value }");

@@ -39,19 +39,21 @@ namespace theori.Audio.Effects
         {
             int numSamples = buffer.Length / 2;
 
-            for(int i = 0; i < numSamples; i++)
+			uint gateDuration = m_gateDuration;
+			uint currentSample = m_currentSample;
+			for (int i = 0; i < numSamples; i++)
             {
                 float c = 1.0f;
-		        if(m_currentSample < m_halfway)
+		        if(currentSample < m_halfway)
 		        {
 			        // Fade out before silence
-			        if(m_currentSample > m_fadeOut)
-				        c = 1 - (m_currentSample - m_fadeOut) / m_fadeIn;
+			        if(currentSample > m_fadeOut)
+				        c = 1 - (currentSample - m_fadeOut) / m_fadeIn;
 		        }
 		        else
 		        {
 			        // Fade in again
-			        uint t = m_currentSample - m_halfway;
+			        uint t = currentSample - m_halfway;
 			        if(t > m_fadeOut)
 				        c = (t - m_fadeOut) / m_fadeIn;
 			        else c = 0.0f;
@@ -63,9 +65,11 @@ namespace theori.Audio.Effects
 		        buffer[i * 2] *= c;
 		        buffer[i * 2 + 1] *= c;
 
-		        m_currentSample++;
-		        m_currentSample %= m_gateDuration;
+				currentSample++;
+				currentSample %= gateDuration;
             }
-        }
+
+			m_currentSample = currentSample;
+		}
     }
 }

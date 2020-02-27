@@ -1,7 +1,9 @@
 ﻿using System;
+using System.IO;
 using System.Numerics;
 
 using theori.Database;
+using theori.GameModes;
 
 namespace theori.Charting
 {
@@ -19,6 +21,9 @@ namespace theori.Charting
 
         public long SetID => Set.ID;
         public ChartSetInfo Set { get; set; }
+
+        public GameMode? GameMode { get; set; } = null;
+        public string? ChartFileType => Path.GetExtension(FileName ?? string.Empty);
 
         /// <summary>
         /// The name of the chart file inside of the Set directory.

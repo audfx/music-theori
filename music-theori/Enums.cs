@@ -1,4 +1,4 @@
-﻿namespace theori.Charting
+﻿namespace theori
 {
     public enum AngularDirection : sbyte
     {

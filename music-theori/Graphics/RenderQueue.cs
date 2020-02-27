@@ -10,6 +10,19 @@ namespace theori.Graphics
         protected readonly RenderState m_state;
         protected readonly List<SimpleDrawCall> m_orderedCommands = new List<SimpleDrawCall>(50);
 
+        private DepthFunction? m_depthFunction = null;
+        public DepthFunction? DepthFunction
+        {
+            get => m_depthFunction;
+            set
+            {
+                if (value == m_depthFunction)
+                    return;
+                Process(true);
+                m_depthFunction = value;
+            }
+        }
+
         public RenderQueue(RenderState state)
         {
             m_state = state;
@@ -28,8 +41,11 @@ namespace theori.Graphics
             // TODO(local): For the time being, the only things using this
             //  are rendered in a pre-determined order and REQUIRE there to be no depth testing.
             // In future, this should be configurable!
-            //GL.Enable(GL.GL_DEPTH_TEST);
-            //GL.DepthFunc(DepthFunction.LessThanOrEqual);
+            if (m_depthFunction != null)
+            {
+                GL.Enable(GL.GL_DEPTH_TEST);
+                GL.DepthFunc(m_depthFunction.Value);
+            }
 
             GL.Viewport(m_state.Viewport.X, -m_state.Viewport.Y, m_state.Viewport.Width, m_state.Viewport.Height);
 
@@ -126,7 +142,7 @@ namespace theori.Graphics
             
             GL.Disable(GL.GL_BLEND);
             GL.Disable(GL.GL_SCISSOR_TEST);
-            //GL.Disable(GL.GL_DEPTH_TEST);
+            GL.Disable(GL.GL_DEPTH_TEST);
 
             if (clear) m_orderedCommands.Clear();
         }

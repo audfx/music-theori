@@ -2,6 +2,8 @@
 using System.Numerics;
 using System.Reflection;
 
+using theori.Audio;
+using theori.Charting;
 using theori.Graphics;
 using theori.Graphics.OpenGL;
 using theori.IO;
@@ -9,6 +11,7 @@ using theori.Resources;
 using theori.Scoring;
 
 using MoonSharp.Interpreter;
+using theori.Database;
 
 namespace theori.Scripting
 {
@@ -18,20 +21,36 @@ namespace theori.Scripting
         {
             using var _ = Profiler.Scope("ScriptService::RegisterTheoriClrTypes");
 
-            RegisterType<Anchor>();
+            Script.GlobalOptions.CustomConverters.SetClrToScriptCustomConversion<tick_t>((s, v) => DynValue.NewNumber((double)v));
+            Script.GlobalOptions.CustomConverters.SetClrToScriptCustomConversion<time_t>((s, v) => DynValue.NewNumber((double)v));
+            Script.GlobalOptions.CustomConverters.SetClrToScriptCustomConversion<HybridLabel>((s, v) => v.LabelKind == HybridLabel.Kind.Number ? DynValue.NewNumber((int)v) : DynValue.NewString((string)v));
 
+            Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.Number, typeof(tick_t), v => (tick_t)v.Number);
+            Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.Number, typeof(time_t), v => (time_t)v.Number);
+            Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.Number, typeof(HybridLabel), v => (HybridLabel)v.Number);
+            Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.String, typeof(HybridLabel), v => (HybridLabel)v.String);
+            Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.UserData, typeof(Chart), v => v.UserData.Object is ChartHandle handle ? handle.Chart : null);
+            Script.GlobalOptions.CustomConverters.SetScriptToClrCustomConversion(MoonSharp.Interpreter.DataType.UserData, typeof(AudioTrack), v => v.UserData.Object is AudioHandle handle ? handle.Object : null);
+
+            RegisterType<Anchor>();
+            RegisterType<LinearDirection>();
+            RegisterType<AngularDirection>();
             RegisterType<ScoreRank>();
+            RegisterType<ScoreData>();
 
             RegisterType<Vector2>();
             RegisterType<Vector3>();
             RegisterType<Vector4>();
 
             RegisterType<Font>();
+            RegisterType<VectorFont>();
             RegisterType<Texture>();
             RegisterType<TextRasterizer>();
+            RegisterType<Path2DCommands>();
 
             RegisterType<KeyCode>();
             RegisterType<MouseButton>();
+            RegisterType<ControllerAxisStyle>();
             RegisterType<Axis>();
             RegisterType<Gamepad>();
             RegisterType<Controller>();
@@ -48,6 +67,12 @@ namespace theori.Scripting
             RegisterType<ScriptDataModel>();
             RegisterType<ScriptResources>();
 
+            RegisterType<Chart.ChartLane>();
+            RegisterType<Chart.ControlPointList>();
+            RegisterType<Entity>();
+            RegisterType<ControlPoint>();
+
+            RegisterType<ChartHandle>();
             RegisterType<AudioHandle>();
             RegisterType<ChartSetInfoHandle>();
             RegisterType<ChartSetInfoSubsection>();

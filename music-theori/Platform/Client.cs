@@ -78,6 +78,8 @@ namespace theori.Platform
         protected internal virtual void EndInputStep()
         {
             LayerStack.EndInputStep();
+
+            DatabaseWorker.Update();
         }
 
         #region Update

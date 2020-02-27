@@ -42,6 +42,11 @@ namespace theori.Charting
         private readonly Dictionary<HybridLabel, ChartLane> m_lanes = new Dictionary<HybridLabel, ChartLane>();
         public IEnumerable<ChartLane> Lanes => m_lanes.Values;
 
+        private IEnumerable controlPoints => ControlPoints;
+        private IEnumerable lanes => m_lanes.Values;
+
+        private Dictionary<HybridLabel, ChartLane> GetLanes() => m_lanes;
+
         public readonly ControlPointList ControlPoints;
 
         public time_t LastObjectTime
@@ -91,14 +96,18 @@ namespace theori.Charting
         {
             get
             {
-                time_t start = double.MaxValue;
+                time_t? start = null;
                 foreach (var lane in Lanes)
                 {
                     var last = lane.First;
                     if (last != null)
-                        start = start > last.AbsolutePosition ? last.AbsolutePosition : start;
+                    {
+                        if (start is time_t value)
+                            start = value > last.AbsolutePosition ? last.AbsolutePosition : value;
+                        else start = last.AbsolutePosition;
+                    }
                 }
-                return start;
+                return start ?? 0;
             }
         }
 
@@ -240,6 +249,12 @@ namespace theori.Charting
             return cp.AbsolutePosition + cp.MeasureDuration * (pos - cp.Position);
         }
 
+        public tick_t CalcTickFromTime(time_t pos)
+        {
+            ControlPoint cp = ControlPoints.MostRecent(pos);
+            return cp.Position + (double)((pos - cp.AbsolutePosition) / cp.MeasureDuration);
+        }
+
         public sealed class ChartLane : IEnumerable<Entity>
         {
             private readonly Chart m_chart;
@@ -252,16 +267,19 @@ namespace theori.Charting
 
             public IEnumerable<Type> AllowedTypes => m_allowedTypes;
 
-            public Entity First => m_entities.Count == 0 ? null : m_entities[0];
-            public Entity Last => m_entities.Count == 0 ? null : m_entities[m_entities.Count - 1];
-            
+            public Entity? First => m_entities.Count == 0 ? null : m_entities[0];
+            public Entity? Last => m_entities.Count == 0 ? null : m_entities[m_entities.Count - 1];
+
             public int Count => m_entities.Count;
             public Entity this[int index] => m_entities[index];
+
+            private IEnumerable entities => m_entities;
 
             internal ChartLane(Chart chart, HybridLabel name)
             {
                 m_chart = chart;
                 Label = name;
+                m_allowedTypes = new Type[0];
                 Relation = EntityRelation.None;
             }
 
@@ -352,6 +370,17 @@ namespace theori.Charting
                 m_entities.Add(obj);
             }
 
+            private Entity Add(string entityId, tick_t position, tick_t duration = default)
+            {
+                var type = Entity.GetEntityTypeById(entityId);
+                ValidateTypeRequirement(type);
+                var entity = (Entity)Activator.CreateInstance(type);
+                entity.Position = position;
+                entity.Duration = duration;
+                Add(entity);
+                return entity;
+            }
+
             /// <summary>
             /// Constructs a new Object and calls `Add(Object)` to add it to this stream.
             /// The newly created Object is returned.
@@ -413,7 +442,7 @@ namespace theori.Charting
                     var obj = m_entities[i];
                     if (includeDuration)
                     {
-                        if (obj.Position <= position && obj.Duration >= position)
+                        if (obj.Position <= position && obj.EndPosition >= position)
                             return obj;
                     }
                     else if (obj.Position == position)
@@ -432,7 +461,7 @@ namespace theori.Charting
                     var obj = m_entities[i];
                     if (includeDuration)
                     {
-                        if (obj.Position <= position && obj.Duration >= position && obj is T t)
+                        if (obj.Position <= position && obj.EndPosition >= position && obj is T t)
                             return t;
                     }
                     else if (obj.Position == position && obj is T t)
@@ -683,7 +712,7 @@ namespace theori.Charting
                     if (cp.Position <= position)
                         return cp;
                 }
-                return null;
+                return m_controlPoints[0];
             }
 
             public ControlPoint MostRecent(time_t position)

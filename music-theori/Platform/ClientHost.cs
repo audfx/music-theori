@@ -23,10 +23,6 @@ namespace theori.Platform
 
     public abstract class ClientHost : Disposable
     {
-        private const string GAME_CONFIG_FILE = "theori-config.ini";
-
-        public readonly TheoriConfig Config = new TheoriConfig();
-
         public event Action? Activated;
         public event Action? Deactivated;
         public event Action? Exited;
@@ -35,22 +31,21 @@ namespace theori.Platform
 
         private readonly ManualResetEventSlim m_stoppedEvent = new ManualResetEventSlim(false);
 
+        public bool IsFirstLaunch { get; set; } = false;
+
         protected ClientHost()
         {
         }
 
-        public virtual void Initialize()
+        public virtual void Initialize(string title = ":theori")
         {
             using var _ = Profiler.Scope("ClientHost::Initialize");
-
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
 
-            if (File.Exists(GAME_CONFIG_FILE))
-                LoadConfig();
-            else SaveConfig();
+            IsFirstLaunch = LoadConfig();
 
-            Window.Create(this);
-            Window.VSync = Config.GetEnum<VSyncMode>(TheoriConfigKey.VSync);
+            Window.Create(this, title);
+            Window.VSync = TheoriConfig.VerticalSync;
             Window.ClientSizeChanged += Window_ClientSizeChanged;
 
             Mixer.Initialize(new AudioFormat(48000, 2));
@@ -58,6 +53,16 @@ namespace theori.Platform
             ScriptService.RegisterTheoriClrTypes();
 
             Logger.Log($"Window VSync: { Window.VSync }");
+
+            UserInputService.RawKeyPressed += (keyInfo) =>
+            {
+                if (keyInfo.KeyCode == KeyCode.F12)
+                    m_updateQueue.Enqueue(() =>
+                    {
+                        Profiler.IsEnabled = true;
+                        Profiler.BeginSession("Single Frame Session");
+                    });
+            };
         }
 
         protected override void DisposeManaged()
@@ -123,6 +128,8 @@ namespace theori.Platform
 
                     long targetFrameTimeMillis = client.TargetFrameTimeMillis;
                     Time.FixedDelta = targetFrameTimeMillis / 1_000.0f;
+
+                    Mixer.MasterChannel.Volume = TheoriConfig.MasterVolume;
 
                     client.BeginFrame();
 
@@ -208,6 +215,12 @@ namespace theori.Platform
 
                     lastFrameStart = currentTimeMillis;
 
+                    if (Profiler.IsEnabled)
+                    {
+                        Profiler.EndSession();
+                        Profiler.IsEnabled = false;
+                    }
+
                     if (elapsedTimeMillis < targetFrameTimeMillis)
                         Thread.Sleep(0);
                 }
@@ -220,16 +233,18 @@ namespace theori.Platform
 
         private void Window_ClientSizeChanged(int width, int height)
         {
+            TheoriConfig.WindowWidth = width;
+            TheoriConfig.WindowHeight = height;
         }
 
         internal void WindowMoved(int x, int y)
         {
-            Config.Set(TheoriConfigKey.Maximized, false);
+            TheoriConfig.Maximized = false;
         }
 
         internal void WindowMaximized()
         {
-            Config.Set(TheoriConfigKey.Maximized, true);
+            TheoriConfig.Maximized = true;
         }
 
         internal void WindowMinimized()
@@ -242,18 +257,16 @@ namespace theori.Platform
 
         #region Config
 
-        public void LoadConfig()
+        public bool LoadConfig()
         {
             using var _ = Profiler.Scope("ClientHost::LoadConfig");
-            using var reader = new StreamReader(File.OpenRead(GAME_CONFIG_FILE));
-            Config.Load(reader);
+            return UserConfigManager.LoadFromFile();
         }
 
         public void SaveConfig()
         {
             using var _ = Profiler.Scope("ClientHost::SaveConfig");
-            using var writer = new StreamWriter(File.Open(GAME_CONFIG_FILE, FileMode.Create));
-            Config.Save(writer);
+            UserConfigManager.SaveToFile();
         }
 
         #endregion
@@ -273,6 +286,7 @@ namespace theori.Platform
         {
             //Profiler.EndSession();
 
+            UserConfigManager.SaveToFile(); // TODO(local): Save to the proper file
             Exited?.Invoke();
 
             Logger.Flush();

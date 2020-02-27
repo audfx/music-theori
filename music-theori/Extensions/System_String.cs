@@ -1,9 +1,39 @@
-﻿using System.Text;
+﻿using System.Linq;
+using System.Text;
 
 namespace System
 {
     public static class System_String_Extensions
     {
+        public static string CamelStringToSeparated(this string camel, char separator = ' ')
+        {
+            var builder = new StringBuilder();
+            for (int i = 0; i < camel.Length; i++)
+            {
+                char c = camel[i];
+                if (char.IsUpper(c) && i > 0)
+                    builder.Append(separator);
+                builder.Append(c);
+            }
+            return builder.ToString();
+        }
+
+        public static string FormatJson(this string json)
+        {
+            const string INDENT_STRING = "    ";
+            int indentation = 0;
+            int quoteCount = 0;
+            var result =
+                from ch in json
+                let quotes = ch == '"' ? quoteCount++ : quoteCount
+                let lineBreak = ch == ',' && quotes % 2 == 0 ? ch + Environment.NewLine + string.Concat(Enumerable.Repeat(INDENT_STRING, indentation)) : null
+                let openChar = ch == '{' || ch == '[' ? ch + Environment.NewLine + string.Concat(Enumerable.Repeat(INDENT_STRING, ++indentation)) : ch.ToString()
+                let closeChar = ch == '}' || ch == ']' ? Environment.NewLine + string.Concat(Enumerable.Repeat(INDENT_STRING, --indentation)) + ch : ch.ToString()
+                select lineBreak ?? (openChar.Length > 1 ? openChar : closeChar);
+
+            return string.Concat(result);
+        }
+
         #region Repeat
 
         public static string Repeat(this string s, int n)
@@ -14,7 +44,7 @@ namespace System
 
 #endregion
 
-#region Split
+        #region Split
 
         public static bool TrySplit(this string s, char sep, out string v0, out string v1)
         {
@@ -106,6 +136,6 @@ namespace System
             return true;
         }
 
-#endregion
+        #endregion
     }
 }

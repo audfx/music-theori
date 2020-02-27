@@ -6,7 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using theori.Charting;
+using theori.GameModes;
 using theori.Graphics;
+using theori.Scoring;
 
 namespace theori.Database
 {
@@ -15,12 +17,28 @@ namespace theori.Database
     using StringSetDict = Dictionary<string, ChartSetInfo>;
     using ChartDict = Dictionary<long, ChartInfo>;
 
+    public struct ScoreData
+    {
+        public long ID;
+
+        public long Score;
+        public ScoreRank Rank;
+
+        public long TimeStamp;
+        public DateTime Time => DateTime.FromFileTimeUtc(TimeStamp);
+
+        public long? IVal1;
+        public double? FVal1;
+    }
+
     public class ChartDatabase
     {
         private const int VER_0_1_INITIAL = 1;
-        private const int VER_0_2_ADD_COLLECTIONS = 2;
+        //private const int VER_0_2_ADD_COLLECTIONS = 2;
+        //private const int VER_0_3_ADD_GAMEMODES = 3;
+        //private const int VER_0_4_ADD_TO_SCORES = 4;
 
-        private const int CURRENT_VERSION = VER_0_2_ADD_COLLECTIONS;
+        private const int CURRENT_VERSION = VER_0_1_INITIAL;
 
         private class CollectionInfo
         {
@@ -87,23 +105,50 @@ namespace theori.Database
                 Initialize();
             else if (update)
             {
-                while (vGot < Version)
+                const int MAX_REBUILD_VER = VER_0_1_INITIAL;
+                if (vGot < MAX_REBUILD_VER)
+                    Initialize();
+                else
                 {
-                    switch (vGot)
+                    while (vGot < Version)
                     {
-                        case VER_0_1_INITIAL:
-                        { // -> VER_0_2_ADD_COLLECTIONS
-                            Exec($@"CREATE TABLE Collections (
+                        switch (vGot)
+                        {
+#if false
+                            case VER_0_1_INITIAL:
+                            { // -> VER_0_2_ADD_COLLECTIONS
+                                Exec($@"CREATE TABLE Collections (
                                 id INTEGER PRIMARY KEY,
                                 chartId INTEGER NOT NULL,
                                 collection STRING NOT NULL,
                                 FOREIGN KEY(chartId) REFERENCES Charts(id)
-                            )");
-                        } break;
-                    }
+                                )");
+                            } break;
 
-                    int vLast = vGot++;
-                    Logger.Log($"  Updated Chart Database from Version { vLast } to { vGot }");
+                            case VER_0_2_ADD_COLLECTIONS:
+                            { // -> VER_0_3_ADD_MODES_AND_TYPES
+                                // requires a full rebuild, no sensible default exists.
+                            } break;
+
+                            case VER_0_4_ADD_TO_SCORES:
+                            {
+                                Exec($@"ALTER TABLE Scores
+                                ADD gauge REAL NOT NULL,
+                                ADD passive INTEGER NOT NULL,
+                                ADD perfect INTEGER NOT NULL,
+                                ADD critical INTEGER NOT NULL,
+                                ADD early INTEGER NOT NULL,
+                                ADD late INTEGER NOT NULL,
+                                ADD miss INTEGER NOT NULL,
+                                ADD flags INTEGER NOT NULL,
+                                ADD timestamp INTEGER NOT NULL;");
+                            } break;
+#endif
+                        }
+
+                        int vLast = vGot++;
+                        Logger.Log($"  Updated Chart Database from Version { vLast } to { vGot }");
+                    }
                 }
 
                 Exec("UPDATE Database SET `version`=? WHERE `rowid`=1", Version);
@@ -184,6 +229,7 @@ namespace theori.Database
                 id INTEGER PRIMARY KEY,
                 setId INTEGER NOT NULL,
                 lwt INTEGER NOT NULL,
+                gameMode TEXT NOT NULL,
                 fileName TEXT NOT NULL,
                 songTitle TEXT NOT NULL COLLATE NOCASE,
                 songArtist TEXT NOT NULL COLLATE NOCASE,
@@ -209,6 +255,10 @@ namespace theori.Database
                 id INTEGER PRIMARY KEY,
                 chartId INTEGER NOT NULL,
                 score INTEGER NOT NULL,
+                scoreRank INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL,
+                ival1 INTEGER,
+                fval1 REAL,
                 FOREIGN KEY(chartId) REFERENCES Charts(id)
             )");
 
@@ -312,6 +362,33 @@ namespace theori.Database
             }
         }
 
+        public void AddScore(ChartInfo chart, DateTime time, long score, ScoreRank rank, long? ival1 = null, double? fval1 = null)
+        {
+            long timestamp = time.ToFileTimeUtc();
+            Exec("INSERT INTO Scores (chartId,score,scoreRank,timestamp,ival1,fval1) VALUES (?,?,?,?,?,?)", chart.ID, score, (int)rank, timestamp, ival1, fval1);
+        }
+
+        public ScoreData[] GetScoresForChart(ChartInfo chart)
+        {
+            var result = new List<ScoreData>();
+
+            using var reader = ExecReader($"SELECT id,score,scoreRank,timestamp,ival1,fval1 FROM Scores WHERE chartId={chart.ID}");
+            while (reader.Read())
+            {
+                result.Add(new ScoreData()
+                {
+                    ID = reader.GetInt64(0),
+                    Score = reader.GetInt64(1),
+                    Rank = (ScoreRank)reader.GetInt64(2),
+                    TimeStamp = reader.GetInt64(3),
+                    IVal1 = reader.GetInt64OrNull(4),
+                    FVal1 = reader.GetDoubleOrNull(5),
+                });
+            }
+
+            return result.ToArray();
+        }
+
         private void AddSetInfoToDatabase(string relPath, ChartSetInfo setInfo)
         {
             Debug.Assert(Path.Combine(setInfo.FilePath, setInfo.FileName) == relPath);
@@ -341,10 +418,11 @@ namespace theori.Database
 
                 foreach (var chart in setInfo.Charts)
                 {
-                    int chartResult = Exec("INSERT INTO Charts (setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,chartOffset,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    int chartResult = Exec("INSERT INTO Charts (setId,lwt,fileName,gameMode,songTitle,songArtist,songFileName,songVolume,chartOffset,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         setInfo.ID,
                         chart.LastWriteTime,
                         chart.FileName,
+                        chart.GameMode!.Name,
                         chart.SongTitle,
                         chart.SongArtist,
                         chart.SongFileName,
@@ -393,7 +471,8 @@ namespace theori.Database
                 }
             }
 
-            using (var reader = ExecReader("SELECT id,setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,chartOffset,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags FROM Charts"))
+            // TODO(local): Add potential aliases to the query and extensions to the reader to make this much easier
+            using (var reader = ExecReader("SELECT id,setId,lwt,fileName,songTitle,songArtist,songFileName,songVolume,chartOffset,charter,jacketFileName,jacketArtist,backgroundFileName,backgroundArtist,diffLevel,diffIndex,diffName,diffNameShort,diffColor,chartDuration,tags,gameMode FROM Charts"))
             {
                 while (reader.Read())
                 {
@@ -402,6 +481,7 @@ namespace theori.Database
                     chart.ID = reader.GetInt64(0);
                     chart.LastWriteTime = reader.GetInt64(2);
                     chart.FileName = reader.GetString(3);
+                    chart.GameMode = GameMode.GetInstance(reader.GetString(21));
                     chart.SongTitle = reader.GetString(4);
                     chart.SongArtist = reader.GetString(5);
                     chart.SongFileName = reader.GetString(6);
@@ -462,5 +542,6 @@ namespace theori.Database
         public static string? GetStringOrNull(this SQLiteDataReader reader, int colIndex) => reader.IsDBNull(colIndex) ? null : reader.GetString(colIndex);
         public static long? GetInt64OrNull(this SQLiteDataReader reader, int colIndex) => reader.IsDBNull(colIndex) ? (long?)null : reader.GetInt64(colIndex);
         public static int? GetInt32OrNull(this SQLiteDataReader reader, int colIndex) => reader.IsDBNull(colIndex) ? (int?)null : reader.GetInt32(colIndex);
+        public static double? GetDoubleOrNull(this SQLiteDataReader reader, int colIndex) => reader.IsDBNull(colIndex) ? (double?)null : reader.GetDouble(colIndex);
     }
 }

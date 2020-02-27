@@ -2,44 +2,22 @@
 
 namespace theori.Configuration
 {
-    public class TheoriConfig : Config<TheoriConfigKey>
+    [ConfigGroup("theori")]
+    public static class TheoriConfig
     {
-        public static string ChartsDirectory => "charts";
-
-        protected override void SetDefaults()
-        {
-	        Set(TheoriConfigKey.ScreenWidth, 1280);
-	        Set(TheoriConfigKey.ScreenHeight, 720);
-	        Set(TheoriConfigKey.FullScreenWidth, -1);
-	        Set(TheoriConfigKey.FullScreenHeight, -1);
-	        Set(TheoriConfigKey.Fullscreen, false);
-            Set(TheoriConfigKey.FullscreenMonitorIndex, 0);
-            Set(TheoriConfigKey.Maximized, false);
-            Set(TheoriConfigKey.MasterVolume, 0.65f);
-	        Set(TheoriConfigKey.ScreenX, -1);
-	        Set(TheoriConfigKey.ScreenY, -1);
-	        Set(TheoriConfigKey.VSync, VSyncMode.Off);
-	        Set(TheoriConfigKey.FPSTarget, 0);
-            Set(TheoriConfigKey.Controller_DeviceID, 0);
-        }
-    }
-
-    public enum TheoriConfigKey
-    {
-	    ScreenWidth,
-	    ScreenHeight,
-	    FullScreenWidth,
-	    FullScreenHeight,
-	    ScreenX,
-	    ScreenY,
-	    Fullscreen,
-	    FullscreenMonitorIndex,
-	    VSync,
-        Maximized,
-
-        MasterVolume,
-        FPSTarget,
-
-        Controller_DeviceID,
+        [Config] public static int WindowWidth { get; set; } = 1280;
+        [Config] public static int WindowHeight { get; set; } = 720;
+        [Config] public static int FullscreenWidth { get; set; } = -1;
+        [Config] public static int FullscreenHeight { get; set; } = -1;
+        [Config] public static int ScreenX { get; set; } = -1;
+        [Config] public static int ScreenY { get; set; } = -1;
+        [Config] public static VSyncMode VerticalSync { get; set; } = VSyncMode.Off;
+        [Config] public static bool Fullscreen { get; set; } = false;
+        [Config] public static bool Maximized { get; set; } = false;
+        [Config] public static int FullscreenMonitorIndex { get; set; } = 0;
+        [Config] public static int FpsTarget { get; set; } = 0;
+        [Config] public static float MasterVolume { get; set; } = 0.6f;
+        [Config] public static string ChartsDirectory { get; set; } = "charts";
+        [Config] public static string? SelectedController { get; set; } = null;
     }
 }

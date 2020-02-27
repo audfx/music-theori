@@ -1,11 +1,42 @@
-﻿using theori.Charting;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
+using theori.Charting;
+using theori.Charting.Serialization;
 
 namespace theori.GameModes
 {
     public abstract class GameMode
     {
+        private static IEnumerable<Type>? m_available;
+        public static IEnumerable<Type> GetAvailableGameModeTypes()
+        {
+            return m_available ?? (m_available = Gather());
+
+            static IEnumerable<Type> Gather()
+            {
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    foreach (var type in asm.GetTypes())
+                    {
+                        if (typeof(GameMode).IsAssignableFrom(type))
+                            yield return type;
+                    }
+                }
+            }
+        }
+
+        private static readonly Dictionary<Type, GameMode> instances = new Dictionary<Type, GameMode>();
+
+        public static GameMode? GetInstance(string name) => instances.Where(p => p.Value.Name == name).Select(p => (GameMode?)p.Value).SingleOrDefault();
+        public static GameMode? GetInstance(Type type) => instances.TryGetValue(type, out var result) ? result : null;
+
         #region Meta Info
 
+        /// <summary>
+        /// The name of a gamemode should be unique.
+        /// </summary>
         public readonly string Name;
 
         #endregion
@@ -50,9 +81,14 @@ namespace theori.GameModes
 
         protected GameMode(string name)
         {
+            if (instances.ContainsKey(GetType()))
+                throw new InvalidOperationException("Cannot instantiate a game mode multiple times.");
+            instances[GetType()] = this;
+
             Name = name;
         }
 
-        public virtual ChartFactory CreateChartFactory() => throw new System.NotImplementedException();
+        public virtual ChartFactory GetChartFactory() => throw new NotImplementedException();
+        public virtual IChartSerializer? CreateChartSerializer(string chartsDirectory, string? fileFormat) => null;
     }
 }

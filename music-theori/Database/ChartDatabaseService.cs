@@ -1,7 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 using theori.Charting;
+using theori.Charting.Serialization;
 using theori.Configuration;
+using theori.Scoring;
 
 namespace theori.Database
 {
@@ -44,5 +47,33 @@ namespace theori.Database
 
         public static string GetLocalConfigForChart(ChartInfo chartInfo) => m_database!.GetLocalConfigForChart(chartInfo);
         public static void SaveLocalConfigForChart(ChartInfo chartInfo, string config) => m_database!.SaveLocalConfigForChart(chartInfo, config);
+
+        public static void AddScore(ChartInfo info, DateTime time, long score, ScoreRank rank, long? ival1 = null, double? fval1 = null) => m_database!.AddScore(info, time, score, rank, ival1, fval1);
+        public static ScoreData[] GetScoresForChart(ChartInfo chart) => m_database!.GetScoresForChart(chart);
+
+        public static Chart? TryLoadChart(ChartInfo chartInfo)
+        {
+            var mode = chartInfo.GameMode;
+            if (mode == null) return null;
+
+            var chartSer = mode.CreateChartSerializer(ChartsDirectory, chartInfo.ChartFileType) ?? new TheoriChartSerializer(ChartsDirectory, mode);
+            return chartSer.LoadFromFile(chartInfo);
+        }
+
+        public static bool TrySaveChart(Chart chart, bool saveSet = true)
+        {
+            var mode = chart.GameMode;
+
+            if (saveSet)
+            {
+                var setSer = new ChartSetSerializer(ChartsDirectory);
+                setSer.SaveToFile(chart.SetInfo);
+            }
+
+            var chartSer = mode.CreateChartSerializer(ChartsDirectory, chart.Info.ChartFileType) ?? new TheoriChartSerializer(ChartsDirectory, mode);
+            chartSer.SaveToFile(chart);
+
+            return true;
+        }
     }
 }

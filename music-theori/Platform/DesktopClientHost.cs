@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace theori.Platform
+﻿namespace theori.Platform
 {
     public class DesktopClientHost : ClientHost
     {

@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-
+using MoonSharp.Interpreter;
+using MoonSharp.Interpreter.Interop;
 using theori.GameModes;
+using theori.Scripting;
 
 namespace theori.Charting
 {
@@ -115,7 +117,6 @@ namespace theori.Charting
             RegisterTheoriTypes();
         }
 
-        // NOTE(local): ONLY used for sorting when entities are otherwise equal. Not needed otherwise, likely needs removal for simplification.
         private readonly long m_id = ++creationIndexCounter;
 
         private tick_t m_position, m_duration;
@@ -125,10 +126,14 @@ namespace theori.Charting
 
         internal HybridLabel m_lane;
 
+        [MoonSharpVisible(true)]
+        public string TypeId => GetEntityIdByType(GetType());
+
         /// <summary>
         /// The position, in measures, of this entity.
         /// </summary>
         [TheoriProperty("position")]
+        [MoonSharpVisible(true)]
         public tick_t Position
         {
             get => m_position;
@@ -144,6 +149,7 @@ namespace theori.Charting
 
         [TheoriProperty("duration")]
         [TheoriIgnoreDefault]
+        [MoonSharpVisible(true)]
         public tick_t Duration
         {
             get => m_duration;
@@ -154,10 +160,13 @@ namespace theori.Charting
             }
         }
 
+        [MoonSharpVisible(true)]
         public tick_t EndPosition => Position + Duration;
 
+        [MoonSharpVisible(true)]
         public bool IsInstant => m_duration == 0;
 
+        [MoonSharpVisible(true)]
         public time_t AbsolutePosition
         {
             get
@@ -174,6 +183,7 @@ namespace theori.Charting
             }
         }
 
+        [MoonSharpVisible(true)]
         public time_t AbsoluteEndPosition
         {
             get
@@ -190,9 +200,11 @@ namespace theori.Charting
             }
         }
 
+        [MoonSharpVisible(true)]
         public time_t AbsoluteDuration => AbsoluteEndPosition - AbsolutePosition;
 
         [TheoriIgnore]
+        [MoonSharpVisible(true)]
         public HybridLabel Lane
         {
             get => m_lane;
@@ -213,15 +225,20 @@ namespace theori.Charting
             }
         }
 
+        [MoonSharpVisible(true)]
         public bool HasPrevious => Previous != null;
+        [MoonSharpVisible(true)]
         public bool HasNext => Next != null;
 
+        [MoonSharpVisible(true)]
         public Entity Previous => ((ILinkable<Entity>)this).Previous;
         Entity ILinkable<Entity>.Previous { get; set; }
 
+        [MoonSharpVisible(true)]
         public Entity Next => ((ILinkable<Entity>)this).Next;
         Entity ILinkable<Entity>.Next { get; set; }
 
+        [MoonSharpVisible(true)]
         public Entity PreviousConnected
         {
             get
@@ -231,6 +248,7 @@ namespace theori.Charting
             }
         }
 
+        [MoonSharpVisible(true)]
         public Entity NextConnected
         {
             get
@@ -240,30 +258,36 @@ namespace theori.Charting
             }
         }
 
+        [MoonSharpHidden]
         public T FirstConnectedOf<T>()
-            where T : Entity
+            where T : notnull, Entity
         {
-            var current = this as T;
+            var current = (T)this;
             while (current?.PreviousConnected is T prev)
                 current = prev;
             return current;
         }
 
+        [MoonSharpHidden]
         public T LastConnectedOf<T>()
-            where T : Entity
+            where T : notnull, Entity
         {
-            var current = this as T;
+            var current = (T)this;
             while (current?.NextConnected is T next)
                 current = next;
             return current;
         }
 
+        [MoonSharpVisible(true)]
         public Chart Chart { get; internal set; }
 
+        [MoonSharpHidden]
         public Entity()
         {
+            ScriptService.RegisterType(GetType());
         }
 
+        [MoonSharpHidden]
         public virtual Entity Clone()
         {
             var result = new Entity()
@@ -277,6 +301,9 @@ namespace theori.Charting
 
         object ICloneable.Clone() => Clone();
 
+        public override int GetHashCode() => m_id.GetHashCode();
+
+        [MoonSharpHidden]
         public virtual int CompareTo(Entity other)
         {
             int r = m_position.CompareTo(other.m_position);
@@ -322,7 +349,8 @@ namespace theori.Charting
             }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        [MoonSharpHidden]
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged(string propertyName, Invalidation invalidation = Invalidation.None)
         {

@@ -32,11 +32,8 @@ namespace theori.Graphics
         private readonly Stack<Rect?> m_savedScissors = new Stack<Rect?>();
 
         private RenderQueue? m_queue;
-        private Font m_font = Font.Default;
-        private float m_fontSize = 16.0f;
 
-        private readonly List<TextRasterizer> m_rasterizers = new List<TextRasterizer>();
-        private readonly Dictionary<Font, TextRasterizer> m_labels = new Dictionary<Font, TextRasterizer>();
+        private int m_fontSize = 48;
 
         [MoonSharpHidden]
         public BasicSpriteRenderer(ClientResourceLocator? locator = null, Vector2? viewportSize = null)
@@ -68,8 +65,7 @@ namespace theori.Graphics
             m_drawColor = Vector4.One;
             m_imageColor = Vector4.One;
             m_textAlign = Anchor.TopLeft;
-
-            SetFont(null);
+            
             SetFontSize(16);
 
             Vector2 viewportSize = m_viewport ?? new Vector2(Window.Width, Window.Height);
@@ -84,10 +80,6 @@ namespace theori.Graphics
         public void EndFrame()
         {
             Flush();
-
-            foreach (var r in m_rasterizers)
-                r.Dispose();
-            m_rasterizers.Clear();
 
             m_queue!.Dispose();
             m_queue = null;
@@ -213,6 +205,7 @@ namespace theori.Graphics
 
             var p = new MaterialParams();
             p["MainTexture"] = Texture.Empty;
+            p["TempMappedTextureCoords"] = new Vector4(0, 0, 1, 1);
             p["Color"] = m_drawColor;
 
             if (m_scissor is Rect scissor)
@@ -233,6 +226,7 @@ namespace theori.Graphics
 
             var p = new MaterialParams();
             p["MainTexture"] = texture;
+            p["TempMappedTextureCoords"] = new Vector4(0, 0, 1, 1);
             p["Color"] = m_imageColor;
 
             if (m_scissor is Rect scissor)
@@ -240,13 +234,7 @@ namespace theori.Graphics
             else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
         }
 
-        public void SetFont(Font? font)
-        {
-            if (font == null) font = Font.Default;
-            m_font = font;
-        }
-
-        public void SetFontSize(float size)
+        public void SetFontSize(int size)
         {
             m_fontSize = size;
         }
@@ -256,40 +244,6 @@ namespace theori.Graphics
             m_textAlign = align;
         }
 
-        public void Write(string text, float x, float y)
-        {
-            var rasterizer = new TextRasterizer(m_font, m_fontSize, text);
-            rasterizer.Rasterize();
-
-            m_rasterizers.Add(rasterizer);
-
-            Vector2 offset = Vector2.Zero, size = new Vector2(rasterizer.Width, rasterizer.Height);
-            switch ((Anchor)((int)m_textAlign & 0x0F))
-            {
-                case Anchor.Top: break;
-                case Anchor.Middle: offset.Y = (int)(-size.Y / 2); break;
-                case Anchor.Bottom: offset.Y = -size.Y; break;
-            }
-
-            switch ((Anchor)((int)m_textAlign & 0xF0))
-            {
-                case Anchor.Left: break;
-                case Anchor.Center: offset.X = (int)(-size.X / 2); break;
-                case Anchor.Right: offset.X = -size.X; break;
-            }
-
-            var transform = Transform.Scale(rasterizer.Width, rasterizer.Height, 1)
-                          * Transform.Translation(x + offset.X, y + offset.Y, 0);
-
-            var p = new MaterialParams();
-            p["MainTexture"] = rasterizer.Texture;
-            p["Color"] = m_drawColor;
-
-            if (m_scissor is Rect scissor)
-                m_queue!.Draw(scissor, transform * m_transform, m_rectMesh, m_basicMaterial, p);
-            else m_queue!.Draw(transform * m_transform, m_rectMesh, m_basicMaterial, p);
-        }
-
-        #endregion
+#endregion
     }
 }
