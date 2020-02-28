@@ -243,14 +243,14 @@ namespace theori.Configuration
             File.WriteAllText(fileName, stringWriter.ToString().FormatJson());
         }
 
-        internal static object? GetFromKey(string key)
+        public static object? GetFromKey(string key)
         {
             if (GetDynamic(key) is object value) return value;
             if (ConfigEntries.TryGetValue(key, out var entry)) return entry.Value;
             return null;
         }
 
-        internal static void SetFromKey(string key, object value)
+        public static void SetFromKey(string key, object value)
         {
             if (ConfigEntries.TryGetValue(key, out var entry))
                 entry.Value = value;

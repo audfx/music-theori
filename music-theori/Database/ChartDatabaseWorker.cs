@@ -137,8 +137,7 @@ namespace theori.Database
             if (State == WorkState.Populating)
                 return; // already set to clean
 
-            if (State != WorkState.Idle)
-                throw new InvalidOperationException("Database worker is working on another task.");
+            if (State != WorkState.Idle) return; // already on another pass
 
             Logger.Log("Setting database worker to Populate (searching)");
 
@@ -213,8 +212,7 @@ namespace theori.Database
             if (State == WorkState.Cleaning || State == WorkState.CleanSearching)
                 return; // already set to clean
 
-            if (State != WorkState.Idle)
-                throw new InvalidOperationException("Database worker is working on another task.");
+            if (State != WorkState.Idle) return; // already on another task
 
             Logger.Log("Setting database worker to Clean (searching)");
 

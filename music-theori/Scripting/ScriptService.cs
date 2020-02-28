@@ -66,6 +66,7 @@ namespace theori.Scripting
             RegisterType<BaseScriptInstance>();
             RegisterType<ScriptDataModel>();
             RegisterType<ScriptResources>();
+            RegisterType<ScriptTcpConnection>();
 
             RegisterType<Chart.ChartLane>();
             RegisterType<Chart.ControlPointList>();

@@ -50,7 +50,7 @@ namespace theori.IO
         public static int MouseY { get; internal set; }
         public static int ScrollX { get; internal set; }
         public static int ScrollY { get; internal set; }
-        
+
         public static Vector2 MousePosition => new Vector2(MouseX, MouseY);
 
         private static bool isMouseRelative;
@@ -151,7 +151,12 @@ namespace theori.IO
             return null;
         }
 
-        public static Modes InputModes { get; private set; } = Modes.Any;
+        private static Modes inputModes = Modes.Any;
+        public static Modes InputModes
+        {
+            get => inputModes;
+            set => SetInputMode(value);
+        }
 
         public static void Initialize(LayerStack layerStack)
         {
@@ -164,6 +169,7 @@ namespace theori.IO
         public static void SetInputMode(Modes modes)
         {
             if (modes == InputModes) return;
+            var lastInputModes = InputModes;
 
             // if leaving desktop mode, unpress all keys and mouse buttons
             if (InputModes.HasFlag(Modes.Desktop) && !modes.HasFlag(Modes.Desktop))
@@ -192,7 +198,7 @@ namespace theori.IO
                 }
             }
 
-            InputModes = modes;
+            inputModes = modes;
         }
 
         public static string GetClipboardText() => SDL_GetClipboardText();

@@ -108,6 +108,7 @@ namespace theori
         public readonly Table tblTheoriInput;
         public readonly Table tblTheoriLayer;
         public readonly Table tblTheoriModes;
+        public readonly Table tblTheoriNet;
         public readonly Table tblTheoriInputKeyboard;
         public readonly Table tblTheoriInputMouse;
         public readonly Table tblTheoriInputGamepad;
@@ -131,10 +132,10 @@ namespace theori
 
         public readonly ScriptEvent evtControllerAdded;
         public readonly ScriptEvent evtControllerRemoved;
-        public readonly ScriptEvent evtControllerPressed, evtRawControllerPressed;
-        public readonly ScriptEvent evtControllerReleased, evtRawControllerReleased;
-        public readonly ScriptEvent evtControllerAxisChanged, evtRawControllerAxisChanged;
-        public readonly ScriptEvent evtControllerAxisTicked, evtRawControllerAxisTicked;
+        public readonly ScriptEvent evtControllerPressed;
+        public readonly ScriptEvent evtControllerReleased;
+        public readonly ScriptEvent evtControllerAxisChanged;
+        public readonly ScriptEvent evtControllerAxisTicked;
 
         #endregion
 
@@ -169,6 +170,7 @@ namespace theori
             tblTheori["input"] = tblTheoriInput = m_script.NewTable();
             tblTheori["layer"] = tblTheoriLayer = m_script.NewTable();
             tblTheori["modes"] = tblTheoriModes = m_script.NewTable();
+            tblTheori["net"] = tblTheoriNet = m_script.NewTable();
 
             tblTheoriInput["textInput"] = evtTextInput = m_script.NewEvent();
 
@@ -364,6 +366,10 @@ namespace theori
                 UserInputService.SetInputMode(modes);
                 return Nil;
             });
+            tblTheoriInput["getInputModes"] = (Func<string[]>)(() =>
+            {
+                return UserInputService.InputModes.Explode().Select(x => x.ToString().ToLower()).ToArray();
+            });
             tblTheoriInput["getClipboardText"] = (Action)(() => UserInputService.GetClipboardText());
             tblTheoriInput["setClipboardText"] = (Action<string>)(text => UserInputService.SetClipboardText(text));
             tblTheoriInput["startTextEditing"] = (Action)(() => UserInputService.StartTextEditing());
@@ -399,6 +405,8 @@ namespace theori
             tblTheoriLayer["onClientSizeChanged"] = (Action<int, int, int, int>)((x, y, w, h) => { });
             tblTheoriLayer["update"] = (Action<float, float>)((delta, total) => { });
             tblTheoriLayer["render"] = (Action)(() => { });
+
+            tblTheoriNet["createTcp"] = (Func<string, int, ScriptTcpConnection?>)((host, port) => ScriptTcpConnection.TryCreate(host, port));
         }
 
         class DynValueComparer : IComparer<DynValue>

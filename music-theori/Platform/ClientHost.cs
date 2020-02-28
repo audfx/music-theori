@@ -260,7 +260,7 @@ namespace theori.Platform
         public bool LoadConfig()
         {
             using var _ = Profiler.Scope("ClientHost::LoadConfig");
-            return UserConfigManager.LoadFromFile();
+            return !UserConfigManager.LoadFromFile();
         }
 
         public void SaveConfig()
