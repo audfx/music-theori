@@ -194,7 +194,7 @@ namespace theori.Graphics
 
         public void SaveTransform()
         {
-            Flush();
+            //Flush();
 
             m_savedTransformIndices.Push(m_transformations.Count);
         }
@@ -203,7 +203,7 @@ namespace theori.Graphics
         {
             if (m_savedTransformIndices.Count == 0) return;
 
-            Flush();
+            //Flush();
 
             int transformsCount = m_savedTransformIndices.Pop();
             m_transformations.RemoveRange(transformsCount, m_transformations.Count - transformsCount);
@@ -213,7 +213,7 @@ namespace theori.Graphics
 
         public void ResetTransform()
         {
-            Flush();
+            //Flush();
 
             m_transformations.Add(null);
 
@@ -262,11 +262,13 @@ namespace theori.Graphics
 
         public void SaveScissor()
         {
+            return;
             m_savedScissors.Push(m_scissor);
         }
 
         public void RestoreScissor()
         {
+            return;
             if (m_savedScissors.Count == 0) return;
             
             Flush();
@@ -276,6 +278,7 @@ namespace theori.Graphics
 
         public void ResetScissor()
         {
+            return;
             Flush();
 
             m_savedScissors.Clear();
@@ -284,6 +287,7 @@ namespace theori.Graphics
 
         public void Scissor(float x, float y, float w, float h)
         {
+            return;
             Flush();
 
             if (m_scissor is null)
@@ -301,17 +305,22 @@ namespace theori.Graphics
 
         public void Flush()
         {
+            if (m_indexCount == 0 || m_vertexCount == 0)
+                return;
+
             using var _ = Profiler.Scope(nameof(Flush));
 
+#if false
             var indices = new ushort[m_indexCount];
             var vertices = new VertexRB2D[m_vertexCount];
 
             Array.Copy(m_indices, 0, indices, 0, m_indexCount);
             Array.Copy(m_vertices, 0, vertices, 0, m_vertexCount);
+#endif
 
-            m_mesh.SetIndices(indices);
-            m_mesh.SetVertices(vertices);
-
+            m_mesh.SetIndices(m_indices, 0, m_indexCount);
+            Profiler.Instant("Finished allocating memory for index data");
+            m_mesh.SetVertices(m_vertices, 0, m_vertexCount);
             Profiler.Instant("Finished allocating memory for vertex data");
 
             m_params["Texture"] = 0;
@@ -372,6 +381,8 @@ namespace theori.Graphics
 
         public void SetFillTexture(Texture texture, Vector4 tint)
         {
+            SetFillColor(tint); return;
+
             if (m_texture != null && texture != m_texture)
                 Flush();
 
@@ -476,6 +487,7 @@ namespace theori.Graphics
 
         public void FillRectangle(float x, float y, float w, float h)
         {
+#if false
             var cmds = new Path2DCommands();
             cmds.MoveTo(x, y);
             cmds.LineTo(x + w, y);
@@ -486,6 +498,14 @@ namespace theori.Graphics
             var paths = cmds.Flatten();
             paths.SetTextureCoordsToGroupLocal();
             Fill(paths);
+#else
+            AddQuad(
+                new VertexRB2D(m_fillKind, Vector2.Transform(new Vector2(x, y), m_transform.Matrix), new Vector2(0, 0), m_vertexColor),
+                new VertexRB2D(m_fillKind, Vector2.Transform(new Vector2(x + w, y), m_transform.Matrix), new Vector2(1, 0), m_vertexColor),
+                new VertexRB2D(m_fillKind, Vector2.Transform(new Vector2(x + w, y + h), m_transform.Matrix), new Vector2(1, 1), m_vertexColor),
+                new VertexRB2D(m_fillKind, Vector2.Transform(new Vector2(x, y + h), m_transform.Matrix), new Vector2(0, 1), m_vertexColor)
+            );
+#endif
         }
 
         public void FillRoundedRectangle(float x, float y, float w, float h, float r)

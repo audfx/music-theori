@@ -7787,27 +7787,44 @@ namespace theori.Graphics.OpenGL
         }
         public static void BufferData(uint target, int offset, int count, float[] data, uint usage)
         {
-            IntPtr p = Marshal.AllocHGlobal(count * sizeof(float));
-            Marshal.Copy(data, offset, p, count);
-            GetDelegateFor<glBufferData>()(target, count * sizeof(float), p, usage);
-            Marshal.FreeHGlobal(p);
+            unsafe
+            {
+                fixed (float* dataPtr = data)
+                {
+                    using var _ = Profiler.Scope("BufferData but inside Fixed");
+                    GetDelegateFor<glBufferData>()(target, count * sizeof(float), new IntPtr(dataPtr + offset), usage);
+                }
+            }
         }
         public static void BufferData(uint target, float[] data, uint usage)
         {
-            IntPtr p = Marshal.AllocHGlobal(data.Length * sizeof(float));
-            Marshal.Copy(data, 0, p, data.Length);
-            GetDelegateFor<glBufferData>()(target, data.Length * sizeof(float), p, usage);
-            Marshal.FreeHGlobal(p);
+            unsafe
+            {
+                fixed (float* dataPtr = data)
+                {
+                    GetDelegateFor<glBufferData>()(target, data.Length * sizeof(float), new IntPtr(dataPtr), usage);
+                }
+            }
+        }
+        public static void BufferData(uint target, int offset, int count, ushort[] data, uint usage)
+        {
+            unsafe
+            {
+                fixed (ushort* dataPtr = data)
+                {
+                    GetDelegateFor<glBufferData>()(target, count * sizeof(ushort), new IntPtr(dataPtr + offset), usage);
+                }
+            }
         }
         public static void BufferData(uint target, ushort[] data, uint usage)
         {
-            var dataSize = data.Length * sizeof(ushort);
-            IntPtr p = Marshal.AllocHGlobal(dataSize);
-            var shortData = new short[data.Length];
-            Buffer.BlockCopy(data, 0, shortData, 0, dataSize);
-            Marshal.Copy(shortData, 0, p, data.Length);
-            GetDelegateFor<glBufferData>()(target, dataSize, p, usage);
-            Marshal.FreeHGlobal(p);
+            unsafe
+            {
+                fixed (ushort* dataPtr = data)
+                {
+                    GetDelegateFor<glBufferData>()(target, data.Length * sizeof(ushort), new IntPtr(dataPtr), usage);
+                }
+            }
         }
         public static void BufferSubData(uint target, int offset, int size, IntPtr data)
         {
@@ -7896,9 +7913,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_MAP_FLUSH_EXPLICIT_BIT = 0x0010;
         public const uint GL_MAP_UNSYNCHRONIZED_BIT = 0x0020;
 
-        #endregion
+#endregion
 
-        #region OpenGL 2.0
+#region OpenGL 2.0
 
         //  Methods
         public static void BlendEquationSeparate(uint modeRGB, uint modeAlpha)
@@ -8697,9 +8714,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_STENCIL_BACK_VALUE_MASK = 0x8CA4;
         public const uint GL_STENCIL_BACK_WRITEMASK = 0x8CA5;
 
-        #endregion
+#endregion
 
-        #region OpenGL 2.1
+#region OpenGL 2.1
 
         //  Methods
         public static void UniformMatrix2x3(int location, int count, bool transpose, float[] value)
@@ -8753,9 +8770,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_COMPRESSED_SRGB = 0x8C48;
         public const uint GL_COMPRESSED_SRGB_ALPHA = 0x8C49;
 
-        #endregion
+#endregion
 
-        #region OpenGL 3.0
+#region OpenGL 3.0
 
         //  Methods
         public static void ColorMask(uint index, bool r, bool g, bool b, bool a)
@@ -9177,9 +9194,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_RG = 0x8227;
         public const uint GL_RG_INTEGER = 0x8228;
 
-        #endregion
+#endregion
 
-        #region OpenGL 3.1
+#region OpenGL 3.1
 
         //  Methods
         public static void DrawArraysInstanced(uint mode, int first, int count, int primcount)
@@ -9238,9 +9255,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_PRIMITIVE_RESTART = 0x8F9D;
         public const uint GL_PRIMITIVE_RESTART_INDEX = 0x8F9E;
 
-        #endregion
+#endregion
 
-        #region OpenGL 3.2
+#region OpenGL 3.2
 
         //  Methods
         public static void GetInteger64(uint target, uint index, Int64[] data)
@@ -9286,9 +9303,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_MAX_FRAGMENT_INPUT_COMPONENTS = 0x9125;
         public const uint GL_CONTEXT_PROFILE_MASK = 0x9126;
 
-        #endregion
+#endregion
 
-        #region OpenGL 3.3
+#region OpenGL 3.3
 
         //  Methods
         public static void VertexAttribDivisor(uint index, uint divisor)
@@ -9302,9 +9319,9 @@ namespace theori.Graphics.OpenGL
         //  Constants
         public const uint GL_VERTEX_ATTRIB_ARRAY_DIVISOR = 0x88FE;
 
-        #endregion
+#endregion
 
-        #region OpenGL 4.0
+#region OpenGL 4.0
 
         //  Methods        
         public static void MinSampleShading(float value)
@@ -9348,9 +9365,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_INT_SAMPLER_CUBE_MAP_ARRAY = 0x900E;
         public const uint GL_UNSIGNED_INT_SAMPLER_CUBE_MAP_ARRAY = 0x900F;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_texture3D
+#region GL_EXT_texture3D
 
         /// <summary>
         /// Specify a three-dimensional texture subimage.
@@ -9396,16 +9413,16 @@ namespace theori.Graphics.OpenGL
         private delegate void glTexSubImage3DEXT(uint target, int level, int xoffset, int yoffset, int zoffset,
             uint width, uint height, uint depth, uint format, uint type, IntPtr pixels);
 
-        #endregion
+#endregion
 
-        #region GL_EXT_bgra
+#region GL_EXT_bgra
 
         public const uint GL_BGR_EXT = 0x80E0;
         public const uint GL_BGRA_EXT = 0x80E1;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_packed_pixels
+#region GL_EXT_packed_pixels
 
         public const uint GL_UNSIGNED_BYTE_3_3_2_EXT = 0x8032;
         public const uint GL_UNSIGNED_SHORT_4_4_4_4_EXT = 0x8033;
@@ -9413,38 +9430,38 @@ namespace theori.Graphics.OpenGL
         public const uint GL_UNSIGNED_INT_8_8_8_8_EXT = 0x8035;
         public const uint GL_UNSIGNED_INT_10_10_10_2_EXT = 0x8036;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_rescale_normal
+#region GL_EXT_rescale_normal
 
         public const uint GL_RESCALE_NORMAL_EXT = 0x803A;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_separate_specular_color
+#region GL_EXT_separate_specular_color
 
         public const uint GL_LIGHT_MODEL_COLOR_CONTROL_EXT = 0x81F8;
         public const uint GL_SINGLE_COLOR_EXT = 0x81F9;
         public const uint GL_SEPARATE_SPECULAR_COLOR_EXT = 0x81FA;
 
-        #endregion
+#endregion
 
-        #region GL_SGIS_texture_edge_clamp
+#region GL_SGIS_texture_edge_clamp
 
         public const uint GL_CLAMP_TO_EDGE_SGIS = 0x812F;
 
-        #endregion
+#endregion
 
-        #region GL_SGIS_texture_lod
+#region GL_SGIS_texture_lod
 
         public const uint GL_TEXTURE_MIN_LOD_SGIS = 0x813A;
         public const uint GL_TEXTURE_MAX_LOD_SGIS = 0x813B;
         public const uint GL_TEXTURE_BASE_LEVEL_SGIS = 0x813C;
         public const uint GL_TEXTURE_MAX_LEVEL_SGIS = 0x813D;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_draw_range_elements
+#region GL_EXT_draw_range_elements
 
         /// <summary>
         /// Render primitives from array data.
@@ -9465,9 +9482,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_MAX_ELEMENTS_VERTICES_EXT = 0x80E8;
         public const uint GL_MAX_ELEMENTS_INDICES_EXT = 0x80E9;
 
-        #endregion
+#endregion
 
-        #region GL_SGI_color_table
+#region GL_SGI_color_table
 
         //  Delegates
         public static void ColorTableSGI(uint target, uint internalformat, uint width, uint format, uint type, IntPtr table)
@@ -9532,9 +9549,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_COLOR_TABLE_LUMINANCE_SIZE_SGI = 0x80DE;
         public const uint GL_COLOR_TABLE_INTENSITY_SIZE_SGI = 0x80DF;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_convolution
+#region GL_EXT_convolution
 
         //  Methods.
         public static void ConvolutionFilter1DEXT(uint target, uint internalformat, int width, uint format, uint type, IntPtr image)
@@ -9639,9 +9656,9 @@ namespace theori.Graphics.OpenGL
         public static uint GL_POST_CONVOLUTION_BLUE_BIAS_EXT = 0x8022;
         public static uint GL_POST_CONVOLUTION_ALPHA_BIAS_EXT = 0x8023;
 
-        #endregion
+#endregion
 
-        #region GL_SGI_color_matrix
+#region GL_SGI_color_matrix
 
         public const uint GL_COLOR_MATRIX_SGI = 0x80B1;
         public const uint GL_COLOR_MATRIX_STACK_DEPTH_SGI = 0x80B2;
@@ -9655,9 +9672,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_POST_COLOR_MATRIX_BLUE_BIAS_SGI = 0x80BA;
         public const uint GL_POST_COLOR_MATRIX_ALPHA_BIAS_SGI = 0x80BB;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_histogram
+#region GL_EXT_histogram
 
         //  Methods
         public static void GetHistogramEXT(uint target, bool reset, uint format, uint type, IntPtr values)
@@ -9738,9 +9755,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_MINMAX_SINK_EXT = 0x8030;
         public const uint GL_TABLE_TOO_LARGE_EXT = 0x8031;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_blend_color
+#region GL_EXT_blend_color
 
         //  Methods
         public static void BlendColorEXT(float red, float green, float blue, float alpha)
@@ -9758,9 +9775,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_ONE_MINUS_CONSTANT_ALPHA_EXT = 0x8004;
         public const uint GL_BLEND_COLOR_EXT = 0x8005;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_blend_minmax
+#region GL_EXT_blend_minmax
 
         //  Methods
         public static void BlendEquationEXT(uint mode)
@@ -9779,9 +9796,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_FUNC_REVERSE_SUBTRACT_EXT = 0x800B;
         public const uint GL_BLEND_EQUATION_EXT = 0x8009;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_multitexture
+#region GL_ARB_multitexture
 
         //  Methods
         [Obsolete("Deprecated from OpenGL version 3.0")]
@@ -10027,9 +10044,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_CLIENT_ACTIVE_TEXTURE_ARB = 0x84E1;
         public const uint GL_MAX_TEXTURE_UNITS_ARB = 0x84E2;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_compression
+#region GL_ARB_texture_compression
 
         //  Methods
         public static void CompressedTexImage3DARB(uint target, int level, uint internalformat, int width, int height, int depth, int border, int imageSize, IntPtr data)
@@ -10079,9 +10096,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_NUM_COMPRESSED_TEXTURE_FORMATS_ARB = 0x86A2;
         public const uint GL_COMPRESSED_TEXTURE_FORMATS_ARB = 0x86A3;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_texture_cube_map
+#region GL_EXT_texture_cube_map
 
         //  Constants
         public const uint GL_NORMAL_MAP_EXT = 0x8511;
@@ -10097,9 +10114,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_PROXY_TEXTURE_CUBE_MAP_EXT = 0x851B;
         public const uint GL_MAX_CUBE_MAP_TEXTURE_SIZE_EXT = 0x851C;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_multisample
+#region GL_ARB_multisample
 
         //  Methods
         public static void SampleCoverageARB(float value, bool invert)
@@ -10121,15 +10138,15 @@ namespace theori.Graphics.OpenGL
         public const uint GL_SAMPLE_COVERAGE_INVERT_ARB = 0x80AB;
         public const uint GL_MULTISAMPLE_BIT_ARB = 0x20000000;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_env_add
+#region GL_ARB_texture_env_add
 
         //  Appears to not have any functionality
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_env_combine
+#region GL_ARB_texture_env_combine
 
         //  Constants
         public const uint GL_COMBINE_ARB = 0x8570;
@@ -10155,24 +10172,24 @@ namespace theori.Graphics.OpenGL
         public const uint GL_PRIMARY_COLOR_ARB = 0x8577;
         public const uint GL_PREVIOUS_ARB = 0x8578;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_env_dot3
+#region GL_ARB_texture_env_dot3
 
         //  Constants
         public const uint GL_DOT3_RGB_ARB = 0x86AE;
         public const uint GL_DOT3_RGBA_ARB = 0x86AF;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_border_clamp
+#region GL_ARB_texture_border_clamp
 
         //  Constants
         public const uint GL_CLAMP_TO_BORDER_ARB = 0x812D;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_transpose_matrix
+#region GL_ARB_transpose_matrix
 
         //  Methods
         public static void glLoadTransposeMatrixARB(float[] m)
@@ -10204,23 +10221,23 @@ namespace theori.Graphics.OpenGL
         public const uint GL_TRANSPOSE_TEXTURE_MATRIX_ARB = 0x84E5;
         public const uint GL_TRANSPOSE_COLOR_MATRIX_ARB = 0x84E6;
 
-        #endregion
+#endregion
 
-        #region GL_SGIS_generate_mipmap
+#region GL_SGIS_generate_mipmap
 
         //  Constants
         public const uint GL_GENERATE_MIPMAP_SGIS = 0x8191;
         public const uint GL_GENERATE_MIPMAP_HINT_SGIS = 0x8192;
 
-        #endregion
+#endregion
 
-        #region GL_NV_blend_square
+#region GL_NV_blend_square
 
         //  Appears to be empty.
 
-        #endregion
+#endregion
 
-        #region GL_ARB_depth_texture
+#region GL_ARB_depth_texture
 
         //  Constants
         public const uint GL_DEPTH_COMPONENT16_ARB = 0x81A5;
@@ -10229,18 +10246,18 @@ namespace theori.Graphics.OpenGL
         public const uint GL_TEXTURE_DEPTH_SIZE_ARB = 0x884A;
         public const uint GL_DEPTH_TEXTURE_MODE_ARB = 0x884B;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_shadow
+#region GL_ARB_shadow
 
         //  Constants
         public const uint GL_TEXTURE_COMPARE_MODE_ARB = 0x884C;
         public const uint GL_TEXTURE_COMPARE_FUNC_ARB = 0x884D;
         public const uint GL_COMPARE_R_TO_TEXTURE_ARB = 0x884E;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_fog_coord
+#region GL_EXT_fog_coord
 
         //  Methods
         public static void FogCoordEXT(float coord)
@@ -10281,9 +10298,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_FOG_COORDINATE_ARRAY_POINTER_EXT = 0x8456;
         public const uint GL_FOG_COORDINATE_ARRAY_EXT = 0x8457;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_multi_draw_arrays
+#region GL_EXT_multi_draw_arrays
 
         //  Methods
         public static void MultiDrawArraysEXT(uint mode, int[] first, int[] count, int primcount)
@@ -10299,9 +10316,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glMultiDrawArraysEXT(uint mode, int[] first, int[] count, int primcount);
         private delegate void glMultiDrawElementsEXT(uint mode, int[] count, uint type, IntPtr indices, int primcount);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_point_parameters
+#region GL_ARB_point_parameters
 
         //  Methods
         public static void glPointParameterARB(uint pname, float parameter)
@@ -10323,9 +10340,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_POINT_FADE_THRESHOLD_SIZE_ARB = 0x8128;
         public const uint GL_POINT_DISTANCE_ATTENUATION_ARB = 0x8129;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_secondary_color
+#region GL_EXT_secondary_color
 
         //  Methods
         public static void SecondaryColor3EXT(sbyte red, sbyte green, sbyte blue)
@@ -10425,9 +10442,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_SECONDARY_COLOR_ARRAY_POINTER_EXT = 0x845D;
         public const uint GL_SECONDARY_COLOR_ARRAY_EXT = 0x845E;
 
-        #endregion
+#endregion
 
-        #region  GL_EXT_blend_func_separate
+#region  GL_EXT_blend_func_separate
 
         //  Methods
         public static void BlendFuncSeparateEXT(uint sfactorRGB, uint dfactorRGB, uint sfactorAlpha, uint dfactorAlpha)
@@ -10444,39 +10461,39 @@ namespace theori.Graphics.OpenGL
         public const uint GL_BLEND_DST_ALPHA_EXT = 0x80CA;
         public const uint GL_BLEND_SRC_ALPHA_EXT = 0x80CB;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_stencil_wrap
+#region GL_EXT_stencil_wrap
 
         //  Constants
         public const uint GL_INCR_WRAP_EXT = 0x8507;
         public const uint GL_DECR_WRAP_EXT = 0x8508;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_env_crossbar
+#region GL_ARB_texture_env_crossbar
 
         //  No methods or constants.
 
-        #endregion
+#endregion
 
-        #region GL_EXT_texture_lod_bias
+#region GL_EXT_texture_lod_bias
 
         //  Constants
         public const uint GL_MAX_TEXTURE_LOD_BIAS_EXT = 0x84FD;
         public const uint GL_TEXTURE_FILTER_CONTROL_EXT = 0x8500;
         public const uint GL_TEXTURE_LOD_BIAS_EXT = 0x8501;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_mirrored_repeat
+#region GL_ARB_texture_mirrored_repeat
 
         //  Constants
         public const uint GL_MIRRORED_REPEAT_ARB = 0x8370;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_window_pos
+#region GL_ARB_window_pos
 
         //  Methods
         public static void WindowPos2ARB(double x, double y)
@@ -10562,9 +10579,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glWindowPos3sARB(short x, short y, short z);
         private delegate void glWindowPos3svARB(short[] v);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_vertex_buffer_object
+#region GL_ARB_vertex_buffer_object
 
         //  Methods
         public static void BindBufferARB(uint target, uint buffer)
@@ -10657,9 +10674,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_DYNAMIC_DRAW_ARB = 0x88E8;
         public const uint GL_DYNAMIC_READ_ARB = 0x88E9;
         public const uint GL_DYNAMIC_COPY_ARB = 0x88EA;
-        #endregion
+#endregion
 
-        #region GL_ARB_occlusion_query
+#region GL_ARB_occlusion_query
 
         //  Methods
         public static void GenQueriesARB(int n, uint[] ids)
@@ -10713,9 +10730,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_SAMPLES_PASSED_ARB = 0x8914;
         public const uint GL_ANY_SAMPLES_PASSED = 0x8C2F;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_shader_objects
+#region GL_ARB_shader_objects
 
         //  Methods
         public static void DeleteObjectARB(uint obj)
@@ -10952,9 +10969,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_OBJECT_ACTIVE_UNIFORM_MAX_LENGTH_ARB = 0x8B87;
         public const uint GL_OBJECT_SHADER_SOURCE_LENGTH_ARB = 0x8B88;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_vertex_program
+#region GL_ARB_vertex_program
 
         //  Methods
         public static void VertexAttrib1ARB(uint index, double x)
@@ -11346,9 +11363,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_MATRIX30_ARB = 0x88DE;
         public const uint GL_MATRIX31_ARB = 0x88DF;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_vertex_shader
+#region GL_ARB_vertex_shader
 
         //  Methods
         public static void BindAttribLocationARB(uint programObj, uint index, string name)
@@ -11378,17 +11395,17 @@ namespace theori.Graphics.OpenGL
         public const uint GL_OBJECT_ACTIVE_ATTRIBUTES_ARB = 0x8B89;
         public const uint GL_OBJECT_ACTIVE_ATTRIBUTE_MAX_LENGTH_ARB = 0x8B8A;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_fragment_shader
+#region GL_ARB_fragment_shader
 
         public const uint GL_FRAGMENT_SHADER_ARB = 0x8B30;
         public const uint GL_MAX_FRAGMENT_UNIFORM_COMPONENTS_ARB = 0x8B49;
         public const uint GL_FRAGMENT_SHADER_DERIVATIVE_HINT_ARB = 0x8B8B;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_draw_buffers
+#region GL_ARB_draw_buffers
 
         //  Methods
         public static void DrawBuffersARB(int n, uint[] bufs)
@@ -11418,15 +11435,15 @@ namespace theori.Graphics.OpenGL
         public const uint GL_DRAW_BUFFER14_ARB = 0x8833;
         public const uint GL_DRAW_BUFFER15_ARB = 0x8834;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_non_power_of_two
+#region GL_ARB_texture_non_power_of_two
 
         //  No methods or constants
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_rectangle
+#region GL_ARB_texture_rectangle
 
         //  Constants
         public const uint GL_TEXTURE_RECTANGLE_ARB = 0x84F5;
@@ -11434,17 +11451,17 @@ namespace theori.Graphics.OpenGL
         public const uint GL_PROXY_TEXTURE_RECTANGLE_ARB = 0x84F7;
         public const uint GL_MAX_RECTANGLE_TEXTURE_SIZE_ARB = 0x84F8;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_point_sprite
+#region GL_ARB_point_sprite
 
         //  Constants
         public const uint GL_POINT_SPRITE_ARB = 0x8861;
         public const uint GL_COORD_REPLACE_ARB = 0x8862;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_float
+#region GL_ARB_texture_float
 
         //  Constants
         public const uint GL_TEXTURE_RED_TYPE_ARB = 0x8C10;
@@ -11468,9 +11485,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_LUMINANCE16F_ARB = 0x881E;
         public const uint GL_LUMINANCE_ALPHA16F_ARB = 0x881F;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_blend_equation_separate
+#region GL_EXT_blend_equation_separate
 
         //  Methods
         public static void BlendEquationSeparateEXT(uint modeRGB, uint modeAlpha)
@@ -11486,9 +11503,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_BLEND_EQUATION_RGB_EXT = 0x8009;
         public const uint GL_BLEND_EQUATION_ALPHA_EXT = 0x883D;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_stencil_two_side
+#region GL_EXT_stencil_two_side
 
         //  Methods
         public static void ActiveStencilFaceEXT(uint face)
@@ -11503,18 +11520,18 @@ namespace theori.Graphics.OpenGL
         public const uint GL_STENCIL_TEST_TWO_SIDE_EXT = 0x8009;
         public const uint GL_ACTIVE_STENCIL_FACE_EXT = 0x883D;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_pixel_buffer_object
+#region GL_ARB_pixel_buffer_object
 
         public const uint GL_PIXEL_PACK_BUFFER_ARB = 0x88EB;
         public const uint GL_PIXEL_UNPACK_BUFFER_ARB = 0x88EC;
         public const uint GL_PIXEL_PACK_BUFFER_BINDING_ARB = 0x88ED;
         public const uint GL_PIXEL_UNPACK_BUFFER_BINDING_ARB = 0x88EF;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_texture_sRGB
+#region GL_EXT_texture_sRGB
 
         public const uint GL_SRGB_EXT = 0x8C40;
         public const uint GL_SRGB8_EXT = 0x8C41;
@@ -11533,9 +11550,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT = 0x8C4E;
         public const uint GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT = 0x8C4F;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_framebuffer_object
+#region GL_EXT_framebuffer_object
 
         //  Methods
         public static bool IsRenderbufferEXT(uint renderbuffer)
@@ -11741,9 +11758,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_RENDERBUFFER_DEPTH_SIZE_EXT = 0x8D54;
         public const uint GL_RENDERBUFFER_STENCIL_SIZE_EXT = 0x8D55;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_framebuffer_multisample
+#region GL_EXT_framebuffer_multisample
 
         //  Methods
         public static void RenderbufferStorageMultisampleEXT(uint target, int samples, uint internalformat, int width, int height)
@@ -11759,9 +11776,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE_EXT = 0x8D56;
         public const uint GL_MAX_SAMPLES_EXT = 0x8D57;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_draw_instanced
+#region GL_EXT_draw_instanced
 
         //  Methods
         public static void DrawArraysInstancedEXT(uint mode, int start, int count, int primcount)
@@ -11777,9 +11794,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glDrawArraysInstancedEXT(uint mode, int start, int count, int primcount);
         private delegate void glDrawElementsInstancedEXT(uint mode, int count, uint type, IntPtr indices, int primcount);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_vertex_array_object
+#region GL_ARB_vertex_array_object
 
         //  Methods
         private static readonly Stack<uint> vertexArrayHandles = new Stack<uint>();
@@ -11837,17 +11854,17 @@ namespace theori.Graphics.OpenGL
         //  Constants
         public const uint GL_VERTEX_ARRAY_BINDING = 0x85B5;
 
-        #endregion
+#endregion
 
-        #region GL_EXT_framebuffer_sRGB
+#region GL_EXT_framebuffer_sRGB
 
         //  Constants
         public const uint GL_FRAMEBUFFER_SRGB_EXT = 0x8DB9;
         public const uint GL_FRAMEBUFFER_SRGB_CAPABLE_EXT = 0x8DBA;
 
-        #endregion
+#endregion
 
-        #region GGL_EXT_transform_feedback
+#region GGL_EXT_transform_feedback
 
         //  Methods
         public static void BeginTransformFeedbackEXT(uint primitiveMode)
@@ -11905,9 +11922,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_TRANSFORM_FEEDBACK_BUFFER_MODE_EXT = 0x8C7F;
         public const uint GL_TRANSFORM_FEEDBACK_VARYING_MAX_LENGTH_EXT = 0x8C76;
 
-        #endregion
+#endregion
 
-        #region WGL_ARB_extensions_string
+#region WGL_ARB_extensions_string
 
         /// <summary>
         /// Gets the ARB extensions string.
@@ -11923,9 +11940,9 @@ namespace theori.Graphics.OpenGL
         //  Delegates
         private delegate string wglGetExtensionsStringARB(IntPtr hdc);
 
-        #endregion
+#endregion
 
-        #region WGL_ARB_create_context
+#region WGL_ARB_create_context
 
         //  Methods
 
@@ -11969,9 +11986,9 @@ namespace theori.Graphics.OpenGL
         public const int ERROR_INVALID_VERSION_ARB = 0x2095;
         public const int ERROR_INVALID_PROFILE_ARB = 0x2096;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_explicit_uniform_location
+#region GL_ARB_explicit_uniform_location
 
         //  Constants
 
@@ -11981,9 +11998,9 @@ namespace theori.Graphics.OpenGL
         /// </summary>
         public const int GL_MAX_UNIFORM_LOCATIONS = 0x826E;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_clear_buffer_object
+#region GL_ARB_clear_buffer_object
 
         /// <summary>
         /// Fill a buffer object's data store with a fixed value
@@ -12028,9 +12045,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glClearNamedBufferDataEXT(uint buffer, uint internalformat, uint format, uint type, IntPtr data);
         private delegate void glClearNamedBufferSubDataEXT(uint buffer, uint internalformat, IntPtr offset, uint size, uint format, uint type, IntPtr data);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_compute_shader
+#region GL_ARB_compute_shader
 
         /// <summary>
         /// Launch one or more compute work groups
@@ -12076,9 +12093,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_DISPATCH_INDIRECT_BUFFER_BINDING = 0x90EF;
         public const uint GL_COMPUTE_SHADER_BIT = 0x00000020;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_copy_image
+#region GL_ARB_copy_image
 
         /// <summary>
         /// Perform a raw data copy between two images
@@ -12109,9 +12126,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glCopyImageSubData(uint srcName, uint srcTarget, int srcLevel, int srcX, int srcY, int srcZ, uint dstName,
             uint dstTarget, int dstLevel, int dstX, int dstY, int dstZ, uint srcWidth, uint srcHeight, uint srcDepth);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_ES3_compatibility
+#region GL_ARB_ES3_compatibility
 
         public const uint GL_COMPRESSED_RGB8_ETC2 = 0x9274;
         public const uint GL_COMPRESSED_SRGB8_ETC2 = 0x9275;
@@ -12128,9 +12145,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_MAX_ELEMENT_INDEX = 0x8D6B;
         public const uint GL_TEXTURE_IMMUTABLE_LEVELS = 0x82DF;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_framebuffer_no_attachments
+#region GL_ARB_framebuffer_no_attachments
 
         //  Methods
 
@@ -12172,9 +12189,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glNamedFramebufferParameteriEXT(uint framebuffer, uint pname, int param);
         private delegate void glGetNamedFramebufferParameterivEXT(uint framebuffer, uint pname, int[] parameters);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_internalformat_query2
+#region GL_ARB_internalformat_query2
 
         /// <summary>
         /// Retrieve information about implementation-dependent support for internal formats
@@ -12312,9 +12329,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_VIEW_CLASS_BPTC_UNORM = 0x82D2;
         public const uint GL_VIEW_CLASS_BPTC_FLOAT = 0x82D3;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_invalidate_subdata
+#region GL_ARB_invalidate_subdata
 
         /// <summary>
         /// Invalidate a region of a texture image
@@ -12400,9 +12417,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glInvalidateSubFramebuffer(uint target, uint numAttachments, uint[] attachments,
             int x, int y, uint width, uint height);
 
-        #endregion
+#endregion
 
-        #region ARB_multi_draw_indirect
+#region ARB_multi_draw_indirect
 
         /// <summary>
         /// Render multiple sets of primitives from array data, taking parameters from memory
@@ -12432,9 +12449,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glMultiDrawArraysIndirect(uint mode, IntPtr indirect, uint primcount, uint stride);
         private delegate void glMultiDrawElementsIndirect(uint mode, uint type, IntPtr indirect, uint primcount, uint stride);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_program_interface_query
+#region GL_ARB_program_interface_query
 
         /// <summary>
         /// Query a property of an interface in a program
@@ -12527,9 +12544,9 @@ namespace theori.Graphics.OpenGL
         private delegate int glGetProgramResourceLocation(uint program, uint programInterface, string name);
         private delegate int glGetProgramResourceLocationIndex(uint program, uint programInterface, string name);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_shader_storage_buffer_object
+#region GL_ARB_shader_storage_buffer_object
 
         /// <summary>
         /// Change an active shader storage block binding.
@@ -12562,16 +12579,16 @@ namespace theori.Graphics.OpenGL
         public const uint GL_SHADER_STORAGE_BARRIER_BIT = 0x2000;
         public const uint GL_MAX_COMBINED_SHADER_OUTPUT_RESOURCES = 0x8F39;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_stencil_texturing
+#region GL_ARB_stencil_texturing
 
         //  Constants
         public const uint GL_DEPTH_STENCIL_TEXTURE_MODE = 0x90EA;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_buffer_range
+#region GL_ARB_texture_buffer_range
 
         /// <summary>
         /// Bind a range of a buffer's data store to a buffer texture
@@ -12603,9 +12620,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glTexBufferRange(uint target, uint internalformat, uint buffer, IntPtr offset, IntPtr size);
         private delegate void glTextureBufferRangeEXT(uint texture, uint target, uint internalformat, uint buffer, IntPtr offset, IntPtr size);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_storage_multisample
+#region GL_ARB_texture_storage_multisample
 
         /// <summary>
         /// Specify storage for a two-dimensional multisample texture.
@@ -12673,9 +12690,9 @@ namespace theori.Graphics.OpenGL
         private delegate void glTexStorage2DMultisampleEXT(uint texture, uint target, uint samples, uint internalformat, uint width, uint height, bool fixedsamplelocations);
         private delegate void glTexStorage3DMultisampleEXT(uint texture, uint target, uint samples, uint internalformat, uint width, uint height, uint depth, bool fixedsamplelocations);
 
-        #endregion
+#endregion
 
-        #region GL_ARB_texture_view
+#region GL_ARB_texture_view
 
         /// <summary>
         /// Initialize a texture as a data alias of another texture's data store.
@@ -12702,9 +12719,9 @@ namespace theori.Graphics.OpenGL
         public const uint GL_TEXTURE_VIEW_MIN_LAYER = 0x82DD;
         public const uint GL_TEXTURE_VIEW_NUM_LAYERS = 0x82DE;
 
-        #endregion
+#endregion
 
-        #region GL_ARB_vertex_attrib_binding
+#region GL_ARB_vertex_attrib_binding
 
         /// <summary>
         /// Bind a buffer to a vertex buffer bind point.
@@ -12880,8 +12897,8 @@ namespace theori.Graphics.OpenGL
         public const uint GL_MAX_VERTEX_ATTRIB_RELATIVE_OFFSET = 0x82D9;
         public const uint GL_MAX_VERTEX_ATTRIB_BINDINGS = 0x82DA;
 
-        #endregion
+#endregion
 
-        #endregion
+#endregion
     }
 }

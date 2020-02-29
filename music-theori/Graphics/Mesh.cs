@@ -68,10 +68,20 @@ namespace theori.Graphics
             vertexBuffer.SetData(vertices, Usage.DynamicDraw);
             SetupVertexAttribs(desc);
         }
-        
+
+        private float[] m_tempVertexBuffer = new float[1024];
+
         public virtual unsafe void SetVertices<T>(T[] vertices)
             where T : struct
         {
+            SetVertices(vertices, 0, vertices.Length);
+        }
+
+        public virtual unsafe void SetVertices<T>(T[] vertices, int offset, int count)
+            where T : struct
+        {
+            using var _ = Profiler.Scope("Set Vertices");
+
             var attrib = typeof(T).GetCustomAttribute<VertexTypeAttribute>(false);
             if (attrib is null)
                 throw new ArgumentException($"{ typeof(T).Name } is not a valid vertex type.");
@@ -79,11 +89,20 @@ namespace theori.Graphics
 
             int structSize = Marshal.SizeOf<T>();
             int bufSize = vertices.Length * structSize;
-            var ptr = Marshal.AllocHGlobal(bufSize);
-            for (int i = 0; i < vertices.Length; i++)
-                Marshal.StructureToPtr(vertices[i], ptr + i * structSize, true);
-            vertexBuffer.SetData(bufSize, ptr, Usage.DynamicDraw);
-            Marshal.FreeHGlobal(ptr);
+
+            if (m_tempVertexBuffer.Length < bufSize)
+                m_tempVertexBuffer = new float[bufSize];
+
+            fixed (void* bufferPtr = m_tempVertexBuffer)
+            {
+                for (int i = offset; i < count; i++)
+                {
+                    var iptr = new IntPtr(bufferPtr) + (i - offset) * structSize;
+                    Marshal.StructureToPtr(vertices[i], iptr, false);
+                }
+                //vertexBuffer.SetData(bufSize, new IntPtr(bufferPtr), Usage.DynamicDraw, DataType.Float);
+            }
+            vertexBuffer.SetData(m_tempVertexBuffer, 0, count * structSize, Usage.DynamicDraw);
 
             SetupVertexAttribs(desc);
         }
@@ -128,12 +147,15 @@ namespace theori.Graphics
             }
         }
 
-        public virtual void SetIndices(params ushort[] indices)
+        public virtual void SetIndices(ushort[] indices) => SetIndices(indices, 0, indices.Length);
+        public virtual void SetIndices(ushort[] indices, int offset, int count)
         {
+            using var _ = Profiler.Scope("Set Indices");
+
             indexCount = indices.Length;
 
             vao.Bind();
-            indexBuffer.SetData(indices, Usage.DynamicDraw);
+            indexBuffer.SetData(indices, offset, count, Usage.DynamicDraw);
             IndexType = DataType.UnsignedShort;
         }
 

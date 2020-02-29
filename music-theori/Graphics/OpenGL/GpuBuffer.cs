@@ -61,27 +61,63 @@ namespace theori.Graphics.OpenGL
         }
 
         public void Bind() => GL.BindBuffer((uint)Target, Handle);
-        
+
         public void SetData(int size, IntPtr data, Usage usage)
         {
+            using var _ = Profiler.Scope("Set Data IntPtr");
+
             GL.BindBuffer((uint)Target, Handle);
             GL.BufferData((uint)Target, size, data, (uint)usage);
 
             Type = DataType.UnsignedByte;
         }
 
+        public void SetData(int size, IntPtr data, Usage usage, DataType type)
+        {
+            using var _ = Profiler.Scope("Set Data IntPtr + Type");
+
+            GL.BindBuffer((uint)Target, Handle);
+            GL.BufferData((uint)Target, size, data, (uint)usage);
+
+            Type = type;
+        }
+
         public void SetData(float[] data, Usage usage)
         {
+            using var _ = Profiler.Scope("Set Data Float");
+
             GL.BindBuffer((uint)Target, Handle);
             GL.BufferData((uint)Target, data, (uint)usage);
 
             Type = DataType.Float;
         }
 
+        public void SetData(float[] data, int offset, int count, Usage usage)
+        {
+            using var _ = Profiler.Scope("Set Data Float Range");
+
+            GL.BindBuffer((uint)Target, Handle);
+            GL.BufferData((uint)Target, offset, count, data, (uint)usage);
+
+            Type = DataType.Float;
+        }
+
         public void SetData(ushort[] data, Usage usage)
         {
+            using var _ = Profiler.Scope("Set Data UShort");
+
             GL.BindBuffer((uint)Target, Handle);
             GL.BufferData((uint)Target, data, (uint)usage);
+
+            Type = DataType.UnsignedShort;
+        }
+
+        public void SetData(ushort[] data, int offset, int count, Usage usage)
+        {
+            using var _ = Profiler.Scope("Set Data UShort Range");
+
+            GL.BindBuffer((uint)Target, Handle);
+            GL.BufferData((uint)Target, offset, count, data, (uint)usage);
 
             Type = DataType.UnsignedShort;
         }

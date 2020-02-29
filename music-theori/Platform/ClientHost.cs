@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime;
 using System.Threading;
 
@@ -33,6 +34,19 @@ namespace theori.Platform
 
         public bool IsFirstLaunch { get; set; } = false;
 
+        private readonly float[] m_samples = new float[60];
+        private int m_sampleIndex = 0;
+
+        public int TempFps
+        {
+            get
+            {
+                float sum = m_samples.Sum();
+                if (sum == 0) return 0;
+                return (int)(m_samples.Length / sum);
+            }
+        }
+
         protected ClientHost()
         {
         }
@@ -56,7 +70,7 @@ namespace theori.Platform
 
             UserInputService.RawKeyPressed += (keyInfo) =>
             {
-                if (keyInfo.KeyCode == KeyCode.F12)
+                if (keyInfo.KeyCode == KeyCode.F11)
                     m_updateQueue.Enqueue(() =>
                     {
                         Profiler.IsEnabled = true;
@@ -123,6 +137,9 @@ namespace theori.Platform
 
                     long elapsedTimeMillis = currentTimeMillis - lastFrameStart;
                     Time.Delta = elapsedTimeMillis / 1_000.0f;
+
+                    m_samples[m_sampleIndex] = Time.Delta;
+                    m_sampleIndex = (m_sampleIndex + 1) % m_samples.Length;
 
                     accumulatedTimeMillis += elapsedTimeMillis;
 
@@ -222,7 +239,7 @@ namespace theori.Platform
                     }
 
                     if (elapsedTimeMillis < targetFrameTimeMillis)
-                        Thread.Sleep(0);
+                        Thread.Sleep(1);
                 }
             }
             finally

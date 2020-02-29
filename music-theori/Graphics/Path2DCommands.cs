@@ -75,7 +75,8 @@ namespace theori.Graphics
 
     public struct Path2D
     {
-        public const float TesselationTolerance = 0.25f;
+        //public const float TesselationTolerance = 0.25f;
+        public const float TesselationTolerance = 5;
 
         public ScreenSpacePointData[] Points;
         public AngularDirection Winding;
