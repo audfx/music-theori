@@ -137,6 +137,8 @@ namespace theori
         public readonly ScriptEvent evtControllerAxisChanged;
         public readonly ScriptEvent evtControllerAxisTicked;
 
+        internal object[] m_arbitraryData = new object[0];
+
         #endregion
 
         protected ClientResourceManager StaticResources => theori.Host.StaticResources;
@@ -383,7 +385,7 @@ namespace theori
             tblTheoriInput["saveController"] = (Action<Controller>)(con => con.SaveToFile());
 
             tblTheoriLayer["construct"] = (Action)(() => { });
-            tblTheoriLayer["push"] = DynValue.NewCallback((context, args) =>
+            tblTheoriLayer["push"] = NewCallback((context, args) =>
             {
                 if (args.Count == 0) return Nil;
 
@@ -393,7 +395,16 @@ namespace theori
                 Push(CreateNewLuaLayer(layerPath, rest));
                 return Nil;
             });
-            tblTheoriLayer["pop"] = (Action)(() => Pop());
+            //tblTheoriLayer["pop"] = (Action)(() => Pop());
+            tblTheoriLayer["pop"] = NewCallback((context, args) =>
+            {
+                Pop();
+                return Nil;
+            });
+            tblTheoriLayer["setData"] = NewCallback((context, args) =>
+            {
+                return Nil;
+            });
             tblTheoriLayer["setInvalidForResume"] = (Action)(() => SetInvalidForResume());
             tblTheoriLayer["doAsyncLoad"] = (Func<bool>)(() => true);
             tblTheoriLayer["doAsyncFinalize"] = (Func<bool>)(() => true);
