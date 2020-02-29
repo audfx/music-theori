@@ -381,7 +381,7 @@ namespace theori.Graphics
 
         public void SetFillTexture(Texture texture, Vector4 tint)
         {
-            SetFillColor(tint); return;
+            //SetFillColor(tint); return;
 
             if (m_texture != null && texture != m_texture)
                 Flush();
@@ -487,25 +487,12 @@ namespace theori.Graphics
 
         public void FillRectangle(float x, float y, float w, float h)
         {
-#if false
-            var cmds = new Path2DCommands();
-            cmds.MoveTo(x, y);
-            cmds.LineTo(x + w, y);
-            cmds.LineTo(x + w, y + h);
-            cmds.LineTo(x, y + h);
-            cmds.Close();
-
-            var paths = cmds.Flatten();
-            paths.SetTextureCoordsToGroupLocal();
-            Fill(paths);
-#else
             AddQuad(
                 new VertexRB2D(m_fillKind, Vector2.Transform(new Vector2(x, y), m_transform.Matrix), new Vector2(0, 0), m_vertexColor),
                 new VertexRB2D(m_fillKind, Vector2.Transform(new Vector2(x + w, y), m_transform.Matrix), new Vector2(1, 0), m_vertexColor),
                 new VertexRB2D(m_fillKind, Vector2.Transform(new Vector2(x + w, y + h), m_transform.Matrix), new Vector2(1, 1), m_vertexColor),
                 new VertexRB2D(m_fillKind, Vector2.Transform(new Vector2(x, y + h), m_transform.Matrix), new Vector2(0, 1), m_vertexColor)
             );
-#endif
         }
 
         public void FillRoundedRectangle(float x, float y, float w, float h, float r)
