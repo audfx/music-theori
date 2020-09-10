@@ -310,17 +310,17 @@ namespace theori.Graphics
 
             using var _ = Profiler.Scope(nameof(Flush));
 
-#if false
+//#if false
             var indices = new ushort[m_indexCount];
             var vertices = new VertexRB2D[m_vertexCount];
 
             Array.Copy(m_indices, 0, indices, 0, m_indexCount);
             Array.Copy(m_vertices, 0, vertices, 0, m_vertexCount);
-#endif
+//#endif
 
-            m_mesh.SetIndices(m_indices, 0, m_indexCount);
+            m_mesh.SetIndices(indices);
             Profiler.Instant("Finished allocating memory for index data");
-            m_mesh.SetVertices(m_vertices, 0, m_vertexCount);
+            m_mesh.SetVertices(vertices);
             Profiler.Instant("Finished allocating memory for vertex data");
 
             m_params["Texture"] = 0;
