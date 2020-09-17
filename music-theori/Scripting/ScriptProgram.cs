@@ -99,6 +99,7 @@ namespace theori.Scripting
 
             this["Anchor"] = typeof(Anchor);
             this["ScoreRank"] = typeof(ScoreRank);
+            this["Axis"] = typeof(Axis);
 
             static Vector2 NewVec2(float x, float y) => new Vector2(x, y);
             this["vec2"] = (Func<float, float, Vector2>)NewVec2;
